@@ -290,42 +290,79 @@ export function CampaignForm() {
 
 function PhoneMockup({ type }: { type: "booster" | "recommendation" | "spotlight" | "brand" }) {
   return (
-    <div className="w-24 h-44 rounded-xl border-2 border-yellow-400 bg-accent/30 p-1.5 relative overflow-hidden">
-      <div className="flex justify-between items-center mb-1">
-        <div className="w-6 h-0.5 rounded bg-muted-foreground/30" />
-        <div className="w-3 h-0.5 rounded bg-muted-foreground/30" />
+    <div className="w-32 h-56 rounded-2xl border-[3px] border-yellow-400 bg-white p-2 relative overflow-hidden shadow-sm">
+      {/* Status bar */}
+      <div className="flex justify-between items-center mb-1 px-0.5">
+        <div className="text-[5px] text-gray-400 font-medium">9:41</div>
+        <div className="flex gap-0.5">
+          <div className="w-2 h-1 rounded-sm bg-gray-300" />
+          <div className="w-1 h-1 rounded-sm bg-gray-300" />
+        </div>
       </div>
-      <div className="h-3 rounded-sm bg-primary/10 border border-primary/20 mb-2" />
+      {/* Search bar */}
+      <div className="h-4 rounded-md bg-gray-100 border border-gray-200 mb-2 flex items-center px-1.5 gap-1">
+        <div className="w-2 h-2 rounded-full border border-gray-300" />
+        <div className="w-12 h-1 rounded bg-gray-200" />
+      </div>
+
       {type === "booster" && (
         <div className="space-y-1.5">
-          <div className="flex gap-1">
-            <div className="w-8 h-10 rounded bg-primary/10 border border-primary/20" />
-            <div className="w-8 h-10 rounded bg-orange-100 border border-orange-200" />
+          {/* Product card - highlighted */}
+          <div className="rounded-md border-2 border-primary/40 bg-primary/5 p-1.5">
+            <div className="flex gap-1.5">
+              <div className="w-10 h-12 rounded bg-amber-50 border border-amber-200 flex items-center justify-center">
+                <div className="w-6 h-7 rounded bg-amber-100" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <div className="w-full h-1 rounded bg-gray-200" />
+                <div className="w-3/4 h-1 rounded bg-gray-200" />
+                <div className="w-8 h-1.5 rounded bg-primary/30 mt-1" />
+                <div className="flex items-center gap-1 mt-1">
+                  <div className="text-[5px] font-bold text-primary">₹40</div>
+                  <div className="w-8 h-3 rounded bg-primary flex items-center justify-center">
+                    <span className="text-[4px] text-white font-medium">ADD</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-1">
-            <div className="w-8 h-10 rounded bg-primary/10 border border-primary/20" />
-            <div className="w-8 h-10 rounded bg-primary/10 border border-primary/20" />
-          </div>
-          <div className="h-5 rounded bg-primary/20 flex items-center justify-center">
-            <span className="text-[5px] text-primary font-medium">Ad</span>
+          {/* Ad highlight area */}
+          <div className="rounded-md bg-primary/10 border border-primary/20 h-12 flex items-center justify-center">
+            <span className="text-[6px] text-primary/60 font-medium">Ad Placement</span>
           </div>
         </div>
       )}
+
       {type === "recommendation" && (
         <div className="space-y-1.5">
-          <div className="h-4 rounded bg-muted border border-border" />
+          {/* Section header */}
+          <div className="text-[5px] font-semibold text-gray-600">Recommended for you</div>
+          {/* Product row */}
           <div className="flex gap-1">
-            <div className="w-7 h-9 rounded bg-primary/10 border border-primary/20" />
-            <div className="w-7 h-9 rounded bg-primary/10 border border-primary/20" />
-            <div className="w-7 h-9 rounded bg-orange-100 border border-orange-200" />
+            <div className="w-9 h-11 rounded bg-amber-50 border border-amber-200 flex items-center justify-center">
+              <div className="w-5 h-6 rounded bg-amber-100" />
+            </div>
+            <div className="w-9 h-11 rounded bg-gray-50 border border-gray-200 flex items-center justify-center">
+              <div className="w-5 h-6 rounded bg-gray-100" />
+            </div>
+            <div className="w-9 h-11 rounded bg-gray-50 border border-gray-200 flex items-center justify-center">
+              <div className="w-5 h-6 rounded bg-gray-100" />
+            </div>
           </div>
-          <div className="h-3 rounded bg-muted border border-border" />
-          <div className="flex gap-1">
-            <div className="w-7 h-9 rounded bg-primary/10 border border-primary/20" />
-            <div className="w-7 h-9 rounded bg-primary/10 border border-primary/20" />
+          {/* Price + ADD row */}
+          <div className="flex items-center gap-1">
+            <div className="text-[5px] font-bold text-primary">₹40</div>
+            <div className="w-8 h-3 rounded bg-primary flex items-center justify-center">
+              <span className="text-[4px] text-white font-medium">ADD</span>
+            </div>
+          </div>
+          {/* Ad highlight area */}
+          <div className="rounded-md bg-primary/10 border border-primary/20 h-10 flex items-center justify-center">
+            <span className="text-[6px] text-primary/60 font-medium">Ad Placement</span>
           </div>
         </div>
       )}
+
       {type === "spotlight" && (
         <div className="space-y-1.5">
           <div className="h-14 rounded bg-orange-100 border border-orange-200 flex items-center justify-center">
@@ -338,14 +375,15 @@ function PhoneMockup({ type }: { type: "booster" | "recommendation" | "spotlight
           <div className="h-4 rounded bg-primary/10 border border-primary/20" />
         </div>
       )}
+
       {type === "brand" && (
         <div className="space-y-1.5">
-          <div className="h-4 rounded bg-muted border border-border" />
+          <div className="h-4 rounded bg-gray-100 border border-gray-200" />
           <div className="flex gap-1">
             <div className="w-7 h-8 rounded bg-primary/10 border border-primary/20" />
             <div className="w-7 h-8 rounded bg-primary/10 border border-primary/20" />
           </div>
-          <div className="h-3 rounded bg-muted border border-border text-[4px] text-muted-foreground flex items-center px-1">Shop by brands</div>
+          <div className="h-3 rounded bg-gray-100 border border-gray-200 text-[4px] text-gray-400 flex items-center px-1">Shop by brands</div>
           <div className="flex gap-1">
             <div className="w-4 h-4 rounded-full bg-destructive/30" />
             <div className="w-4 h-4 rounded-full bg-primary/30" />
