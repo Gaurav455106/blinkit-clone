@@ -288,18 +288,15 @@ export function CampaignForm() {
   );
 }
 
-function PhoneMockup({ type }: { type: "booster" | "recommendation" }) {
+function PhoneMockup({ type }: { type: "booster" | "recommendation" | "spotlight" | "brand" }) {
   return (
     <div className="w-24 h-44 rounded-xl border-2 border-yellow-400 bg-accent/30 p-1.5 relative overflow-hidden">
-      {/* Status bar */}
       <div className="flex justify-between items-center mb-1">
         <div className="w-6 h-0.5 rounded bg-muted-foreground/30" />
         <div className="w-3 h-0.5 rounded bg-muted-foreground/30" />
       </div>
-      {/* Search bar */}
       <div className="h-3 rounded-sm bg-primary/10 border border-primary/20 mb-2" />
-      {/* Content */}
-      {type === "booster" ? (
+      {type === "booster" && (
         <div className="space-y-1.5">
           <div className="flex gap-1">
             <div className="w-8 h-10 rounded bg-primary/10 border border-primary/20" />
@@ -313,7 +310,8 @@ function PhoneMockup({ type }: { type: "booster" | "recommendation" }) {
             <span className="text-[5px] text-primary font-medium">Ad</span>
           </div>
         </div>
-      ) : (
+      )}
+      {type === "recommendation" && (
         <div className="space-y-1.5">
           <div className="h-4 rounded bg-muted border border-border" />
           <div className="flex gap-1">
@@ -326,6 +324,35 @@ function PhoneMockup({ type }: { type: "booster" | "recommendation" }) {
             <div className="w-7 h-9 rounded bg-primary/10 border border-primary/20" />
             <div className="w-7 h-9 rounded bg-primary/10 border border-primary/20" />
           </div>
+        </div>
+      )}
+      {type === "spotlight" && (
+        <div className="space-y-1.5">
+          <div className="h-14 rounded bg-orange-100 border border-orange-200 flex items-center justify-center">
+            <div className="w-8 h-8 rounded bg-orange-200" />
+          </div>
+          <div className="flex gap-1">
+            <div className="w-8 h-8 rounded bg-primary/10 border border-primary/20" />
+            <div className="w-8 h-8 rounded bg-primary/10 border border-primary/20" />
+          </div>
+          <div className="h-4 rounded bg-primary/10 border border-primary/20" />
+        </div>
+      )}
+      {type === "brand" && (
+        <div className="space-y-1.5">
+          <div className="h-4 rounded bg-muted border border-border" />
+          <div className="flex gap-1">
+            <div className="w-7 h-8 rounded bg-primary/10 border border-primary/20" />
+            <div className="w-7 h-8 rounded bg-primary/10 border border-primary/20" />
+          </div>
+          <div className="h-3 rounded bg-muted border border-border text-[4px] text-muted-foreground flex items-center px-1">Shop by brands</div>
+          <div className="flex gap-1">
+            <div className="w-4 h-4 rounded-full bg-destructive/30" />
+            <div className="w-4 h-4 rounded-full bg-primary/30" />
+            <div className="w-4 h-4 rounded-full bg-yellow-300/50" />
+            <div className="w-4 h-4 rounded-full bg-orange-300/50" />
+          </div>
+          <div className="h-6 rounded bg-primary/10 border border-primary/20" />
         </div>
       )}
     </div>
