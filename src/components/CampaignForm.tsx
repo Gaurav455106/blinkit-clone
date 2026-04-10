@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, ChevronLeft, TrendingUp, Users, Smartphone } from "lucide-react";
 
-type AdAsset = "product_booster" | "recommendation_ads" | null;
+type AdAsset = "product_booster" | "recommendation_ads" | "listing_spotlight" | "brand_booster" | null;
 
 export function CampaignForm() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -186,8 +186,54 @@ export function CampaignForm() {
                   These are recommended ad assets based on your advertising objective
                 </p>
                 <div className="flex gap-4 mt-3">
-                  <Card className="w-56 p-4 border-border opacity-60">
-                    <p className="text-sm text-muted-foreground text-center py-8">Reach ad formats coming soon</p>
+                  {/* Listing Spotlight */}
+                  <Card
+                    onClick={() => setAdAsset("listing_spotlight")}
+                    className={`w-56 p-4 cursor-pointer transition-all border hover:shadow-md ${
+                      adAsset === "listing_spotlight" ? "border-primary" : "border-border"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 mb-3">
+                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                        adAsset === "listing_spotlight" ? "border-primary" : "border-muted-foreground"
+                      }`}>
+                        {adAsset === "listing_spotlight" && <div className="h-2 w-2 rounded-full bg-primary" />}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground">Listing Spotlight</h3>
+                        <p className="text-[11px] text-muted-foreground leading-tight">
+                          Enhance brand visibility and acquire new customers
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <PhoneMockup type="spotlight" />
+                    </div>
+                  </Card>
+
+                  {/* Brand Booster */}
+                  <Card
+                    onClick={() => setAdAsset("brand_booster")}
+                    className={`w-56 p-4 cursor-pointer transition-all border hover:shadow-md ${
+                      adAsset === "brand_booster" ? "border-primary" : "border-border"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 mb-3">
+                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                        adAsset === "brand_booster" ? "border-primary" : "border-muted-foreground"
+                      }`}>
+                        {adAsset === "brand_booster" && <div className="h-2 w-2 rounded-full bg-primary" />}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground">Brand Booster</h3>
+                        <p className="text-[11px] text-muted-foreground leading-tight">
+                          Enhance your brand's visibility on search and category listings
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <PhoneMockup type="brand" />
+                    </div>
                   </Card>
                 </div>
               </div>
