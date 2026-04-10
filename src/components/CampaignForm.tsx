@@ -306,59 +306,76 @@ function PhoneMockup({ type }: { type: "booster" | "recommendation" | "spotlight
       </div>
 
       {type === "booster" && (
-        <div className="space-y-1.5">
-          {/* Product card - highlighted */}
-          <div className="rounded-md border-2 border-primary/40 bg-primary/5 p-1.5">
-            <div className="flex gap-1.5">
-              <div className="w-10 h-12 rounded bg-amber-50 border border-amber-200 flex items-center justify-center">
-                <div className="w-6 h-7 rounded bg-amber-100" />
+        <div className="space-y-1">
+          {/* Sponsored product listing - like Amazon SP ad */}
+          <div className="rounded-md border-2 border-primary/40 bg-primary/5 p-1">
+            <div className="flex gap-1">
+              <div className="w-8 h-10 rounded bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                <div className="w-5 h-6 rounded bg-amber-100" />
               </div>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-0.5">
                 <div className="w-full h-1 rounded bg-gray-200" />
                 <div className="w-3/4 h-1 rounded bg-gray-200" />
-                <div className="w-8 h-1.5 rounded bg-primary/30 mt-1" />
-                <div className="flex items-center gap-1 mt-1">
-                  <div className="text-[5px] font-bold text-primary">₹40</div>
-                  <div className="w-8 h-3 rounded bg-primary flex items-center justify-center">
-                    <span className="text-[4px] text-white font-medium">ADD</span>
-                  </div>
+                <div className="text-[4px] text-gray-400">₹600</div>
+                <div className="text-[5px] font-bold text-primary">₹1,699</div>
+                <div className="flex items-center gap-0.5">
+                  <div className="px-1 py-0.5 rounded bg-primary/20 text-[4px] text-primary">Ad</div>
                 </div>
               </div>
             </div>
+            <div className="flex items-center justify-between mt-1">
+              <div className="text-[5px] font-bold text-primary">₹40</div>
+              <div className="w-8 h-3 rounded bg-primary flex items-center justify-center">
+                <span className="text-[4px] text-white font-medium">ADD</span>
+              </div>
+            </div>
           </div>
-          {/* Ad highlight area */}
-          <div className="rounded-md bg-primary/10 border border-primary/20 h-12 flex items-center justify-center">
-            <span className="text-[6px] text-primary/60 font-medium">Ad Placement</span>
+          {/* Regular product tiles grid below */}
+          <div className="grid grid-cols-2 gap-1">
+            <div className="h-8 rounded bg-gray-50 border border-gray-200" />
+            <div className="h-8 rounded bg-gray-50 border border-gray-200" />
+            <div className="h-8 rounded bg-gray-50 border border-gray-200" />
+            <div className="h-8 rounded bg-gray-50 border border-gray-200" />
           </div>
         </div>
       )}
 
       {type === "recommendation" && (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {/* Section header */}
-          <div className="text-[5px] font-semibold text-gray-600">Recommended for you</div>
-          {/* Product row */}
-          <div className="flex gap-1">
-            <div className="w-9 h-11 rounded bg-amber-50 border border-amber-200 flex items-center justify-center">
-              <div className="w-5 h-6 rounded bg-amber-100" />
-            </div>
-            <div className="w-9 h-11 rounded bg-gray-50 border border-gray-200 flex items-center justify-center">
-              <div className="w-5 h-6 rounded bg-gray-100" />
-            </div>
-            <div className="w-9 h-11 rounded bg-gray-50 border border-gray-200 flex items-center justify-center">
-              <div className="w-5 h-6 rounded bg-gray-100" />
+          <div className="flex items-center justify-between">
+            <div className="text-[5px] font-semibold text-gray-600">Recommended for you</div>
+            <div className="text-[4px] text-primary">see all</div>
+          </div>
+          {/* Horizontal product cards - first one is sponsored/highlighted */}
+          <div className="rounded-md border-2 border-primary/40 bg-primary/5 p-1">
+            <div className="flex gap-1">
+              <div className="w-8 h-10 rounded bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                <div className="w-5 h-6 rounded bg-amber-100" />
+              </div>
+              <div className="flex-1">
+                <div className="w-full h-1 rounded bg-gray-200 mb-0.5" />
+                <div className="w-3/4 h-1 rounded bg-gray-200 mb-0.5" />
+                <div className="text-[4px] text-gray-400">₹600</div>
+              </div>
+              <div className="w-8 h-10 rounded bg-gray-50 border border-gray-200 shrink-0" />
+              <div className="w-8 h-10 rounded bg-gray-50 border border-gray-200 shrink-0" />
             </div>
           </div>
-          {/* Price + ADD row */}
-          <div className="flex items-center gap-1">
+          {/* Price + ADD */}
+          <div className="flex items-center justify-between">
             <div className="text-[5px] font-bold text-primary">₹40</div>
             <div className="w-8 h-3 rounded bg-primary flex items-center justify-center">
               <span className="text-[4px] text-white font-medium">ADD</span>
             </div>
           </div>
-          {/* Ad highlight area */}
-          <div className="rounded-md bg-primary/10 border border-primary/20 h-10 flex items-center justify-center">
-            <span className="text-[6px] text-primary/60 font-medium">Ad Placement</span>
+          {/* More rows below */}
+          <div className="space-y-1">
+            <div className="h-3 rounded bg-gray-100 border border-gray-200" />
+            <div className="flex gap-1">
+              <div className="w-9 h-8 rounded bg-gray-50 border border-gray-200" />
+              <div className="w-9 h-8 rounded bg-gray-50 border border-gray-200" />
+            </div>
           </div>
         </div>
       )}
