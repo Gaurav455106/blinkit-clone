@@ -5,10 +5,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Package } from "lucide-react";
 
-export function ProductBoosterProducts() {
+interface ProductBoosterProductsProps {
+  onProductsValid?: (valid: boolean) => void;
+}
+
+export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProductsProps) {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+
+  const handleProductSelect = (value: string) => {
+    if (!selectedProducts.includes(value)) {
+      const updated = [...selectedProducts, value];
+      setSelectedProducts(updated);
+      onProductsValid?.(updated.length > 0);
+    }
+  };
 
   const categories = ["Dog Needs", "Cat Needs", "Fish & Aquatics", "Bird Supplies", "Small Pet Supplies"];
 
@@ -36,9 +49,9 @@ export function ProductBoosterProducts() {
             <p className="text-xs text-muted-foreground">Find and select your products manually</p>
           </div>
           <div className="flex gap-3 items-center">
-            <Select>
+            <Select onValueChange={handleProductSelect}>
               <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select products" />
+                <SelectValue placeholder={selectedProducts.length > 0 ? `${selectedProducts.length} products selected` : "Select products"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="p1">Product 1</SelectItem>

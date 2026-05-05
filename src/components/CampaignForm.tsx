@@ -3,6 +3,7 @@ import { Stepper } from "./Stepper";
 import { CampaignCollection } from "./CampaignCollection";
 import { ProductBoosterSettings } from "./ProductBoosterSettings";
 import { ProductBoosterProducts } from "./ProductBoosterProducts";
+import { ProductBoosterTargeting } from "./ProductBoosterTargeting";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,6 +17,7 @@ export function CampaignForm() {
   const [objective, setObjective] = useState<"performance" | "reach" | null>(null);
   const [adAsset, setAdAsset] = useState<AdAsset>(null);
   const [regionValid, setRegionValid] = useState(false);
+  const [productsValid, setProductsValid] = useState(false);
 
   const handleNext = () => {
     if (currentStep < 4) setCurrentStep(currentStep + 1);
@@ -272,7 +274,7 @@ export function CampaignForm() {
         )}
 
         {currentStep === 2 && adAsset === "product_booster" && (
-          <ProductBoosterProducts />
+          <ProductBoosterProducts onProductsValid={setProductsValid} />
         )}
 
         {currentStep === 2 && adAsset !== "product_booster" && (
@@ -282,7 +284,11 @@ export function CampaignForm() {
           </div>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 3 && adAsset === "product_booster" && (
+          <ProductBoosterTargeting />
+        )}
+
+        {currentStep === 3 && adAsset !== "product_booster" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Targeting Options</h2>
             <p className="text-sm text-muted-foreground mt-2">Set your audience targeting. (Coming soon)</p>
@@ -307,7 +313,7 @@ export function CampaignForm() {
         >
           Previous
         </Button>
-        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset)) || (currentStep === 1 && adAsset === "product_booster" && !regionValid)}>
+        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset)) || (currentStep === 1 && adAsset === "product_booster" && !regionValid) || (currentStep === 2 && adAsset === "product_booster" && !productsValid)}>
           Next
         </Button>
       </div>
