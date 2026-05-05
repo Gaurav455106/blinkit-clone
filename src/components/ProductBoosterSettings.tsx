@@ -49,9 +49,11 @@ export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettings
   };
 
   const toggleCity = (city: string) => {
-    setSelectedCities((prev) =>
-      prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]
-    );
+    setSelectedCities((prev) => {
+      const next = prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city];
+      updateRegionValid(regionType, next);
+      return next;
+    });
   };
 
   const toggleAllCitiesInState = (state: string) => {
