@@ -247,7 +247,11 @@ export function CampaignForm() {
           <CampaignCollection />
         )}
 
-        {currentStep === 1 && adAsset !== "listing_spotlight" && (
+        {currentStep === 1 && adAsset === "product_booster" && (
+          <ProductBoosterSettings />
+        )}
+
+        {currentStep === 1 && adAsset !== "listing_spotlight" && adAsset !== "product_booster" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Ad Settings</h2>
             <p className="text-sm text-muted-foreground mt-2">Configure your ad settings here. (Coming soon)</p>
