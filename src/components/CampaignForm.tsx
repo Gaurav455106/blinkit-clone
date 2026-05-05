@@ -318,9 +318,15 @@ export function CampaignForm() {
         >
           Previous
         </Button>
-        <Button onClick={handleNext} disabled={currentStep === 0 && (!objective || !adAsset || !campaignName.trim()) || (currentStep === 1 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && !regionValid) || (currentStep === 2 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && !productsValid)}>
-          {currentStep === 4 ? "Done" : "Next"}
-        </Button>
+        {!(
+          (currentStep === 0 && (!objective || !adAsset || !campaignName.trim())) ||
+          (currentStep === 1 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && !regionValid) ||
+          (currentStep === 2 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && !productsValid)
+        ) && (
+          <Button onClick={handleNext}>
+            {currentStep === 4 ? "Done" : "Next"}
+          </Button>
+        )}
       </div>
     </div>
   );
