@@ -59,11 +59,11 @@ export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettings
   const toggleAllCitiesInState = (state: string) => {
     const cities = cityData[state];
     const allSelected = cities.every((c) => selectedCities.includes(c));
-    if (allSelected) {
-      setSelectedCities((prev) => prev.filter((c) => !cities.includes(c)));
-    } else {
-      setSelectedCities((prev) => [...new Set([...prev, ...cities])]);
-    }
+    setSelectedCities((prev) => {
+      const next = allSelected ? prev.filter((c) => !cities.includes(c)) : [...new Set([...prev, ...cities])];
+      updateRegionValid(regionType, next);
+      return next;
+    });
   };
 
   const selectAll = () => {
