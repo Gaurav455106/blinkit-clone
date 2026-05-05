@@ -9,6 +9,9 @@ interface SelectedKeyword {
   name: string;
   searches: string;
   bid: string;
+  boostMyBid: boolean;
+  enterAmount: boolean;
+  customAmount: string;
 }
 
 const suggestedKeywords = [
