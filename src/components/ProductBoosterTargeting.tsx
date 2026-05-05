@@ -9,6 +9,9 @@ interface SelectedKeyword {
   name: string;
   searches: string;
   bid: string;
+  boostMyBid: boolean;
+  enterAmount: boolean;
+  customAmount: string;
 }
 
 const suggestedKeywords = [
@@ -74,8 +77,8 @@ export function ProductBoosterTargeting() {
   const [categoryTargeting, setCategoryTargeting] = useState(true);
   const [filters, setFilters] = useState({ branded: true, generic: true, event: true });
   const [selectedKeywords, setSelectedKeywords] = useState<SelectedKeyword[]>([
-    { name: "royal canin mini starter", searches: "923", bid: "600" },
-    { name: "pedigree dog food", searches: "84,062", bid: "2000" },
+    { name: "royal canin mini starter", searches: "923", bid: "600", boostMyBid: false, enterAmount: false, customAmount: "" },
+    { name: "pedigree dog food", searches: "84,062", bid: "2000", boostMyBid: false, enterAmount: false, customAmount: "" },
   ]);
   const [bidTab, setBidTab] = useState<"exact" | "smart">("exact");
   const [manualKeyword, setManualKeyword] = useState("");
@@ -85,7 +88,7 @@ export function ProductBoosterTargeting() {
 
   const addKeyword = (kw: { name: string; searches: string }) => {
     if (!selectedKeywords.find((s) => s.name === kw.name)) {
-      setSelectedKeywords([...selectedKeywords, { ...kw, bid: "1000" }]);
+      setSelectedKeywords([...selectedKeywords, { ...kw, bid: "1000", boostMyBid: false, enterAmount: false, customAmount: "" }]);
     }
   };
 
@@ -98,7 +101,7 @@ export function ProductBoosterTargeting() {
       const keywords = manualKeyword.split(",").map((k) => k.trim()).filter(Boolean);
       const newKws = keywords
         .filter((k) => !selectedKeywords.find((s) => s.name === k))
-        .map((k) => ({ name: k, searches: "0", bid: "1000" }));
+        .map((k) => ({ name: k, searches: "0", bid: "1000", boostMyBid: false, enterAmount: false, customAmount: "" }));
       setSelectedKeywords([...selectedKeywords, ...newKws]);
       setManualKeyword("");
     }
@@ -253,11 +256,35 @@ export function ProductBoosterTargeting() {
                         className="w-24 text-xs"
                       />
                       <label className="flex items-center gap-1 text-[10px] text-primary whitespace-nowrap">
-                        <Checkbox className="h-3 w-3" /> Boost my bid
+                        <Checkbox
+                          className="h-3 w-3"
+                          checked={kw.boostMyBid}
+                          onCheckedChange={(v) =>
+                            setSelectedKeywords(selectedKeywords.map((k) => k.name === kw.name ? { ...k, boostMyBid: !!v } : k))
+                          }
+                        /> Boost my bid
                       </label>
-                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap">
-                        <Checkbox className="h-3 w-3" /> ₹ Enter amount
-                      </label>
+                      <div className="flex items-center gap-1">
+                        <Checkbox
+                          className="h-3 w-3"
+                          checked={kw.enterAmount}
+                          onCheckedChange={(v) =>
+                            setSelectedKeywords(selectedKeywords.map((k) => k.name === kw.name ? { ...k, enterAmount: !!v } : k))
+                          }
+                        />
+                        {kw.enterAmount ? (
+                          <Input
+                            value={kw.customAmount}
+                            onChange={(e) =>
+                              setSelectedKeywords(selectedKeywords.map((k) => k.name === kw.name ? { ...k, customAmount: e.target.value } : k))
+                            }
+                            placeholder="₹ Enter amount"
+                            className="w-24 h-6 text-[10px]"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">₹ Enter amount</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
