@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Stepper } from "./Stepper";
 import { CampaignCollection } from "./CampaignCollection";
+import { ProductBoosterSettings } from "./ProductBoosterSettings";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,7 +30,18 @@ export function CampaignForm() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>Ad Campaign</span>
           <ChevronRight className="h-3 w-3" />
-          <span className="text-primary font-medium">Create new</span>
+          <span>Create new</span>
+          {adAsset && (
+            <>
+              <ChevronRight className="h-3 w-3" />
+              <span className="text-primary font-medium">
+                {adAsset === "product_booster" ? "Product Booster" :
+                 adAsset === "recommendation_ads" ? "Recommendation Ads" :
+                 adAsset === "listing_spotlight" ? "Listing Spotlight" :
+                 "Brand Booster"}
+              </span>
+            </>
+          )}
         </div>
         <h1 className="text-xl font-semibold text-foreground mt-2">Create new campaign</h1>
       </div>
@@ -246,7 +258,11 @@ export function CampaignForm() {
           <CampaignCollection />
         )}
 
-        {currentStep === 1 && adAsset !== "listing_spotlight" && (
+        {currentStep === 1 && adAsset === "product_booster" && (
+          <ProductBoosterSettings />
+        )}
+
+        {currentStep === 1 && adAsset !== "listing_spotlight" && adAsset !== "product_booster" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Ad Settings</h2>
             <p className="text-sm text-muted-foreground mt-2">Configure your ad settings here. (Coming soon)</p>
