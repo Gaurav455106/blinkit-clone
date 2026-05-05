@@ -296,7 +296,11 @@ export function CampaignForm() {
           </div>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 4 && adAsset === "product_booster" && (
+          <ProductBoosterBudget />
+        )}
+
+        {currentStep === 4 && adAsset !== "product_booster" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Budget Details</h2>
             <p className="text-sm text-muted-foreground mt-2">Set your campaign budget. (Coming soon)</p>
