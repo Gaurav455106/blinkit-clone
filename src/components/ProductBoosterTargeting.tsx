@@ -256,14 +256,35 @@ export function ProductBoosterTargeting() {
                         className="w-24 text-xs"
                       />
                       <label className="flex items-center gap-1 text-[10px] text-primary whitespace-nowrap">
-                        <Checkbox className="h-3 w-3" /> Boost my bid
+                        <Checkbox
+                          className="h-3 w-3"
+                          checked={kw.boostMyBid}
+                          onCheckedChange={(v) =>
+                            setSelectedKeywords(selectedKeywords.map((k) => k.name === kw.name ? { ...k, boostMyBid: !!v } : k))
+                          }
+                        /> Boost my bid
                       </label>
-                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap">
-                        <Checkbox className="h-3 w-3" /> ₹ Enter amount
-                      </label>
-                    </div>
-                  ))}
-                </div>
+                      <div className="flex items-center gap-1">
+                        <Checkbox
+                          className="h-3 w-3"
+                          checked={kw.enterAmount}
+                          onCheckedChange={(v) =>
+                            setSelectedKeywords(selectedKeywords.map((k) => k.name === kw.name ? { ...k, enterAmount: !!v } : k))
+                          }
+                        />
+                        {kw.enterAmount ? (
+                          <Input
+                            value={kw.customAmount}
+                            onChange={(e) =>
+                              setSelectedKeywords(selectedKeywords.map((k) => k.name === kw.name ? { ...k, customAmount: e.target.value } : k))
+                            }
+                            placeholder="₹ Enter amount"
+                            className="w-24 h-6 text-[10px]"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">₹ Enter amount</span>
+                        )}
+                      </div>
 
                 {selectedKeywords.length > 0 && (
                   <p className="text-[10px] text-muted-foreground text-right">
