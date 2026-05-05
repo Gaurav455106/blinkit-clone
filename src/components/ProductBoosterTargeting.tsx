@@ -285,6 +285,9 @@ export function ProductBoosterTargeting() {
                           <span className="text-[10px] text-muted-foreground whitespace-nowrap">₹ Enter amount</span>
                         )}
                       </div>
+                    </div>
+                  ))}
+                </div>
 
                 {selectedKeywords.length > 0 && (
                   <p className="text-[10px] text-muted-foreground text-right">
