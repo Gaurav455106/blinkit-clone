@@ -263,44 +263,44 @@ export function CampaignForm() {
           <CampaignCollection />
         )}
 
-        {currentStep === 1 && adAsset === "product_booster" && (
+        {currentStep === 1 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && (
           <ProductBoosterSettings onRegionValid={setRegionValid} />
         )}
 
-        {currentStep === 1 && adAsset !== "listing_spotlight" && adAsset !== "product_booster" && (
+        {currentStep === 1 && adAsset !== "listing_spotlight" && adAsset !== "product_booster" && adAsset !== "recommendation_ads" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Ad Settings</h2>
             <p className="text-sm text-muted-foreground mt-2">Configure your ad settings here. (Coming soon)</p>
           </div>
         )}
 
-        {currentStep === 2 && adAsset === "product_booster" && (
+        {currentStep === 2 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && (
           <ProductBoosterProducts onProductsValid={setProductsValid} />
         )}
 
-        {currentStep === 2 && adAsset !== "product_booster" && (
+        {currentStep === 2 && adAsset !== "product_booster" && adAsset !== "recommendation_ads" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Product Details</h2>
             <p className="text-sm text-muted-foreground mt-2">Add products to your campaign. (Coming soon)</p>
           </div>
         )}
 
-        {currentStep === 3 && adAsset === "product_booster" && (
+        {currentStep === 3 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && (
           <ProductBoosterTargeting />
         )}
 
-        {currentStep === 3 && adAsset !== "product_booster" && (
+        {currentStep === 3 && adAsset !== "product_booster" && adAsset !== "recommendation_ads" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Targeting Options</h2>
             <p className="text-sm text-muted-foreground mt-2">Set your audience targeting. (Coming soon)</p>
           </div>
         )}
 
-        {currentStep === 4 && adAsset === "product_booster" && (
+        {currentStep === 4 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && (
           <ProductBoosterBudget />
         )}
 
-        {currentStep === 4 && adAsset !== "product_booster" && (
+        {currentStep === 4 && adAsset !== "product_booster" && adAsset !== "recommendation_ads" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Budget Details</h2>
             <p className="text-sm text-muted-foreground mt-2">Set your campaign budget. (Coming soon)</p>
