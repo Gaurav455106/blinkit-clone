@@ -30,7 +30,18 @@ export function CampaignForm() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>Ad Campaign</span>
           <ChevronRight className="h-3 w-3" />
-          <span className="text-primary font-medium">Create new</span>
+          <span>Create new</span>
+          {adAsset && (
+            <>
+              <ChevronRight className="h-3 w-3" />
+              <span className="text-primary font-medium">
+                {adAsset === "product_booster" ? "Product Booster" :
+                 adAsset === "recommendation_ads" ? "Recommendation Ads" :
+                 adAsset === "listing_spotlight" ? "Listing Spotlight" :
+                 "Brand Booster"}
+              </span>
+            </>
+          )}
         </div>
         <h1 className="text-xl font-semibold text-foreground mt-2">Create new campaign</h1>
       </div>
