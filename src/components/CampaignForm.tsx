@@ -17,6 +17,7 @@ export function CampaignForm() {
   const [objective, setObjective] = useState<"performance" | "reach" | null>(null);
   const [adAsset, setAdAsset] = useState<AdAsset>(null);
   const [regionValid, setRegionValid] = useState(false);
+  const [productsValid, setProductsValid] = useState(false);
 
   const handleNext = () => {
     if (currentStep < 4) setCurrentStep(currentStep + 1);
