@@ -88,7 +88,7 @@ export function ProductBoosterTargeting() {
 
   const addKeyword = (kw: { name: string; searches: string }) => {
     if (!selectedKeywords.find((s) => s.name === kw.name)) {
-      setSelectedKeywords([...selectedKeywords, { ...kw, bid: "1000" }]);
+      setSelectedKeywords([...selectedKeywords, { ...kw, bid: "1000", boostMyBid: false, enterAmount: false, customAmount: "" }]);
     }
   };
 
