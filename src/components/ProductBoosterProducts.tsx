@@ -49,9 +49,9 @@ export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProduc
             <p className="text-xs text-muted-foreground">Find and select your products manually</p>
           </div>
           <div className="flex gap-3 items-center">
-            <Select>
+            <Select onValueChange={handleProductSelect}>
               <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select products" />
+                <SelectValue placeholder={selectedProducts.length > 0 ? `${selectedProducts.length} products selected` : "Select products"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="p1">Product 1</SelectItem>
