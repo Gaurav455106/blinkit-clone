@@ -307,7 +307,7 @@ export function CampaignForm() {
         >
           Previous
         </Button>
-        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset))}>
+        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset)) || (currentStep === 1 && adAsset === "product_booster" && !regionValid)}>
           Next
         </Button>
       </div>
