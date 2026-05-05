@@ -5,7 +5,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Package } from "lucide-react";
 
-export function ProductBoosterProducts() {
+interface ProductBoosterProductsProps {
+  onProductsValid?: (valid: boolean) => void;
+}
+
+export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProductsProps) {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
