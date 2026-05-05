@@ -132,7 +132,7 @@ export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettings
           {/* Pan India */}
           <div
             className="flex items-center gap-3 cursor-pointer"
-            onClick={() => setRegionType("pan_india")}
+            onClick={() => { setRegionType("pan_india"); updateRegionValid("pan_india", selectedCities); }}
           >
             <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
               regionType === "pan_india" ? "border-primary" : "border-muted-foreground"
