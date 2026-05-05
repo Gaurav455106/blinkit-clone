@@ -301,7 +301,7 @@ export function CampaignForm() {
         >
           Previous
         </Button>
-        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!campaignName || !objective))}>
+        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset))}>
           Next
         </Button>
       </div>
