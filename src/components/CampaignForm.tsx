@@ -274,7 +274,7 @@ export function CampaignForm() {
         )}
 
         {currentStep === 2 && adAsset === "product_booster" && (
-          <ProductBoosterProducts />
+          <ProductBoosterProducts onProductsValid={setProductsValid} />
         )}
 
         {currentStep === 2 && adAsset !== "product_booster" && (
@@ -284,7 +284,11 @@ export function CampaignForm() {
           </div>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 3 && adAsset === "product_booster" && (
+          <ProductBoosterTargeting />
+        )}
+
+        {currentStep === 3 && adAsset !== "product_booster" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Targeting Options</h2>
             <p className="text-sm text-muted-foreground mt-2">Set your audience targeting. (Coming soon)</p>
