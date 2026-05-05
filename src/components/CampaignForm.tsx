@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Stepper } from "./Stepper";
 import { CampaignCollection } from "./CampaignCollection";
+import { ProductBoosterSettings } from "./ProductBoosterSettings";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
