@@ -315,7 +315,7 @@ export function CampaignForm() {
       </div>
 
       {/* Footer Buttons */}
-      <div className="flex items-center justify-end gap-3 px-8 py-4 border-t border-border bg-card">
+      <div className="sticky bottom-0 flex items-center justify-end gap-3 px-8 py-4 border-t border-border bg-card z-10">
         <Button
           variant="outline"
           onClick={handlePrev}
