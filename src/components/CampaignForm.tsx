@@ -261,7 +261,7 @@ export function CampaignForm() {
         )}
 
         {currentStep === 1 && adAsset === "product_booster" && (
-          <ProductBoosterSettings />
+          <ProductBoosterSettings onRegionValid={setRegionValid} />
         )}
 
         {currentStep === 1 && adAsset !== "listing_spotlight" && adAsset !== "product_booster" && (
