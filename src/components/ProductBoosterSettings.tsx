@@ -145,7 +145,7 @@ export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettings
           {/* Select Cities */}
           <div
             className="flex items-center gap-3 cursor-pointer"
-            onClick={() => setRegionType("select_cities")}
+            onClick={() => { setRegionType("select_cities"); updateRegionValid("select_cities", selectedCities); }}
           >
             <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
               regionType === "select_cities" ? "border-primary" : "border-muted-foreground"
