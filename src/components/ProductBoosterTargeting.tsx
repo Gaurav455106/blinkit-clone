@@ -77,8 +77,8 @@ export function ProductBoosterTargeting() {
   const [categoryTargeting, setCategoryTargeting] = useState(true);
   const [filters, setFilters] = useState({ branded: true, generic: true, event: true });
   const [selectedKeywords, setSelectedKeywords] = useState<SelectedKeyword[]>([
-    { name: "royal canin mini starter", searches: "923", bid: "600" },
-    { name: "pedigree dog food", searches: "84,062", bid: "2000" },
+    { name: "royal canin mini starter", searches: "923", bid: "600", boostMyBid: false, enterAmount: false, customAmount: "" },
+    { name: "pedigree dog food", searches: "84,062", bid: "2000", boostMyBid: false, enterAmount: false, customAmount: "" },
   ]);
   const [bidTab, setBidTab] = useState<"exact" | "smart">("exact");
   const [manualKeyword, setManualKeyword] = useState("");
