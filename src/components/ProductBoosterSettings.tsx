@@ -68,11 +68,11 @@ export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettings
 
   const selectAll = () => {
     const all = Object.values(cityData).flat();
-    if (selectedCities.length === all.length) {
-      setSelectedCities([]);
-    } else {
-      setSelectedCities(all);
-    }
+    setSelectedCities((prev) => {
+      const next = prev.length === all.length ? [] : all;
+      updateRegionValid(regionType, next);
+      return next;
+    });
   };
 
   const allCities = Object.values(cityData).flat();
