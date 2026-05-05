@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Stepper } from "./Stepper";
 import { CampaignCollection } from "./CampaignCollection";
 import { ProductBoosterSettings } from "./ProductBoosterSettings";
@@ -14,10 +15,10 @@ import { ChevronRight, ChevronLeft, TrendingUp, Users, Smartphone } from "lucide
 type AdAsset = "product_booster" | "recommendation_ads" | "listing_spotlight" | "brand_booster" | null;
 
 export function CampaignForm() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [campaignName, setCampaignName] = useState("");
-  const [objective, setObjective] = useState<"performance" | "reach" | null>(null);
-  const [adAsset, setAdAsset] = useState<AdAsset>(null);
+  const [currentStep, setCurrentStep] = useLocalStorage("campaign_step", 0);
+  const [campaignName, setCampaignName] = useLocalStorage("campaign_name", "");
+  const [objective, setObjective] = useLocalStorage<"performance" | "reach" | null>("campaign_objective", null);
+  const [adAsset, setAdAsset] = useLocalStorage<AdAsset>("campaign_adAsset", null);
   const [regionValid, setRegionValid] = useState(false);
   const [productsValid, setProductsValid] = useState(false);
 
