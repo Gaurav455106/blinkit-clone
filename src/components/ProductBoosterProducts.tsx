@@ -13,6 +13,15 @@ export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProduc
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+
+  const handleProductSelect = (value: string) => {
+    if (!selectedProducts.includes(value)) {
+      const updated = [...selectedProducts, value];
+      setSelectedProducts(updated);
+      onProductsValid?.(updated.length > 0);
+    }
+  };
 
   const categories = ["Dog Needs", "Cat Needs", "Fish & Aquatics", "Bird Supplies", "Small Pet Supplies"];
 
