@@ -24,14 +24,23 @@ const cityData: Record<string, string[]> = {
   "West Bengal": ["Asansol", "Durgapur", "Kolkata", "Siliguri"],
 };
 
-export function ProductBoosterSettings() {
+interface ProductBoosterSettingsProps {
+  onRegionValid?: (valid: boolean) => void;
+}
+
+export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettingsProps) {
   const [startDate, setStartDate] = useState("2026-02-09");
   const [noEndDate, setNoEndDate] = useState(true);
-  const [regionType, setRegionType] = useState<"pan_india" | "select_cities">("select_cities");
+  const [regionType, setRegionType] = useState<"pan_india" | "select_cities" | null>(null);
   const [citySearch, setCitySearch] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [expandedStates, setExpandedStates] = useState<string[]>(["Andhra Pradesh"]);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const updateRegionValid = (type: "pan_india" | "select_cities" | null, cities: string[]) => {
+    const valid = type === "pan_india" || (type === "select_cities" && cities.length > 0);
+    onRegionValid?.(valid);
+  };
 
   const toggleState = (state: string) => {
     setExpandedStates((prev) =>
@@ -40,28 +49,30 @@ export function ProductBoosterSettings() {
   };
 
   const toggleCity = (city: string) => {
-    setSelectedCities((prev) =>
-      prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]
-    );
+    setSelectedCities((prev) => {
+      const next = prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city];
+      updateRegionValid(regionType, next);
+      return next;
+    });
   };
 
   const toggleAllCitiesInState = (state: string) => {
     const cities = cityData[state];
     const allSelected = cities.every((c) => selectedCities.includes(c));
-    if (allSelected) {
-      setSelectedCities((prev) => prev.filter((c) => !cities.includes(c)));
-    } else {
-      setSelectedCities((prev) => [...new Set([...prev, ...cities])]);
-    }
+    setSelectedCities((prev) => {
+      const next = allSelected ? prev.filter((c) => !cities.includes(c)) : [...new Set([...prev, ...cities])];
+      updateRegionValid(regionType, next);
+      return next;
+    });
   };
 
   const selectAll = () => {
     const all = Object.values(cityData).flat();
-    if (selectedCities.length === all.length) {
-      setSelectedCities([]);
-    } else {
-      setSelectedCities(all);
-    }
+    setSelectedCities((prev) => {
+      const next = prev.length === all.length ? [] : all;
+      updateRegionValid(regionType, next);
+      return next;
+    });
   };
 
   const allCities = Object.values(cityData).flat();
@@ -121,7 +132,7 @@ export function ProductBoosterSettings() {
           {/* Pan India */}
           <div
             className="flex items-center gap-3 cursor-pointer"
-            onClick={() => setRegionType("pan_india")}
+            onClick={() => { setRegionType("pan_india"); updateRegionValid("pan_india", selectedCities); }}
           >
             <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
               regionType === "pan_india" ? "border-primary" : "border-muted-foreground"
@@ -134,7 +145,7 @@ export function ProductBoosterSettings() {
           {/* Select Cities */}
           <div
             className="flex items-center gap-3 cursor-pointer"
-            onClick={() => setRegionType("select_cities")}
+            onClick={() => { setRegionType("select_cities"); updateRegionValid("select_cities", selectedCities); }}
           >
             <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
               regionType === "select_cities" ? "border-primary" : "border-muted-foreground"

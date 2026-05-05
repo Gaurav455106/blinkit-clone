@@ -15,6 +15,7 @@ export function CampaignForm() {
   const [campaignName, setCampaignName] = useState("");
   const [objective, setObjective] = useState<"performance" | "reach" | null>(null);
   const [adAsset, setAdAsset] = useState<AdAsset>(null);
+  const [regionValid, setRegionValid] = useState(false);
 
   const handleNext = () => {
     if (currentStep < 4) setCurrentStep(currentStep + 1);
@@ -260,7 +261,7 @@ export function CampaignForm() {
         )}
 
         {currentStep === 1 && adAsset === "product_booster" && (
-          <ProductBoosterSettings />
+          <ProductBoosterSettings onRegionValid={setRegionValid} />
         )}
 
         {currentStep === 1 && adAsset !== "listing_spotlight" && adAsset !== "product_booster" && (
@@ -306,7 +307,7 @@ export function CampaignForm() {
         >
           Previous
         </Button>
-        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset))}>
+        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset)) || (currentStep === 1 && adAsset === "product_booster" && !regionValid)}>
           Next
         </Button>
       </div>
