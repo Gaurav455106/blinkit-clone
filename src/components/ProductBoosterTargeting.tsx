@@ -245,16 +245,19 @@ export function ProductBoosterTargeting() {
                         <div className="text-xs font-medium text-foreground truncate">{kw.name}</div>
                         <div className="text-[10px] text-muted-foreground">({kw.searches} searches)</div>
                       </div>
-                      <Input
-                        value={`₹ ${kw.bid}`}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, "");
-                          setSelectedKeywords(
-                            selectedKeywords.map((k) => (k.name === kw.name ? { ...k, bid: val } : k))
-                          );
-                        }}
-                        className="w-24 text-xs"
-                      />
+                      <div className="relative w-24">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">₹</span>
+                        <Input
+                          value={kw.bid}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "");
+                            setSelectedKeywords(
+                              selectedKeywords.map((k) => (k.name === kw.name ? { ...k, bid: val } : k))
+                            );
+                          }}
+                          className="pl-5 text-xs w-full"
+                        />
+                      </div>
                       <label className="flex items-center gap-1 text-[10px] text-primary whitespace-nowrap">
                         <Checkbox
                           className="h-3 w-3"
