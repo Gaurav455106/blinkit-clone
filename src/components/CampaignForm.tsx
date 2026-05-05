@@ -3,6 +3,7 @@ import { Stepper } from "./Stepper";
 import { CampaignCollection } from "./CampaignCollection";
 import { ProductBoosterSettings } from "./ProductBoosterSettings";
 import { ProductBoosterProducts } from "./ProductBoosterProducts";
+import { ProductBoosterTargeting } from "./ProductBoosterTargeting";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
