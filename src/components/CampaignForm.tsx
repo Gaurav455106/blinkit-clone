@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Stepper } from "./Stepper";
 import { CampaignCollection } from "./CampaignCollection";
 import { ProductBoosterSettings } from "./ProductBoosterSettings";
+import { ProductBoosterProducts } from "./ProductBoosterProducts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -269,7 +270,11 @@ export function CampaignForm() {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 2 && adAsset === "product_booster" && (
+          <ProductBoosterProducts />
+        )}
+
+        {currentStep === 2 && adAsset !== "product_booster" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Product Details</h2>
             <p className="text-sm text-muted-foreground mt-2">Add products to your campaign. (Coming soon)</p>
