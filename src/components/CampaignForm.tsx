@@ -5,6 +5,7 @@ import { ProductBoosterSettings } from "./ProductBoosterSettings";
 import { ProductBoosterProducts } from "./ProductBoosterProducts";
 import { ProductBoosterTargeting } from "./ProductBoosterTargeting";
 import { ProductBoosterBudget } from "./ProductBoosterBudget";
+import { RecommendationTargeting } from "./RecommendationTargeting";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -285,8 +286,12 @@ export function CampaignForm() {
           </div>
         )}
 
-        {currentStep === 3 && (adAsset === "product_booster" || adAsset === "recommendation_ads") && (
+        {currentStep === 3 && adAsset === "product_booster" && (
           <ProductBoosterTargeting />
+        )}
+
+        {currentStep === 3 && adAsset === "recommendation_ads" && (
+          <RecommendationTargeting />
         )}
 
         {currentStep === 3 && adAsset !== "product_booster" && adAsset !== "recommendation_ads" && (
