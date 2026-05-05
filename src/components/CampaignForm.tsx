@@ -4,6 +4,7 @@ import { CampaignCollection } from "./CampaignCollection";
 import { ProductBoosterSettings } from "./ProductBoosterSettings";
 import { ProductBoosterProducts } from "./ProductBoosterProducts";
 import { ProductBoosterTargeting } from "./ProductBoosterTargeting";
+import { ProductBoosterBudget } from "./ProductBoosterBudget";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -295,7 +296,11 @@ export function CampaignForm() {
           </div>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 4 && adAsset === "product_booster" && (
+          <ProductBoosterBudget />
+        )}
+
+        {currentStep === 4 && adAsset !== "product_booster" && (
           <div className="max-w-2xl">
             <h2 className="text-lg font-medium text-foreground">Budget Details</h2>
             <p className="text-sm text-muted-foreground mt-2">Set your campaign budget. (Coming soon)</p>
@@ -313,8 +318,8 @@ export function CampaignForm() {
         >
           Previous
         </Button>
-        <Button onClick={handleNext} disabled={currentStep === 4 || (currentStep === 0 && (!objective || !adAsset || !campaignName.trim())) || (currentStep === 1 && adAsset === "product_booster" && !regionValid) || (currentStep === 2 && adAsset === "product_booster" && !productsValid)}>
-          Next
+        <Button onClick={handleNext} disabled={currentStep === 0 && (!objective || !adAsset || !campaignName.trim()) || (currentStep === 1 && adAsset === "product_booster" && !regionValid) || (currentStep === 2 && adAsset === "product_booster" && !productsValid)}>
+          {currentStep === 4 ? "Done" : "Next"}
         </Button>
       </div>
     </div>
