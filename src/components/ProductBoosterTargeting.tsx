@@ -101,7 +101,7 @@ export function ProductBoosterTargeting() {
       const keywords = manualKeyword.split(",").map((k) => k.trim()).filter(Boolean);
       const newKws = keywords
         .filter((k) => !selectedKeywords.find((s) => s.name === k))
-        .map((k) => ({ name: k, searches: "0", bid: "1000" }));
+        .map((k) => ({ name: k, searches: "0", bid: "1000", boostMyBid: false, enterAmount: false, customAmount: "" }));
       setSelectedKeywords([...selectedKeywords, ...newKws]);
       setManualKeyword("");
     }
