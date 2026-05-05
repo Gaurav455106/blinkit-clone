@@ -24,14 +24,23 @@ const cityData: Record<string, string[]> = {
   "West Bengal": ["Asansol", "Durgapur", "Kolkata", "Siliguri"],
 };
 
-export function ProductBoosterSettings() {
+interface ProductBoosterSettingsProps {
+  onRegionValid?: (valid: boolean) => void;
+}
+
+export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettingsProps) {
   const [startDate, setStartDate] = useState("2026-02-09");
   const [noEndDate, setNoEndDate] = useState(true);
-  const [regionType, setRegionType] = useState<"pan_india" | "select_cities">("select_cities");
+  const [regionType, setRegionType] = useState<"pan_india" | "select_cities" | null>(null);
   const [citySearch, setCitySearch] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [expandedStates, setExpandedStates] = useState<string[]>(["Andhra Pradesh"]);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const updateRegionValid = (type: "pan_india" | "select_cities" | null, cities: string[]) => {
+    const valid = type === "pan_india" || (type === "select_cities" && cities.length > 0);
+    onRegionValid?.(valid);
+  };
 
   const toggleState = (state: string) => {
     setExpandedStates((prev) =>
