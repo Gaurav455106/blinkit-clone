@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Info } from "lucide-react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 const cityData: Record<string, string[]> = {
   "Andhra Pradesh": ["Anantapur", "Bhimavaram", "Eluru", "Guntur", "Kakinada", "Kurnool", "Nellore", "Rajahmundry", "Tirupati", "Vijayawada", "Visakhapatnam"],
@@ -31,7 +32,12 @@ interface ProductBoosterSettingsProps {
 export function ProductBoosterSettings({ onRegionValid }: ProductBoosterSettingsProps) {
   const [startDate, setStartDate] = useState("2026-02-09");
   const [noEndDate, setNoEndDate] = useState(true);
-  const [regionType, setRegionType] = useState<"pan_india" | "select_cities" | null>(null);
+  const [regionType, setRegionType] = useLocalStorage<"pan_india" | "select_cities" | null>("sim_geography", null);
+
+  useEffect(() => {
+    onRegionValid?.(regionType === "pan_india" || (regionType === "select_cities" && selectedCities.length > 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [citySearch, setCitySearch] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [expandedStates, setExpandedStates] = useState<string[]>(["Andhra Pradesh"]);
