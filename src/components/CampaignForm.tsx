@@ -35,17 +35,10 @@ export function CampaignForm() {
     else nav("/results");
   };
 
-type AdAsset = "product_booster" | "recommendation_ads" | "listing_spotlight" | "brand_booster" | null;
+  const handlePrev = () => {
+    if (currentStep > 0) setCurrentStep(currentStep - 1);
+  };
 
-export function CampaignForm() {
-  const [currentStep, setCurrentStep] = useLocalStorage("campaign_step", 0);
-  const [campaignName, setCampaignName] = useLocalStorage("campaign_name", "");
-  const [objective, setObjective] = useLocalStorage<"performance" | "reach" | null>("campaign_objective", null);
-  const [adAsset, setAdAsset] = useLocalStorage<AdAsset>("campaign_adAsset", null);
-  const [regionValid, setRegionValid] = useState(false);
-  const [productsValid, setProductsValid] = useState(false);
-
-  // (handleNext defined above)
 
 
   return (
