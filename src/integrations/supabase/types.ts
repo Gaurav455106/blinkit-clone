@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attempts: {
+        Row: {
+          badge: string | null
+          batch_code: string
+          choices: Json
+          created_at: string
+          crisis_choice: string | null
+          crisis_id: string | null
+          crisis_points: number
+          email: string
+          id: string
+          name: string
+          profile_id: string
+          scenario: Json
+          score_breakdown: Json
+          score_total: number
+        }
+        Insert: {
+          badge?: string | null
+          batch_code: string
+          choices?: Json
+          created_at?: string
+          crisis_choice?: string | null
+          crisis_id?: string | null
+          crisis_points?: number
+          email: string
+          id?: string
+          name: string
+          profile_id: string
+          scenario?: Json
+          score_breakdown?: Json
+          score_total?: number
+        }
+        Update: {
+          badge?: string | null
+          batch_code?: string
+          choices?: Json
+          created_at?: string
+          crisis_choice?: string | null
+          crisis_id?: string | null
+          crisis_points?: number
+          email?: string
+          id?: string
+          name?: string
+          profile_id?: string
+          scenario?: Json
+          score_breakdown?: Json
+          score_total?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
