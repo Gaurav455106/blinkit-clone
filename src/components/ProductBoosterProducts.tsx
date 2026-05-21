@@ -1,163 +1,114 @@
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Package } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useSim } from "@/context/SimContext";
+import { Package } from "lucide-react";
 
 interface ProductBoosterProductsProps {
   onProductsValid?: (valid: boolean) => void;
 }
 
 export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProductsProps) {
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const { scenario } = useSim();
+  const [selectedIds, setSelectedIds] = useLocalStorage<string[]>("sim_selected_skus", []);
+  const [strategy, setStrategy] = useLocalStorage<"hero" | "top3" | "all" | null>("sim_sku_strategy", null);
 
-  const handleProductSelect = (value: string) => {
-    if (!selectedProducts.includes(value)) {
-      const updated = [...selectedProducts, value];
-      setSelectedProducts(updated);
-      onProductsValid?.(updated.length > 0);
-    }
+  useEffect(() => { onProductsValid?.(selectedIds.length > 0); }, [selectedIds, onProductsValid]);
+
+  if (!scenario) return null;
+  const { profile } = scenario;
+
+  const toggle = (id: string) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setStrategy(null);
   };
 
-  const categories = ["Dog Needs", "Cat Needs", "Fish & Aquatics", "Bird Supplies", "Small Pet Supplies"];
-
-  const toggleCategory = (cat: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
-    );
+  const applyStrategy = (s: "hero" | "top3" | "all") => {
+    setStrategy(s);
+    if (s === "hero") setSelectedIds([profile.skus[0].id]);
+    else if (s === "top3") setSelectedIds(profile.skus.slice(0, 3).map((x) => x.id));
+    else setSelectedIds(profile.skus.map((x) => x.id));
   };
 
   return (
     <div className="flex gap-6 max-w-6xl">
-      {/* Left side */}
       <div className="flex-1 space-y-5">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Select campaign products</h2>
+          <h2 className="text-base font-semibold text-foreground">Choose products for {profile.name}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Choose your campaign products using filters, search, or bulk upload
+            Only your assigned brand's SKUs are eligible for this campaign
           </p>
         </div>
 
-        {/* Enter products manually */}
-        <div className="rounded-lg border border-border p-5 space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Enter products manually</h3>
-            <p className="text-xs text-muted-foreground">Find and select your products manually</p>
-          </div>
-          <div className="flex gap-3 items-center">
-            <Select onValueChange={handleProductSelect}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder={selectedProducts.length > 0 ? `${selectedProducts.length} products selected` : "Select products"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="p1">Product 1</SelectItem>
-                <SelectItem value="p2">Product 2</SelectItem>
-                <SelectItem value="p3">Product 3</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button className="shrink-0 gap-2">
-              <Download className="h-4 w-4" />
-              Bulk Upload
-            </Button>
-          </div>
+        {/* Quick strategy chips */}
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { key: "hero", label: "Hero SKU only", desc: "Focus budget on the top performer" },
+            { key: "top3", label: "Top 3 SKUs", desc: "Balanced spread across the catalogue" },
+            { key: "all", label: "All SKUs", desc: "Maximum coverage" },
+          ] as const).map((s) => (
+            <button
+              key={s.key}
+              onClick={() => applyStrategy(s.key)}
+              className={`text-left p-3 rounded-lg border text-xs transition-colors flex-1 ${
+                strategy === s.key ? "border-primary bg-accent" : "border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="font-semibold text-foreground">{s.label}</div>
+              <div className="text-muted-foreground">{s.desc}</div>
+            </button>
+          ))}
         </div>
 
-        {/* Choose products via filters */}
-        <div className="rounded-lg border border-border p-5 space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Choose products</h3>
-            <p className="text-xs text-muted-foreground">Select products from the brand and category filters</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-foreground">Select brands</label>
-              <Select>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={selectedBrands.length > 0 ? `${selectedBrands.length} Brands Selected` : "Select brands"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="brand1">Brand 1</SelectItem>
-                  <SelectItem value="brand2">Brand 2</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="relative">
-              <label className="text-xs font-semibold text-foreground">Select categories</label>
-              <div
-                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                className={`mt-1 flex items-center justify-between rounded-md border px-3 py-2 text-sm cursor-pointer ${
-                  showCategoryDropdown ? "border-primary" : "border-input"
-                }`}
+        {/* SKU list */}
+        <div className="space-y-2">
+          {profile.skus.map((s) => {
+            const sel = selectedIds.includes(s.id);
+            return (
+              <Card
+                key={s.id}
+                onClick={() => toggle(s.id)}
+                className={`p-4 cursor-pointer transition-all border-2 ${sel ? "border-primary bg-accent" : "border-border"}`}
               >
-                <span className="text-muted-foreground">
-                  {selectedCategories.length > 0
-                    ? `${selectedCategories.length} selected`
-                    : "Select from categories"}
-                </span>
-                <svg className="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              {showCategoryDropdown && (
-                <div className="absolute z-10 top-full left-0 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                  <div className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 border-b border-border">
-                    <Checkbox
-                      checked={selectedCategories.length === categories.length}
-                      onCheckedChange={() => {
-                        if (selectedCategories.length === categories.length) {
-                          setSelectedCategories([]);
-                        } else {
-                          setSelectedCategories([...categories]);
-                        }
-                      }}
-                    />
-                    <span className="text-sm">Select All</span>
+                <div className="flex items-center gap-3">
+                  <Checkbox checked={sel} />
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-foreground">{s.name}</div>
+                    <div className="text-[11px] text-muted-foreground">MRP ₹{s.mrp} · Margin ₹{s.margin}</div>
                   </div>
-                  {categories.map((cat) => (
-                    <div key={cat} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50">
-                      <Checkbox
-                        checked={selectedCategories.includes(cat)}
-                        onCheckedChange={() => toggleCategory(cat)}
-                      />
-                      <span className="text-sm">{cat}</span>
-                    </div>
-                  ))}
+                  <Badge variant="outline" className={
+                    s.velocity === "High" ? "border-primary text-primary" :
+                    s.velocity === "Medium" ? "border-orange-500 text-orange-600" :
+                    "border-muted-foreground text-muted-foreground"
+                  }>{s.velocity}</Badge>
                 </div>
-              )}
-            </div>
-          </div>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
-      {/* Right side - Selected products */}
-      <div className="w-[420px] shrink-0">
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-5 min-h-[400px] flex flex-col">
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-foreground">Selected products</h3>
-            <p className="text-xs text-muted-foreground">Your target products will appear here</p>
-          </div>
-
-          {/* Table header */}
-          <div className="flex items-center gap-3 px-2 py-2 border-b border-border text-xs font-medium text-muted-foreground">
-            <Checkbox disabled />
-            <div className="w-6 h-6 rounded bg-muted" />
-            <span className="flex-1">Product Name</span>
-            <span className="w-20 text-right">Variants</span>
-          </div>
-
-          {/* Empty state */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
-            <Package className="h-12 w-12 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground font-medium">No products yet!</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">
-              Select brand and category filters to add products or manually select PIDs below
-            </p>
-          </div>
-        </div>
+      <div className="w-[320px] shrink-0">
+        <Card className="p-5 border-primary/30 bg-primary/5 min-h-[300px]">
+          <h3 className="text-sm font-semibold text-foreground">Selected products</h3>
+          <p className="text-xs text-muted-foreground mb-3">{selectedIds.length} of {profile.skus.length}</p>
+          {selectedIds.length === 0 ? (
+            <div className="flex flex-col items-center text-center py-10">
+              <Package className="h-10 w-10 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground">Pick at least one SKU to continue</p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {selectedIds.map((id) => {
+                const s = profile.skus.find((x) => x.id === id);
+                if (!s) return null;
+                return <li key={id} className="text-xs text-foreground">• {s.name}</li>;
+              })}
+            </ul>
+          )}
+        </Card>
       </div>
     </div>
   );
