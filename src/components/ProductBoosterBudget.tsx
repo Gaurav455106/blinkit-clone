@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 export function ProductBoosterBudget() {
-  const [budgetType, setBudgetType] = useState<"overall" | "daily">("overall");
+  const [budgetType, setBudgetType] = useLocalStorage<"overall" | "daily">("sim_budget_type", "overall");
   const [budgetValue, setBudgetValue] = useState("");
 
   return (

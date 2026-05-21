@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useSim } from "@/context/SimContext";
 import { Stepper } from "./Stepper";
 import { CampaignCollection } from "./CampaignCollection";
 import { ProductBoosterSettings } from "./ProductBoosterSettings";
@@ -15,6 +17,8 @@ import { ChevronRight, ChevronLeft, TrendingUp, Users, Smartphone } from "lucide
 type AdAsset = "product_booster" | "recommendation_ads" | "listing_spotlight" | "brand_booster" | null;
 
 export function CampaignForm() {
+  const nav = useNavigate();
+  const { scenario, student } = useSim();
   const [currentStep, setCurrentStep] = useLocalStorage("campaign_step", 0);
   const [campaignName, setCampaignName] = useLocalStorage("campaign_name", "");
   const [objective, setObjective] = useLocalStorage<"performance" | "reach" | null>("campaign_objective", null);
@@ -22,13 +26,20 @@ export function CampaignForm() {
   const [regionValid, setRegionValid] = useState(false);
   const [productsValid, setProductsValid] = useState(false);
 
+  useEffect(() => {
+    if (!student || !scenario) nav("/");
+  }, [student, scenario, nav]);
+
   const handleNext = () => {
     if (currentStep < 4) setCurrentStep(currentStep + 1);
+    else nav("/results");
   };
 
   const handlePrev = () => {
     if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
+
+
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-background">
