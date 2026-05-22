@@ -11,7 +11,7 @@ interface ProductBoosterProductsProps {
 }
 
 export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProductsProps) {
-  const { scenario } = useSim();
+  const { scenario, cmPitch } = useSim();
   const [selectedIds, setSelectedIds] = useLocalStorage<string[]>("sim_selected_skus", []);
   const [strategy, setStrategy] = useLocalStorage<"hero" | "top3" | "all" | null>("sim_sku_strategy", null);
 
@@ -19,17 +19,20 @@ export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProduc
 
   if (!scenario) return null;
   const { profile } = scenario;
+  const approvedIds = cmPitch?.approvedSKUs ?? profile.skus.map((s) => s.id);
 
   const toggle = (id: string) => {
+    if (!approvedIds.includes(id)) return;
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
     setStrategy(null);
   };
 
+  const approvedSkus = profile.skus.filter((s) => approvedIds.includes(s.id));
   const applyStrategy = (s: "hero" | "top3" | "all") => {
     setStrategy(s);
-    if (s === "hero") setSelectedIds([profile.skus[0].id]);
-    else if (s === "top3") setSelectedIds(profile.skus.slice(0, 3).map((x) => x.id));
-    else setSelectedIds(profile.skus.map((x) => x.id));
+    if (s === "hero") setSelectedIds(approvedSkus.slice(0, 1).map((x) => x.id));
+    else if (s === "top3") setSelectedIds(approvedSkus.slice(0, 3).map((x) => x.id));
+    else setSelectedIds(approvedSkus.map((x) => x.id));
   };
 
   return (
@@ -66,18 +69,24 @@ export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProduc
         <div className="space-y-2">
           {profile.skus.map((s) => {
             const sel = selectedIds.includes(s.id);
+            const approved = approvedIds.includes(s.id);
             return (
               <Card
                 key={s.id}
                 onClick={() => toggle(s.id)}
-                className={`p-4 cursor-pointer transition-all border-2 ${sel ? "border-primary bg-accent" : "border-border"}`}
+                title={!approved ? "Not approved by Category Manager" : ""}
+                className={`p-4 transition-all border-2 ${
+                  !approved ? "border-border bg-muted/40 opacity-50 cursor-not-allowed" :
+                  sel ? "border-primary bg-accent cursor-pointer" : "border-border cursor-pointer"
+                }`}
               >
                 <div className="flex items-center gap-3">
-                  <Checkbox checked={sel} />
+                  <Checkbox checked={sel} disabled={!approved} />
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-foreground">{s.name}</div>
                     <div className="text-[11px] text-muted-foreground">MRP ₹{s.mrp} · Margin ₹{s.margin}</div>
                   </div>
+                  {!approved && <span className="text-[10px] text-muted-foreground">Not CM-approved</span>}
                   <Badge variant="outline" className={
                     s.velocity === "High" ? "border-primary text-primary" :
                     s.velocity === "Medium" ? "border-orange-500 text-orange-600" :
