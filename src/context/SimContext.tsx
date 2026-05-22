@@ -187,6 +187,7 @@ interface SimState {
   recordCrisisResponse: (r: CrisisResponse) => void;
   startRun: () => void;
   completeRun: (info: { score: number; achievementPct: number }) => void;
+  clearActiveRun: () => void;
   enterReview: (runId: string) => boolean;
   exitReview: () => void;
 
