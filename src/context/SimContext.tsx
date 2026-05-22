@@ -117,6 +117,11 @@ interface SimState {
   exhaustedCampaigns: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[];
   microDecisionsLog: { day: number; decision: string }[];
 
+  // Crises (Phase 2 add-on)
+  crisisResponses: Record<string, CrisisResponse>;
+  runHistory: RunHistoryEntry[];
+  activeRunId: string | null;
+
   setStudent: (s: Student) => void;
   newScenario: () => void;
   setCmPitch: (p: CmPitchResult | null) => void;
@@ -143,6 +148,11 @@ interface SimState {
   recordCumulativeSpend: (campaignId: string, addedSpend: number) => void;
   markExhausted: (e: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }) => void;
   logMicroDecision: (m: { day: number; decision: string }) => void;
+
+  // Crisis actions
+  recordCrisisResponse: (r: CrisisResponse) => void;
+  startRun: () => void;
+  completeRun: (info: { score: number; achievementPct: number }) => void;
 
   reset: () => void;
 }
