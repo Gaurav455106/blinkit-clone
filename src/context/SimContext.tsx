@@ -153,6 +153,8 @@ interface SimState {
   crisisResponses: Record<string, CrisisResponse>;
   runHistory: RunHistoryEntry[];
   activeRunId: string | null;
+  reviewRunId: string | null;
+  mode: "home" | "run" | "review";
 
   setStudent: (s: Student) => void;
   newScenario: () => void;
@@ -185,6 +187,8 @@ interface SimState {
   recordCrisisResponse: (r: CrisisResponse) => void;
   startRun: () => void;
   completeRun: (info: { score: number; achievementPct: number }) => void;
+  enterReview: (runId: string) => boolean;
+  exitReview: () => void;
 
   reset: () => void;
 }
