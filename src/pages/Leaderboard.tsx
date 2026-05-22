@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+import { TrainerHeader } from "@/components/TrainerHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 
@@ -51,10 +51,10 @@ export default function Leaderboard() {
   }).sort((a, b) => b.avg - a.avg);
 
   return (
-    <div className="flex min-h-screen w-full">
-      <BlinkitSidebar />
-      <div className="flex-1 bg-background">
-        <div className="px-8 py-6">
+    <div className="min-h-screen w-full bg-background">
+      <TrainerHeader />
+      <div className="flex-1">
+        <div className="px-8 py-6 max-w-6xl mx-auto">
           <Button variant="ghost" size="sm" onClick={() => nav(-1)} className="gap-2 mb-3">
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
