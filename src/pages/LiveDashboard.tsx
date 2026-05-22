@@ -264,14 +264,15 @@ export default function LiveDashboard() {
     return () => clearTimeout(t);
   }, [playing, currentDay, speed]);
 
-  // Auto-end on day 30
+  // Auto-end on day 30 — runs exactly once when day hits 30
+  const endedRef = useRef(false);
   useEffect(() => {
-    if (currentDay >= 30 && playing) {
-      setPlaying(false);
-      const t = setTimeout(() => nav("/results"), 900);
-      return () => clearTimeout(t);
-    }
-  }, [currentDay, playing, nav]);
+    if (currentDay < 30 || endedRef.current) return;
+    endedRef.current = true;
+    setPlaying(false);
+    const t = setTimeout(() => nav("/results"), 800);
+    return () => clearTimeout(t);
+  }, [currentDay, nav]);
 
   // Filter range
   const range = useMemo(() => {
