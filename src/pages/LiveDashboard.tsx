@@ -456,20 +456,51 @@ export default function LiveDashboard() {
               </Button>
             </div>
 
-            {/* METRIC CARDS */}
+            {/* METRIC CARDS — values shimmer via jitter, sparkline dot breathes via pulse */}
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              <MetricCard label="Budget Consumed" value={money(animSpend)} hint={`${Math.round(pctBudget)}% of brief`} />
-              <MetricCard label="Impressions" value={fmt(animImp)} />
-              <MetricCard label="ATCs" value={fmt(animAtc)} />
-              <MetricCard label="Qty Sold" value={fmt(animUnits)} />
-              <MetricCard label="Sales" value={money(animRev)} />
+              <MetricCard pulse={pulse} spark={sSpend} label="Budget Consumed" value={money(playing ? jitter(animSpend, 1, pulse) : animSpend)} hint={`${Math.round(pctBudget)}% of brief`} />
+              <MetricCard pulse={pulse} spark={sImp} label="Impressions" value={fmt(playing ? jitter(animImp, 2, pulse, 0.003) : animImp)} />
+              <MetricCard pulse={pulse} spark={sAtc} label="ATCs" value={fmt(playing ? jitter(animAtc, 3, pulse, 0.0025) : animAtc)} />
+              <MetricCard pulse={pulse} spark={sUnits} label="Qty Sold" value={fmt(playing ? jitter(animUnits, 4, pulse, 0.002) : animUnits)} />
+              <MetricCard pulse={pulse} spark={sRev} label="Sales" value={money(playing ? jitter(animRev, 5, pulse) : animRev)} />
               <MetricCard
+                pulse={pulse}
+                spark={sRoas}
                 label="ROAS"
-                value={`${animRoas.toFixed(2)}×`}
+                value={`${(playing ? jitter(animRoas, 6, pulse, 0.001) : animRoas).toFixed(2)}×`}
                 hint={`Goal ${goalRoas}×`}
                 tone={roas >= goalRoas ? "good" : roas >= goalRoas * 0.7 ? "neutral" : "bad"}
               />
             </div>
+
+            {/* LIVE ACTIVITY TICKER */}
+            <Card className="px-3 py-2 overflow-hidden">
+              <div className="flex items-center gap-3 text-[11px]">
+                <div className="flex items-center gap-1.5 shrink-0 font-semibold text-muted-foreground">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  </span>
+                  ACTIVITY
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <div className="flex items-center gap-4 whitespace-nowrap">
+                    {ticker.length === 0 && <span className="text-muted-foreground italic">Waiting for first impression…</span>}
+                    {ticker.map((t) => (
+                      <span
+                        key={t.id}
+                        className={`inline-block animate-fade-in tabular-nums ${
+                          t.tone === "good" ? "text-emerald-600" : t.tone === "warn" ? "text-red-600" : "text-foreground/80"
+                        }`}
+                      >
+                        {t.text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
 
             {/* CHART */}
             <Card className="p-4">
