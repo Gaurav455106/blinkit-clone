@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
 import { ArrowRight, Target, MapPin } from "lucide-react";
-import { CITIES, CITY_STORE_COUNT, activeStoresFor, CityName } from "@/data/scenarios";
+import { CITIES, CITY_STORE_COUNT, STATE_TO_CITIES, activeStoresFor, CityName, stockedStates } from "@/data/scenarios";
 
 function formatTarget(t: { label: string; target: number; unit: string }) {
   let v: string;
