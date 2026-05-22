@@ -358,6 +358,7 @@ export function generateScenario(): Scenario {
     seed: `${profile.id}-${Date.now()}`,
     profile, cityStockMap, season, market, inventory,
     budget: 200000, clientGoals, city: topCity,
+    scheduledCrisis: SCHEDULED_CRISIS_BY_PROFILE[profile.id] ?? { day: 12, eventId: "stock_crisis", reason: "Mid-flight supply disruption" },
   };
 }
 
