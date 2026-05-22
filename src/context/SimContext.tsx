@@ -68,20 +68,35 @@ export interface WeekResultStored {
   // we keep the rich result transient in memory; only totals/highlights persist
 }
 
+export interface AbTest { campaignId: string; week: number; variable: string; winner: "A" | "B"; ctrMultiplier: number }
+export interface ClusterReactionStored { city: string; action: "cluster_bid" | "cluster_daypart" | "expand_similar" | "stay_broad"; tokenCost: number }
+export interface PacingSnapshot { campaignId: string; cumulativeSpend: number; budget: number; pacePct: number; projectedExhaustionDay: number | null; exhausted: boolean; wasWinning?: boolean; caught?: boolean }
+
 interface SimState {
   student: Student | null;
   scenario: Scenario | null;
   cmPitch: CmPitchResult | null;
   campaigns: SavedCampaign[];
   tokensRemaining: number;
+  tokensSpent: number;
 
   // simulation state
-  currentDay: number; // 1, 8, 15, 22, 30
+  currentDay: number;
   optimizations: Record<string, CampaignOptimization>;
   stockLevels: StockMap;
   decisionsLog: DecisionLogEntry[];
   weekTotals: WeekResultStored[];
   events: { week2?: EventResponse; week3?: EventResponse };
+
+  // Phase 3
+  competitor: Competitor | null;
+  competitorActions: CompetitorAction[];
+  cannibalResolved: string[]; // keys of resolved keyword|city
+  clusterReactions: ClusterReactionStored[];
+  abTests: AbTest[];
+  cumulativeSpendByCampaign: Record<string, number>;
+  exhaustedCampaigns: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[];
+  microDecisionsLog: { day: number; decision: string }[];
 
   setStudent: (s: Student) => void;
   newScenario: () => void;
