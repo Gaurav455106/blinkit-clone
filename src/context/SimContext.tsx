@@ -260,6 +260,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_crises", JSON.stringify(crisisResponses)); }, [crisisResponses]);
   useEffect(() => { localStorage.setItem("sim_runHistory", JSON.stringify(runHistory)); }, [runHistory]);
   useEffect(() => { localStorage.setItem("sim_activeRunId", JSON.stringify(activeRunId)); }, [activeRunId]);
+  useEffect(() => { localStorage.setItem("sim_reviewRunId", JSON.stringify(reviewRunId)); }, [reviewRunId]);
 
   const setStudent = (s: Student) => {
     setStudentState(s);
