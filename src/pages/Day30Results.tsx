@@ -20,11 +20,15 @@ function fmtTarget(n: number, unit: string) {
 
 export default function Day30Results() {
   const nav = useNavigate();
-  const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario } = useSim();
+  const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
+    abTests, cannibalResolved, clusterReactions, tokensSpent } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
-  const r = useMemo(() => simulateRun(scenario, campaigns, cmPitch), [scenario, campaigns, cmPitch]);
+  const r = useMemo(
+    () => simulateRun(scenario, campaigns, cmPitch, { abTests, cannibalResolved, clusterReactions, tokensSpent }),
+    [scenario, campaigns, cmPitch, abTests, cannibalResolved, clusterReactions, tokensSpent]
+  );
 
   const achColor = r.achievementPct >= 90 ? "text-primary" :
     r.achievementPct >= 70 ? "text-amber-600" :

@@ -15,6 +15,7 @@ import { CITIES, CityName } from "@/data/scenarios";
 import { buildInitialStock, computeWeek, type WeekResult, type CampaignWeekMetric } from "@/lib/weeklyMetrics";
 import { pickEvent, type SimEvent } from "@/lib/events";
 import { ChevronDown, ChevronUp, AlertTriangle, Loader2, Pause, Plus, Pencil, Package, TrendingUp } from "lucide-react";
+import { Phase3StrategyPanel } from "@/components/Phase3StrategyPanel";
 
 const eventsCache: Record<number, SimEvent> = {};
 function getEventForWeek(week: 2 | 3): SimEvent {
@@ -210,6 +211,8 @@ export default function WeekDashboard() {
             highlight={weekResult.totals.roas >= 3 ? "good" : weekResult.totals.roas >= 1.5 ? "warn" : "bad"}
           />
         </div>
+        {/* Phase 3: Strategy Insights */}
+        <Phase3StrategyPanel week={week} weekResult={weekResult} />
 
         {/* Daily trend chart */}
         <div className="px-8 mt-6">

@@ -1,5 +1,11 @@
 import { Scenario, CityName } from "@/data/scenarios";
-import { SavedCampaign, CmPitchResult } from "@/context/SimContext";
+import { SavedCampaign, CmPitchResult, AbTest, ClusterReactionStored } from "@/context/SimContext";
+import {
+  detectArchitecture, optimalArchitecture, scoreArchitecture,
+  detectSequence, scoreSequence,
+  detectCannibalization, scoreCannibalization,
+  scoreAbTests, scoreTokenEconomy,
+} from "@/lib/phase3";
 
 export interface CampaignMetrics {
   campaignId: string;
@@ -48,7 +54,12 @@ function avgOsaForCities(scenario: Scenario, cities: string[], osaBoost: boolean
   return Math.min(100, base * (osaBoost ? 1.1 : 1)) / 100;
 }
 
-export function simulateRun(scenario: Scenario, campaigns: SavedCampaign[], cm: CmPitchResult | null): SimRunResult {
+export function simulateRun(
+  scenario: Scenario,
+  campaigns: SavedCampaign[],
+  cm: CmPitchResult | null,
+  phase3?: { abTests?: AbTest[]; cannibalResolved?: string[]; clusterReactions?: ClusterReactionStored[]; tokensSpent?: number },
+): SimRunResult {
   const seasonMult = scenario.season.name === "Festival Surge" ? 1.3
     : scenario.season.name === "Post-Festival Slowdown" ? 0.7 : 1.0;
   const competitorDrag = scenario.market.name === "Aggressive Competitor" ? 0.7 : 1.0;
@@ -136,17 +147,34 @@ export function simulateRun(scenario: Scenario, campaigns: SavedCampaign[], cm: 
   const goodKw = kwAll.filter((k) => scenario.profile.goodKeywords.includes(k)).length;
   const kwGood = kwAll.length ? goodKw / kwAll.length >= 0.6 : false;
 
+  // Phase 3 scoring
+  const arch = detectArchitecture(campaigns);
+  const archOpt = optimalArchitecture(scenario, scenario.profile.id);
+  const archScore = scoreArchitecture(arch, archOpt.optimal, archOpt.alternative);
+  const seq = detectSequence(campaigns);
+  const seqScored = scoreSequence(scenario.profile.id, seq);
+  const cannibalPairs = detectCannibalization(campaigns);
+  const resolvedSet = new Set(phase3?.cannibalResolved ?? []);
+  const cannibalScore = scoreCannibalization(cannibalPairs, resolvedSet);
+  const abScore = scoreAbTests(phase3?.abTests ?? []);
+  const tokenScore = scoreTokenEconomy(phase3?.tokensSpent ?? 0);
+  const clusterScore = (phase3?.clusterReactions ?? []).length > 0 ? 5 : 2;
+
   const decisionScore = [
-    { label: "Brief comprehension", earned: objMatches ? 10 : 4, max: 10 },
-    { label: "CM Pitch quality", earned: Math.min(10, cm?.pitchScore ?? 0), max: 10 },
-    { label: "Initial Campaign Setup", earned: campaigns.length >= 1 && campaigns.length <= 3 ? 10 : 5, max: 10 },
-    { label: "Dayparting Strategy", earned: 7, max: 10 },
-    { label: "Week 1 → Week 2 Optimization", earned: 10, max: 15 },
-    { label: "Week 2 Event Response", earned: 7, max: 10 },
-    { label: "Week 3 Event Response", earned: 7, max: 10 },
-    { label: "Stock Management", earned: noBadCities ? 8 : 4, max: 10 },
-    { label: "Budget Allocation", earned: kwGood ? 8 : 5, max: 10 },
-    { label: "Goal Achievement", earned: achievementPct >= 90 ? 5 : achievementPct >= 70 ? 4 : achievementPct >= 50 ? 2 : 1, max: 5 },
+    { label: "Brief comprehension", earned: objMatches ? 8 : 3, max: 8 },
+    { label: "CM Pitch quality", earned: Math.min(8, cm?.pitchScore ?? 0), max: 8 },
+    { label: "Campaign Architecture", earned: archScore, max: 10 },
+    { label: "Launch Sequencing", earned: seqScored.score, max: 5 },
+    { label: "Keyword Cannibalization", earned: Math.max(0, cannibalScore), max: 5 },
+    { label: "Pin-Code Cluster Reactions", earned: clusterScore, max: 5 },
+    { label: "Creative / A/B Testing", earned: abScore, max: 3 },
+    { label: "Dayparting Strategy", earned: 7, max: 8 },
+    { label: "Weekly Optimization", earned: 10, max: 12 },
+    { label: "Event Responses", earned: 12, max: 16 },
+    { label: "Stock Management", earned: noBadCities ? 7 : 3, max: 8 },
+    { label: "Token Economy", earned: tokenScore, max: 5 },
+    { label: "Budget Allocation", earned: kwGood ? 5 : 3, max: 5 },
+    { label: "Goal Achievement", earned: achievementPct >= 90 ? 2 : achievementPct >= 70 ? 1 : 0, max: 2 },
   ];
   const decisionTotal = decisionScore.reduce((s, d) => s + d.earned, 0);
 
@@ -163,6 +191,21 @@ export function simulateRun(scenario: Scenario, campaigns: SavedCampaign[], cm: 
   if (skuCount > 3) wrongs.push("Spread budget across too many SKUs — diluted impact");
   if (!kwGood && kwAll.length) wrongs.push("Selected too many risky keywords — competitive category, expensive clicks");
   if (cm?.status === "rejected" || cm?.status === "weak") wrongs.push("CM had concerns about your pitch");
+
+  // Phase 3 commentary
+  if (arch === archOpt.optimal) rights.push(`Picked the optimal campaign architecture (${arch}) for this brand & stock map`);
+  else if (arch === "E") wrongs.push("Messy campaign architecture — no clear control over cities or SKUs");
+  else if (arch !== archOpt.alternative) wrongs.push(`Architecture mismatch — used ${arch}, optimal was ${archOpt.optimal}`);
+  rights.push(seqScored.note);
+  if (cannibalPairs.length > 0 && resolvedSet.size < cannibalPairs.length) {
+    wrongs.push(`Left ${cannibalPairs.length - resolvedSet.size} keyword overlap${cannibalPairs.length - resolvedSet.size > 1 ? "s" : ""} unresolved — paid twice for the same shoppers`);
+  } else if (cannibalPairs.length > 0) {
+    rights.push("Caught and resolved all keyword overlaps");
+  }
+  if ((phase3?.abTests ?? []).length >= 1 && (phase3?.abTests ?? []).length <= 2) rights.push("Ran disciplined A/B tests — let data pick the winning creative");
+  if ((phase3?.abTests ?? []).length > 2) wrongs.push("Too many simultaneous A/B tests — diluted learnings and burned tokens");
+  if ((phase3?.tokensSpent ?? 0) >= 6 && (phase3?.tokensSpent ?? 0) <= 9) rights.push("Spent decision tokens at a healthy pace");
+  if ((phase3?.tokensSpent ?? 0) <= 2) wrongs.push("Hoarded decision tokens — missed optimization opportunities");
 
   let verdict: SimRunResult["verdict"];
   if (achievementPct >= 90) verdict = { tone: "good", quote: "Outstanding work. This is exactly the level of execution we needed. You're promoted to Senior Executive — bigger budget, more brands, harder challenges ahead." };
