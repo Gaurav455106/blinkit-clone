@@ -115,6 +115,16 @@ interface SimState {
   recordWeekTotals: (w: WeekResultStored) => void;
   setEventResponse: (week: 2 | 3, r: EventResponse) => void;
 
+  // Phase 3 setters
+  setCompetitor: (c: Competitor) => void;
+  addCompetitorAction: (a: CompetitorAction) => void;
+  resolveCannibal: (key: string) => void;
+  addClusterReaction: (r: ClusterReactionStored) => void;
+  addAbTest: (t: AbTest) => void;
+  recordCumulativeSpend: (campaignId: string, addedSpend: number) => void;
+  markExhausted: (e: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }) => void;
+  logMicroDecision: (m: { day: number; decision: string }) => void;
+
   reset: () => void;
 }
 
@@ -146,6 +156,17 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [decisionsLog, setDecisionsLog] = useState<DecisionLogEntry[]>(() => load("sim_decisions", []));
   const [weekTotals, setWeekTotals] = useState<WeekResultStored[]>(() => load("sim_weekTotals", []));
   const [events, setEvents] = useState<{ week2?: EventResponse; week3?: EventResponse }>(() => load("sim_events", {}));
+
+  // Phase 3 state
+  const [tokensSpent, setTokensSpent] = useState<number>(() => load("sim_tokensSpent", 0));
+  const [competitor, setCompetitorState] = useState<Competitor | null>(() => load("sim_competitor", null));
+  const [competitorActions, setCompetitorActions] = useState<CompetitorAction[]>(() => load("sim_competitorActions", []));
+  const [cannibalResolved, setCannibalResolved] = useState<string[]>(() => load("sim_cannibalResolved", []));
+  const [clusterReactions, setClusterReactions] = useState<ClusterReactionStored[]>(() => load("sim_clusterReactions", []));
+  const [abTests, setAbTests] = useState<AbTest[]>(() => load("sim_abTests", []));
+  const [cumulativeSpendByCampaign, setCumulativeSpendByCampaign] = useState<Record<string, number>>(() => load("sim_cumSpend", {}));
+  const [exhaustedCampaigns, setExhaustedCampaigns] = useState<{ campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[]>(() => load("sim_exhausted", []));
+  const [microDecisionsLog, setMicroDecisionsLog] = useState<{ day: number; decision: string }[]>(() => load("sim_micro", []));
 
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
