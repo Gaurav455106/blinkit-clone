@@ -6,12 +6,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Rocket, Trash2, Pencil } from "lucide-react";
+import { Plus, Rocket, Trash2, Pencil, Loader2 } from "lucide-react";
+import { buildInitialStock } from "@/lib/weeklyMetrics";
 
 export default function CampaignsDashboard() {
   const nav = useNavigate();
-  const { student, scenario, campaigns, deleteCampaign, tokensRemaining } = useSim();
+  const { student, scenario, campaigns, deleteCampaign, tokensRemaining, initSimulation } = useSim();
   const [showLaunch, setShowLaunch] = useState(false);
+  const [launching, setLaunching] = useState(false);
 
   if (!student || !scenario) { nav("/"); return null; }
 
