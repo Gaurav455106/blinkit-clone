@@ -208,6 +208,22 @@ export interface ClientGoals {
   threshold: string;
 }
 
+export interface ScheduledCrisis {
+  day: number;
+  eventId: string;
+  reason: string;
+}
+// Per-profile scheduled crisis (deterministic)
+export const SCHEDULED_CRISIS_BY_PROFILE: Record<string, ScheduledCrisis> = {
+  henlo: { day: 12, eventId: "stock_crisis", reason: "High-velocity SKU runs dry mid-flight" },
+  glow: { day: 10, eventId: "competitor_attack", reason: "Established skincare brand counter-attacks" },
+  vitaboost: { day: 14, eventId: "cm_threat", reason: "CM threatens to delist slow category" },
+  tinybuddy: { day: 9, eventId: "cluster_opp", reason: "Morning-shopper cluster surfaces fast" },
+  munchbox: { day: 11, eventId: "competitor_attack", reason: "Haldirams launches counter-bid blitz" },
+  pawlife: { day: 18, eventId: "cm_threat", reason: "Low sell-through on considered purchases" },
+  fuelup: { day: 8, eventId: "cluster_opp", reason: "Gym-dense pin codes outperform 4x" },
+};
+
 export interface Scenario {
   seed: string;
   profile: BrandProfile;
@@ -217,6 +233,7 @@ export interface Scenario {
   inventory: InventoryState;
   budget: number;
   clientGoals: ClientGoals;
+  scheduledCrisis: ScheduledCrisis;
   // legacy city field for back-compat (highest OSA city)
   city: CityName;
 }
