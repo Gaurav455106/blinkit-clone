@@ -91,3 +91,83 @@ Extend `src/lib/events.ts`:
 - Multi-brand / multi-platform (Phase 4).
 - Real-time competitor reactions to crisis choice.
 - Editing past completed runs.
+
+# Phase 2.5 — State-based targeting (replaces city-level)
+
+Real Blinkit only offers Pan India or Select States. This phase rewires targeting end-to-end before Phase 3.
+
+## Data model changes
+
+`src/data/scenarios.ts`
+- Add `BLINKIT_STATES` (23 states) + `STATE_TO_CITIES` mapping with dark-store counts (per Part 3).
+- Replace `CITIES` / `CityName` / `CITY_STORE_COUNT` semantics: keep file exports but switch them to **state names**, with cities surfaced as internal detail via `STATE_TO_CITIES`. Old `CityName` becomes `StateName` alias for back-compat.
+- `BrandProfile` gets `primaryState` + `secondaryStates`. Update all 7 profiles per Part 10.
+- `cityStockMap` → `stateStockMap: Record<StateName, number>`. Generator assigns OSA to 3–5 plausible states (primary + secondary), 0% elsewhere.
+- Scenario keeps a derived stockedStates list for the brief table.
+
+## Brief screen
+`src/pages/Brief.tsx`
+- Rename "Stock Availability Map" rows to states. Show only states with OSA > 0 (4–6 rows). Columns: State · Cities Stocked (e.g. "Bangalore (32/40)") · OSA % · Status.
+- Update warning note: "Blinkit shows all 23 states as selectable… match state to stock reality."
+
+## Campaign builder (Step 2 — Ad Settings)
+`src/components/ProductBoosterSettings.tsx`
+- Radios: "Pan India" / "Select States".
+- When "Select States" → multi-select dropdown of all 23 states (no greying, no warnings, no OSA hints).
+- Persist under `sim_selected_states` (replacing `sim_selected_cities`).
+- Remove pin-code / zone / city UI entirely.
+- Add new **Dayparting** section below state selection (8 time blocks, presets, product-aware hint). Persist under `sim_dayparting` (array of block indices) + `sim_daypart_preset`.
+
+`src/components/CampaignForm.tsx`
+- Save `states` instead of `cities`; save `dayparting` block array.
+
+`src/context/SimContext.tsx`
+- `SavedCampaign.cities` → `states: string[]`; add `dayparting: number[]` (block indices 0–7) and `daypartPreset`.
+- `CmPitchSku.cities` → `states: StateName[]`; `CmPitchResult.approvedCities` → `approvedStates`.
+
+## CM pitch
+`src/pages/CmPitch.tsx`
+- "Target cities" → "Target states", multi-select all 23 (no greying).
+- Evaluation: reject if any pitched state has 0% stock; reject if pitched to all 23; strong if all pitched states have stock and ≤2 SKUs.
+
+## Live simulation
+`src/lib/weeklyMetrics.ts`
+- Compute per-state spend share. For each campaign:
+  - Determine target states: explicit list, or all 23 when Pan India.
+  - For each state, lookup OSA from `stateStockMap`.
+    - OSA = 0 → 0 spend, 0 revenue (budget unspent).
+    - OSA < 30 → 0.3× spend rate, ROAS heavily penalized.
+    - OSA ≥ 30 → normal.
+  - Apply dayparting multiplier: bonus if active blocks match product peak, 0.4× if only dead-hour blocks active.
+- Surface per-state metrics on the result for drilldown.
+
+`src/pages/LiveDashboard.tsx`
+- Header "City Performance" panel → "State Performance" with cities-in-state column.
+- Insights reference states.
+- New always-on insight: if any selected state has 0% stock → "🚨 Budget Not Spending in [State]".
+
+## Scoring
+`src/lib/scoring.ts` (+ `src/lib/simResults.ts` for Results screen)
+- Add State Selection Quality (10 pts) and Dayparting (5 pts) per Parts 5 & 8.
+- Results screen surfaces "❌ Pan India Trap" callout when Pan India selected with stock in ≤3 states.
+
+## UI language sweep
+- `cities` → `states` in all visible labels (CampaignsDashboard table, dashboards, results).
+
+## Files touched (~12)
+- src/data/scenarios.ts
+- src/context/SimContext.tsx
+- src/pages/Brief.tsx
+- src/pages/CmPitch.tsx
+- src/components/ProductBoosterSettings.tsx
+- src/components/CampaignForm.tsx
+- src/components/ProductBoosterTargeting.tsx (remove zone/pincode UI if any)
+- src/components/RecommendationTargeting.tsx (same cleanup)
+- src/lib/weeklyMetrics.ts
+- src/lib/scoring.ts + src/lib/simResults.ts
+- src/pages/LiveDashboard.tsx
+- src/pages/CampaignsDashboard.tsx / Day30Results.tsx (labels + Pan India trap)
+
+## Notes
+- Backward-compat aliases (`cities` → `states`) added in context to avoid breaking unread call sites; old localStorage keys cleared on new run.
+- Pin-code / zone files (`src/data/zones.ts`, ProductBoosterTargeting zone UI) get gutted but kept as no-ops to avoid wider refactor.
