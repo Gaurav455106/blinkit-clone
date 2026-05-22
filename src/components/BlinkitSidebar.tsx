@@ -3,7 +3,12 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 
-const navItems = [
+const HOME_ITEMS = [
+  { title: "Dashboard", icon: Home, path: "/dashboard" },
+  { title: "Leaderboard", icon: BarChart3, path: "/leaderboard" },
+];
+
+const FLOW_ITEMS = [
   { title: "Dashboard", icon: Home, path: "/dashboard" },
   { title: "Brief", icon: FileText, path: "/brief" },
   { title: "CM Pitch", icon: MessageSquare, path: "/cm-pitch" },
