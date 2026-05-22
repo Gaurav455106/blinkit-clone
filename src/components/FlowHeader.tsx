@@ -65,15 +65,16 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
         {FLOW.map((s, i) => {
           const done = i < currentIdx;
           const active = i === currentIdx;
+          const clickable = done || mode === "review";
           return (
             <div key={s.key} className="flex items-center gap-1 shrink-0">
               <button
-                onClick={() => done && nav(s.path)}
-                disabled={!done}
+                onClick={() => clickable && nav(s.path)}
+                disabled={!clickable}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition ${
                   active
                     ? "bg-primary/10 text-primary font-semibold"
-                    : done
+                    : clickable
                     ? "text-foreground hover:bg-muted cursor-pointer"
                     : "text-muted-foreground/60"
                 }`}
@@ -81,6 +82,7 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
                 <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] ${
                   done ? "bg-primary text-primary-foreground" :
                   active ? "border-2 border-primary text-primary" :
+                  mode === "review" ? "border border-primary/40 text-primary/70" :
                   "border border-muted-foreground/40"
                 }`}>
                   {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
