@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SimProvider } from "@/context/SimContext";
+import { SimProvider, useSim } from "@/context/SimContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Brief from "./pages/Brief";
@@ -23,6 +23,12 @@ function TrainerGuard({ children }: { children: React.ReactNode }) {
   return isTrainer ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+function FlowGuard({ children }: { children: React.ReactNode }) {
+  const { mode } = useSim();
+  if (mode === "home") return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -35,15 +41,16 @@ const App = () => (
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/brief" element={<Brief />} />
-            <Route path="/cm-pitch" element={<CmPitch />} />
-            <Route path="/campaign" element={<Campaign />} />
-            <Route path="/simulation" element={<LiveDashboard />} />
-            <Route path="/results" element={<Day30Results />} />
+            <Route path="/brief" element={<FlowGuard><Brief /></FlowGuard>} />
+            <Route path="/cm-pitch" element={<FlowGuard><CmPitch /></FlowGuard>} />
+            <Route path="/campaign" element={<FlowGuard><Campaign /></FlowGuard>} />
+            <Route path="/simulation" element={<FlowGuard><LiveDashboard /></FlowGuard>} />
+            <Route path="/results" element={<FlowGuard><Day30Results /></FlowGuard>} />
 
             {/* Utility */}
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/trainer" element={<TrainerGuard><Trainer /></TrainerGuard>} />
+
 
             {/* Legacy redirects */}
             <Route path="/brand-central" element={<Navigate to="/dashboard" replace />} />

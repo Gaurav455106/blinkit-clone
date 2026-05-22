@@ -3,7 +3,12 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 
-const navItems = [
+const HOME_ITEMS = [
+  { title: "Dashboard", icon: Home, path: "/dashboard" },
+  { title: "Leaderboard", icon: BarChart3, path: "/leaderboard" },
+];
+
+const FLOW_ITEMS = [
   { title: "Dashboard", icon: Home, path: "/dashboard" },
   { title: "Brief", icon: FileText, path: "/brief" },
   { title: "CM Pitch", icon: MessageSquare, path: "/cm-pitch" },
@@ -17,13 +22,15 @@ export function BlinkitSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const nav = useNavigate();
   const loc = useLocation();
-  const { student, reset } = useSim();
+  const { student, reset, mode } = useSim();
 
   const signOut = () => {
     localStorage.removeItem("sim_trainer");
     reset();
     nav("/", { replace: true });
   };
+
+  const navItems = mode === "home" ? HOME_ITEMS : FLOW_ITEMS;
 
   return (
     <div className={`flex flex-col border-r border-border bg-card h-screen transition-all ${collapsed ? "w-16" : "w-56"}`}>

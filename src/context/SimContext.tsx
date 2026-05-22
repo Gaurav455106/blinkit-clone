@@ -79,6 +79,28 @@ export interface CrisisResponse {
   bestChoice?: boolean;
 }
 
+export interface RunSnapshot {
+  scenario: Scenario;
+  cmPitch: CmPitchResult | null;
+  campaigns: SavedCampaign[];
+  weekTotals: WeekResultStored[];
+  decisionsLog: DecisionLogEntry[];
+  crisisResponses: Record<string, CrisisResponse>;
+  abTests: AbTest[];
+  cannibalResolved: string[];
+  clusterReactions: ClusterReactionStored[];
+  tokensSpent: number;
+  tokensRemaining: number;
+  microDecisionsLog: { day: number; decision: string }[];
+  exhaustedCampaigns: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[];
+  cumulativeSpendByCampaign: Record<string, number>;
+  events: { week2?: EventResponse; week3?: EventResponse };
+  optimizations: Record<string, CampaignOptimization>;
+  stockLevels: StockMap;
+  competitor: Competitor | null;
+  competitorActions: CompetitorAction[];
+}
+
 export interface RunHistoryEntry {
   id: string;
   scenarioSeed: string;
@@ -89,6 +111,7 @@ export interface RunHistoryEntry {
   status: "in_progress" | "completed";
   score?: number;
   achievementPct?: number;
+  snapshot?: RunSnapshot;
 }
 
 export interface WeekResultStored {
@@ -130,6 +153,8 @@ interface SimState {
   crisisResponses: Record<string, CrisisResponse>;
   runHistory: RunHistoryEntry[];
   activeRunId: string | null;
+  reviewRunId: string | null;
+  mode: "home" | "run" | "review";
 
   setStudent: (s: Student) => void;
   newScenario: () => void;
@@ -162,6 +187,9 @@ interface SimState {
   recordCrisisResponse: (r: CrisisResponse) => void;
   startRun: () => void;
   completeRun: (info: { score: number; achievementPct: number }) => void;
+  clearActiveRun: () => void;
+  enterReview: (runId: string) => boolean;
+  exitReview: () => void;
 
   reset: () => void;
 }
@@ -208,6 +236,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [crisisResponses, setCrisisResponses] = useState<Record<string, CrisisResponse>>(() => load("sim_crises", {}));
   const [runHistory, setRunHistory] = useState<RunHistoryEntry[]>(() => load("sim_runHistory", []));
   const [activeRunId, setActiveRunId] = useState<string | null>(() => load("sim_activeRunId", null));
+  const [reviewRunId, setReviewRunId] = useState<string | null>(() => load("sim_reviewRunId", null));
 
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
@@ -232,6 +261,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_crises", JSON.stringify(crisisResponses)); }, [crisisResponses]);
   useEffect(() => { localStorage.setItem("sim_runHistory", JSON.stringify(runHistory)); }, [runHistory]);
   useEffect(() => { localStorage.setItem("sim_activeRunId", JSON.stringify(activeRunId)); }, [activeRunId]);
+  useEffect(() => { localStorage.setItem("sim_reviewRunId", JSON.stringify(reviewRunId)); }, [reviewRunId]);
 
   const setStudent = (s: Student) => {
     setStudentState(s);
@@ -359,22 +389,85 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   const completeRun = (info: { score: number; achievementPct: number }) => {
     if (!activeRunId) return;
+    const snapshot: RunSnapshot | undefined = scenario ? {
+      scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+      abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+      microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+      optimizations, stockLevels, competitor, competitorActions,
+    } : undefined;
     setRunHistory((prev) =>
       prev.map((r) =>
         r.id === activeRunId
-          ? { ...r, status: "completed", completedAt: new Date().toISOString(), score: info.score, achievementPct: info.achievementPct }
+          ? { ...r, status: "completed", completedAt: new Date().toISOString(), score: info.score, achievementPct: info.achievementPct, snapshot }
           : r,
       ),
     );
-    setActiveRunId(null);
+    // Keep activeRunId set so /results stays viewable until the student leaves.
+    // It is cleared when they land on /dashboard or start a new scenario.
   };
+
+  const enterReview = (runId: string): boolean => {
+    if (activeRunId) return false;
+    const entry = runHistory.find((r) => r.id === runId);
+    if (!entry || !entry.snapshot) return false;
+    const s = entry.snapshot;
+    setScenario(s.scenario);
+    setCmPitchState(s.cmPitch);
+    setCampaigns(s.campaigns);
+    setWeekTotals(s.weekTotals);
+    setDecisionsLog(s.decisionsLog);
+    setCrisisResponses(s.crisisResponses);
+    setAbTests(s.abTests);
+    setCannibalResolved(s.cannibalResolved);
+    setClusterReactions(s.clusterReactions);
+    setTokensSpent(s.tokensSpent);
+    setTokens(s.tokensRemaining);
+    setMicroDecisionsLog(s.microDecisionsLog);
+    setExhaustedCampaigns(s.exhaustedCampaigns);
+    setCumulativeSpendByCampaign(s.cumulativeSpendByCampaign);
+    setEvents(s.events);
+    setOptimizationsState(s.optimizations);
+    setStockLevelsState(s.stockLevels);
+    setCompetitorState(s.competitor);
+    setCompetitorActions(s.competitorActions);
+    setCurrentDayState(30);
+    setReviewRunId(runId);
+    return true;
+  };
+
+  const exitReview = () => {
+    setReviewRunId(null);
+    setScenario(null);
+    setCmPitchState(null);
+    setCampaigns([]);
+    setWeekTotals([]);
+    setDecisionsLog([]);
+    setCrisisResponses({});
+    setAbTests([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setTokensSpent(0);
+    setTokens(10);
+    setMicroDecisionsLog([]);
+    setExhaustedCampaigns([]);
+    setCumulativeSpendByCampaign({});
+    setEvents({});
+    setOptimizationsState({});
+    setStockLevelsState({});
+    setCompetitorState(null);
+    setCompetitorActions([]);
+    resetSimRuntime();
+    clearCampaignWizard();
+  };
+
+  const mode: "home" | "run" | "review" = reviewRunId ? "review" : activeRunId ? "run" : "home";
 
   const reset = () => {
     ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_campaigns", "sim_tokens",
      "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
      "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
      "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro",
-     "sim_crises", "sim_runHistory", "sim_activeRunId"]
+     "sim_crises", "sim_runHistory", "sim_activeRunId", "sim_reviewRunId"]
       .forEach((k) => localStorage.removeItem(k));
     clearCampaignWizard();
     setStudentState(null);
@@ -394,6 +487,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCrisisResponses({});
     setRunHistory([]);
     setActiveRunId(null);
+    setReviewRunId(null);
     resetSimRuntime();
   };
 
@@ -403,12 +497,12 @@ export function SimProvider({ children }: { children: ReactNode }) {
       currentDay, optimizations, stockLevels, decisionsLog, weekTotals, events,
       competitor, competitorActions, cannibalResolved, clusterReactions, abTests,
       cumulativeSpendByCampaign, exhaustedCampaigns, microDecisionsLog,
-      crisisResponses, runHistory, activeRunId,
+      crisisResponses, runHistory, activeRunId, reviewRunId, mode,
       setStudent, newScenario, setCmPitch, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
       setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
       recordCumulativeSpend, markExhausted, logMicroDecision,
-      recordCrisisResponse, startRun, completeRun,
+      recordCrisisResponse, startRun, completeRun, clearActiveRun: () => setActiveRunId(null), enterReview, exitReview,
       reset,
     }}>
       {children}

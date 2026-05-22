@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -15,14 +16,26 @@ function fmtDate(s?: string) {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const { student, scenario, runHistory, activeRunId, campaigns, cmPitch, newScenario } = useSim();
+  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, startRun, clearActiveRun } = useSim();
+
+  // Landing on dashboard exits any active review session (mount only).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (reviewRunId) exitReview(); }, []);
+
+  // If the active run is already completed, archive it on dashboard landing.
+  useEffect(() => {
+    if (!activeRunId) return;
+    const r = runHistory.find((x) => x.id === activeRunId);
+    if (r && r.status === "completed") clearActiveRun();
+  }, [activeRunId, runHistory, clearActiveRun]);
 
   if (!student) { nav("/", { replace: true }); return null; }
   if (!scenario) { newScenario(); return null; }
 
-  const active = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
+  const activeRun = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
+  const activeInProgress = activeRun && activeRun.status === "in_progress" ? activeRun : null;
   const completed = runHistory.filter((r) => r.status === "completed");
-  const past = runHistory.filter((r) => r.id !== activeRunId).reverse();
+  const past = runHistory.filter((r) => r.id !== activeInProgress?.id).reverse();
 
   const bestScore = completed.reduce((m, r) => Math.max(m, r.score ?? 0), 0);
   const avgScore = completed.length
@@ -31,9 +44,14 @@ export default function Dashboard() {
   const lastAttempt = completed[completed.length - 1]?.completedAt;
 
   const startNew = () => {
-    if (!active) { nav("/brief"); return; }
+    if (!activeInProgress) { startRun(); nav("/brief"); return; }
     if (!cmPitch) nav("/cm-pitch");
     else nav("/campaign");
+  };
+
+  const openPast = (runId: string) => {
+    const ok = enterReview(runId);
+    if (ok) nav("/results");
   };
 
   return (
@@ -52,9 +70,11 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
-            <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
-              <FileText className="h-4 w-4" /> Re-read Brief
-            </Button>
+            {activeInProgress && (
+              <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
+                <FileText className="h-4 w-4" /> Re-read Brief
+              </Button>
+            )}
           </div>
         </div>
 
@@ -84,33 +104,33 @@ export default function Dashboard() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs uppercase tracking-wide text-primary font-bold">
-                  {active ? "Continue your run" : "Ready for a new scenario"}
+                  {activeInProgress ? "Continue your run" : "Ready for a new scenario"}
                 </div>
                 <h3 className="text-lg font-semibold mt-1">
-                  {active
-                    ? `Run in progress · ${active.brandName}`
+                  {activeInProgress
+                    ? `Run in progress · ${activeInProgress.brandName}`
                     : "Read the brief, pitch the CM, build campaigns, launch."}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {active
+                  {activeInProgress
                     ? "Pick up where you left off."
                     : "Scripted mid-campaign crisis included. Make smart calls."}
                 </p>
               </div>
               <Button size="lg" onClick={startNew} className="gap-2 shrink-0">
-                {active ? <><Rocket className="h-4 w-4" /> Resume</> : <><Plus className="h-4 w-4" /> Start New Scenario</>}
+                {activeInProgress ? <><Rocket className="h-4 w-4" /> Resume</> : <><Plus className="h-4 w-4" /> Start New Scenario</>}
               </Button>
             </div>
           </Card>
 
           {/* Active run summary */}
-          {active && (
+          {activeInProgress && (
             <Card className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-xs text-muted-foreground">Active Run</div>
                   <div className="text-sm font-semibold mt-0.5">
-                    {active.brandEmoji} {active.brandName} · Started {fmtDate(active.startedAt)}
+                    {activeInProgress.brandEmoji} {activeInProgress.brandName} · Started {fmtDate(activeInProgress.startedAt)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} created
@@ -153,21 +173,29 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {past.map((r) => (
-                    <tr key={r.id} className="border-t border-border">
-                      <td className="px-4 py-3 text-xs">{fmtDate(r.completedAt ?? r.startedAt)}</td>
-                      <td className="px-4 py-3 font-medium">{r.brandEmoji} {r.brandName}</td>
-                      <td className="px-4 py-3">
-                        {r.status === "completed" ? (
-                          <Badge className="bg-primary text-primary-foreground gap-1"><Trophy className="h-3 w-3" /> Completed</Badge>
-                        ) : (
-                          <Badge variant="secondary">In progress</Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold">{r.score != null ? `${r.score}/100` : "—"}</td>
-                      <td className="px-4 py-3 text-right">{r.achievementPct != null ? (r.achievementPct >= 90 ? "✅" : "—") : "—"}</td>
-                    </tr>
-                  ))}
+                  {past.map((r) => {
+                    const canOpen = r.status === "completed" && !!r.snapshot;
+                    return (
+                      <tr
+                        key={r.id}
+                        onClick={() => canOpen && openPast(r.id)}
+                        className={`border-t border-border ${canOpen ? "cursor-pointer hover:bg-muted/40" : "opacity-70"}`}
+                        title={canOpen ? "Review this run" : "No snapshot saved for this run"}
+                      >
+                        <td className="px-4 py-3 text-xs">{fmtDate(r.completedAt ?? r.startedAt)}</td>
+                        <td className="px-4 py-3 font-medium">{r.brandEmoji} {r.brandName}</td>
+                        <td className="px-4 py-3">
+                          {r.status === "completed" ? (
+                            <Badge className="bg-primary text-primary-foreground gap-1"><Trophy className="h-3 w-3" /> Completed</Badge>
+                          ) : (
+                            <Badge variant="secondary">In progress</Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">{r.score != null ? `${r.score}/100` : "—"}</td>
+                        <td className="px-4 py-3 text-right">{r.achievementPct != null ? (r.achievementPct >= 90 ? "✅" : "—") : "—"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -177,7 +205,7 @@ export default function Dashboard() {
             <Button variant="link" onClick={() => nav("/leaderboard")} className="px-0">
               View Full Leaderboard →
             </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); nav("/brief"); }}>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); startRun(); nav("/brief"); }}>
               <RefreshCw className="h-3.5 w-3.5" /> New Brand Scenario
             </Button>
           </div>

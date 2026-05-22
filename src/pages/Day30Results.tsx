@@ -24,7 +24,7 @@ export default function Day30Results() {
   const nav = useNavigate();
   const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
     abTests, cannibalResolved, clusterReactions, tokensSpent, crisisResponses,
-    activeRunId, completeRun } = useSim();
+    activeRunId, completeRun, startRun, mode } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
@@ -44,9 +44,10 @@ export default function Day30Results() {
   const savedRef = useRef(false);
   useEffect(() => {
     if (savedRef.current) return;
+    if (mode === "review") return; // never re-save when reviewing a past attempt
+    if (!activeRunId) return;
     savedRef.current = true;
-    // Mark run completed in local history
-    if (activeRunId) completeRun({ score: r.decisionTotal, achievementPct: r.achievementPct });
+    completeRun({ score: r.decisionTotal, achievementPct: r.achievementPct });
     // Persist attempt to backend (background, non-blocking)
     const firstCrisis = Object.values(crisisResponses)[0];
     supabase.from("attempts").insert({
@@ -278,7 +279,7 @@ export default function Day30Results() {
           </div>
 
           <div className="flex gap-3 pb-8 flex-wrap">
-            <Button onClick={() => { localStorage.removeItem("sim_brief_ack"); newScenario(); nav("/brief"); }} className="gap-2">
+            <Button onClick={() => { localStorage.removeItem("sim_brief_ack"); newScenario(); startRun(); nav("/brief"); }} className="gap-2">
               <RefreshCw className="h-4 w-4" /> Try New Scenario
             </Button>
             <Button variant="outline" onClick={() => nav("/dashboard")} className="gap-2">
