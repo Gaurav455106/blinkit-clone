@@ -192,6 +192,21 @@ export function simulateRun(
   if (!kwGood && kwAll.length) wrongs.push("Selected too many risky keywords — competitive category, expensive clicks");
   if (cm?.status === "rejected" || cm?.status === "weak") wrongs.push("CM had concerns about your pitch");
 
+  // Phase 3 commentary
+  if (arch === archOpt.optimal) rights.push(`Picked the optimal campaign architecture (${arch}) for this brand & stock map`);
+  else if (arch === "E") wrongs.push("Messy campaign architecture — no clear control over cities or SKUs");
+  else if (arch !== archOpt.alternative) wrongs.push(`Architecture mismatch — used ${arch}, optimal was ${archOpt.optimal}`);
+  rights.push(seqScored.note);
+  if (cannibalPairs.length > 0 && resolvedSet.size < cannibalPairs.length) {
+    wrongs.push(`Left ${cannibalPairs.length - resolvedSet.size} keyword overlap${cannibalPairs.length - resolvedSet.size > 1 ? "s" : ""} unresolved — paid twice for the same shoppers`);
+  } else if (cannibalPairs.length > 0) {
+    rights.push("Caught and resolved all keyword overlaps");
+  }
+  if ((phase3?.abTests ?? []).length >= 1 && (phase3?.abTests ?? []).length <= 2) rights.push("Ran disciplined A/B tests — let data pick the winning creative");
+  if ((phase3?.abTests ?? []).length > 2) wrongs.push("Too many simultaneous A/B tests — diluted learnings and burned tokens");
+  if ((phase3?.tokensSpent ?? 0) >= 6 && (phase3?.tokensSpent ?? 0) <= 9) rights.push("Spent decision tokens at a healthy pace");
+  if ((phase3?.tokensSpent ?? 0) <= 2) wrongs.push("Hoarded decision tokens — missed optimization opportunities");
+
   let verdict: SimRunResult["verdict"];
   if (achievementPct >= 90) verdict = { tone: "good", quote: "Outstanding work. This is exactly the level of execution we needed. You're promoted to Senior Executive — bigger budget, more brands, harder challenges ahead." };
   else if (achievementPct >= 70) verdict = { tone: "good", quote: "Strong performance. We see real growth potential. Continuing partnership and increasing your scope next month." };
