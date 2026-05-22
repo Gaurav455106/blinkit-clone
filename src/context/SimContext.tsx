@@ -235,6 +235,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [crisisResponses, setCrisisResponses] = useState<Record<string, CrisisResponse>>(() => load("sim_crises", {}));
   const [runHistory, setRunHistory] = useState<RunHistoryEntry[]>(() => load("sim_runHistory", []));
   const [activeRunId, setActiveRunId] = useState<string | null>(() => load("sim_activeRunId", null));
+  const [reviewRunId, setReviewRunId] = useState<string | null>(() => load("sim_reviewRunId", null));
 
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
