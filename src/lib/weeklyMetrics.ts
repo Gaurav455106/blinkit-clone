@@ -1,5 +1,13 @@
 import { Scenario, CityName, CITIES } from "@/data/scenarios";
-import { SavedCampaign, CmPitchResult, CampaignOptimization, StockMap } from "@/context/SimContext";
+import { SavedCampaign, CmPitchResult, CampaignOptimization, StockMap, AbTest } from "@/context/SimContext";
+import {
+  detectArchitecture, optimalArchitecture, architectureMultiplier,
+  detectSequence, sequenceMultiplier,
+  detectCannibalization, cannibalizationDrag,
+  computeZoneMetrics, detectClusters, ClusterInsight, ZoneMetric,
+  abTestCtrMultiplier, creativeFreshness,
+} from "@/lib/phase3";
+import { CompetitorAction } from "@/data/competitor";
 
 export interface CityMetric {
   city: string;
@@ -55,12 +63,20 @@ export interface StockAlert {
   status: "low" | "oos";
   remaining: number;
 }
+export interface PacingInfo {
+  campaignId: string;
+  cumulativeSpend: number;
+  budget: number;
+  pacePct: number;
+  projectedExhaustionDay: number | null;
+  exhausted: boolean;
+}
 export interface WeekResult {
   week: number;
   startDay: number;
   endDay: number;
   campaigns: CampaignWeekMetric[];
-  dailySpend: number[]; // length 7
+  dailySpend: number[];
   totals: {
     spend: number;
     impressions: number;
@@ -71,6 +87,11 @@ export interface WeekResult {
     roas: number;
   };
   stockAlerts: StockAlert[];
+  // Phase 3
+  clusters: ClusterInsight[];
+  pacing: PacingInfo[];
+  cannibalPairs: { keyword: string; city: string; campaignIds: string[] }[];
+  zoneMetrics: ZoneMetric[];
 }
 
 const HOUR_BLOCKS = [
@@ -353,8 +374,43 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
 
   const startDay = (week - 1) * 7 + 1;
   const endDay = week * 7;
+
+  // Phase 3: zones + clusters
+  const zoneMetrics: ZoneMetric[] = [];
+  for (const cm of campaignMetrics) {
+    for (const cb of cm.byCity) {
+      const revenue = cb.spend * cb.roas;
+      zoneMetrics.push(...computeZoneMetrics(cb.city as CityName, cb.spend, cb.impressions, revenue, scenario.profile.id));
+    }
+  }
+  // aggregate by city+zone
+  const zMap = new Map<string, ZoneMetric>();
+  for (const z of zoneMetrics) {
+    const k = `${z.city}|${z.zone}`;
+    const ex = zMap.get(k);
+    if (!ex) zMap.set(k, { ...z });
+    else { ex.spend += z.spend; ex.impressions += z.impressions; ex.roas = (ex.roas + z.roas) / 2; }
+  }
+  const aggZones = Array.from(zMap.values());
+  const clusters = detectClusters(aggZones);
+
+  // pacing per campaign
+  const pacing: PacingInfo[] = campaignMetrics.map((m) => {
+    const dayNow = endDay;
+    const cumulative = m.spend * week; // engine recomputes week as standalone, scale up to approximate cumulative
+    const pacePct = m.budget > 0 ? +((cumulative / m.budget) * 100).toFixed(1) : 0;
+    const dailyRate = dayNow > 0 ? cumulative / dayNow : 0;
+    const remaining = m.budget - cumulative;
+    const projectedExhaustionDay = dailyRate > 0 && remaining > 0
+      ? Math.min(60, Math.round(dayNow + remaining / dailyRate))
+      : (remaining <= 0 ? dayNow : null);
+    return { campaignId: m.campaignId, cumulativeSpend: Math.round(cumulative), budget: m.budget, pacePct, projectedExhaustionDay, exhausted: cumulative >= m.budget };
+  });
+
+  const cannibalPairs = detectCannibalization(campaigns);
+
   return {
-    result: { week, startDay, endDay, campaigns: campaignMetrics, dailySpend, totals, stockAlerts },
+    result: { week, startDay, endDay, campaigns: campaignMetrics, dailySpend, totals, stockAlerts, clusters, pacing, cannibalPairs, zoneMetrics: aggZones },
     newStock,
   };
 }

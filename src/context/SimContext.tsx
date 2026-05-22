@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Scenario, generateScenario, CityName } from "@/data/scenarios";
+import { Competitor, CompetitorAction, initCompetitor } from "@/data/competitor";
 
 export interface Student {
   name: string;
@@ -35,6 +36,7 @@ export interface SavedCampaign {
   budget: number;
   budgetType: "daily" | "overall" | null;
   geography: "select_cities" | "pan_india" | null;
+  launchDay?: number; // day-of-30 when launched (default 1)
 }
 
 export interface CampaignOptimization {
@@ -66,20 +68,35 @@ export interface WeekResultStored {
   // we keep the rich result transient in memory; only totals/highlights persist
 }
 
+export interface AbTest { campaignId: string; week: number; variable: string; winner: "A" | "B"; ctrMultiplier: number }
+export interface ClusterReactionStored { city: string; action: "cluster_bid" | "cluster_daypart" | "expand_similar" | "stay_broad"; tokenCost: number }
+export interface PacingSnapshot { campaignId: string; cumulativeSpend: number; budget: number; pacePct: number; projectedExhaustionDay: number | null; exhausted: boolean; wasWinning?: boolean; caught?: boolean }
+
 interface SimState {
   student: Student | null;
   scenario: Scenario | null;
   cmPitch: CmPitchResult | null;
   campaigns: SavedCampaign[];
   tokensRemaining: number;
+  tokensSpent: number;
 
   // simulation state
-  currentDay: number; // 1, 8, 15, 22, 30
+  currentDay: number;
   optimizations: Record<string, CampaignOptimization>;
   stockLevels: StockMap;
   decisionsLog: DecisionLogEntry[];
   weekTotals: WeekResultStored[];
   events: { week2?: EventResponse; week3?: EventResponse };
+
+  // Phase 3
+  competitor: Competitor | null;
+  competitorActions: CompetitorAction[];
+  cannibalResolved: string[]; // keys of resolved keyword|city
+  clusterReactions: ClusterReactionStored[];
+  abTests: AbTest[];
+  cumulativeSpendByCampaign: Record<string, number>;
+  exhaustedCampaigns: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[];
+  microDecisionsLog: { day: number; decision: string }[];
 
   setStudent: (s: Student) => void;
   newScenario: () => void;
@@ -97,6 +114,16 @@ interface SimState {
   logDecision: (d: DecisionLogEntry) => void;
   recordWeekTotals: (w: WeekResultStored) => void;
   setEventResponse: (week: 2 | 3, r: EventResponse) => void;
+
+  // Phase 3 setters
+  setCompetitor: (c: Competitor) => void;
+  addCompetitorAction: (a: CompetitorAction) => void;
+  resolveCannibal: (key: string) => void;
+  addClusterReaction: (r: ClusterReactionStored) => void;
+  addAbTest: (t: AbTest) => void;
+  recordCumulativeSpend: (campaignId: string, addedSpend: number) => void;
+  markExhausted: (e: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }) => void;
+  logMicroDecision: (m: { day: number; decision: string }) => void;
 
   reset: () => void;
 }
@@ -130,6 +157,17 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [weekTotals, setWeekTotals] = useState<WeekResultStored[]>(() => load("sim_weekTotals", []));
   const [events, setEvents] = useState<{ week2?: EventResponse; week3?: EventResponse }>(() => load("sim_events", {}));
 
+  // Phase 3 state
+  const [tokensSpent, setTokensSpent] = useState<number>(() => load("sim_tokensSpent", 0));
+  const [competitor, setCompetitorState] = useState<Competitor | null>(() => load("sim_competitor", null));
+  const [competitorActions, setCompetitorActions] = useState<CompetitorAction[]>(() => load("sim_competitorActions", []));
+  const [cannibalResolved, setCannibalResolved] = useState<string[]>(() => load("sim_cannibalResolved", []));
+  const [clusterReactions, setClusterReactions] = useState<ClusterReactionStored[]>(() => load("sim_clusterReactions", []));
+  const [abTests, setAbTests] = useState<AbTest[]>(() => load("sim_abTests", []));
+  const [cumulativeSpendByCampaign, setCumulativeSpendByCampaign] = useState<Record<string, number>>(() => load("sim_cumSpend", {}));
+  const [exhaustedCampaigns, setExhaustedCampaigns] = useState<{ campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[]>(() => load("sim_exhausted", []));
+  const [microDecisionsLog, setMicroDecisionsLog] = useState<{ day: number; decision: string }[]>(() => load("sim_micro", []));
+
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
   useEffect(() => { localStorage.setItem("sim_cm_pitch", JSON.stringify(cmPitch)); }, [cmPitch]);
@@ -141,6 +179,15 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_decisions", JSON.stringify(decisionsLog)); }, [decisionsLog]);
   useEffect(() => { localStorage.setItem("sim_weekTotals", JSON.stringify(weekTotals)); }, [weekTotals]);
   useEffect(() => { localStorage.setItem("sim_events", JSON.stringify(events)); }, [events]);
+  useEffect(() => { localStorage.setItem("sim_tokensSpent", JSON.stringify(tokensSpent)); }, [tokensSpent]);
+  useEffect(() => { localStorage.setItem("sim_competitor", JSON.stringify(competitor)); }, [competitor]);
+  useEffect(() => { localStorage.setItem("sim_competitorActions", JSON.stringify(competitorActions)); }, [competitorActions]);
+  useEffect(() => { localStorage.setItem("sim_cannibalResolved", JSON.stringify(cannibalResolved)); }, [cannibalResolved]);
+  useEffect(() => { localStorage.setItem("sim_clusterReactions", JSON.stringify(clusterReactions)); }, [clusterReactions]);
+  useEffect(() => { localStorage.setItem("sim_abTests", JSON.stringify(abTests)); }, [abTests]);
+  useEffect(() => { localStorage.setItem("sim_cumSpend", JSON.stringify(cumulativeSpendByCampaign)); }, [cumulativeSpendByCampaign]);
+  useEffect(() => { localStorage.setItem("sim_exhausted", JSON.stringify(exhaustedCampaigns)); }, [exhaustedCampaigns]);
+  useEffect(() => { localStorage.setItem("sim_micro", JSON.stringify(microDecisionsLog)); }, [microDecisionsLog]);
 
   const setStudent = (s: Student) => {
     setStudentState(s);
@@ -168,13 +215,22 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCmPitchState(null);
     setCampaigns([]);
     setTokens(10);
+    setTokensSpent(0);
+    setCompetitorState(null);
+    setCompetitorActions([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setAbTests([]);
+    setCumulativeSpendByCampaign({});
+    setExhaustedCampaigns([]);
+    setMicroDecisionsLog([]);
     resetSimRuntime();
     clearCampaignWizard();
   };
 
   const setCmPitch = (p: CmPitchResult | null) => setCmPitchState(p);
   const addCampaign = (c: SavedCampaign) => {
-    setCampaigns((prev) => [...prev, c]);
+    setCampaigns((prev) => [...prev, { ...c, launchDay: c.launchDay ?? Math.max(1, currentDay) }]);
     setOptimizationsState((prev) => ({ ...prev, [c.id]: { paused: false, scaleMultiplier: 1, dayparting: "24_7" } }));
   };
   const updateCampaign = (id: string, patch: Partial<SavedCampaign>) =>
@@ -183,12 +239,14 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCampaigns((prev) => prev.filter((c) => c.id !== id));
     setOptimizationsState((prev) => { const n = { ...prev }; delete n[id]; return n; });
   };
-  const consumeToken = (n = 1) => setTokens((t) => Math.max(0, t - n));
+  const consumeToken = (n = 1) => {
+    setTokens((t) => Math.max(0, t - n));
+    setTokensSpent((s) => s + n);
+  };
 
   const initSimulation = (stock: StockMap) => {
     setStockLevelsState(stock);
     setCurrentDayState(7);
-    // ensure all campaigns have default optimization
     setOptimizationsState((prev) => {
       const next = { ...prev };
       for (const c of campaigns) {
@@ -199,6 +257,14 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setDecisionsLog([]);
     setWeekTotals([]);
     setEvents({});
+    setCompetitorActions([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setAbTests([]);
+    setCumulativeSpendByCampaign({});
+    setExhaustedCampaigns([]);
+    setMicroDecisionsLog([]);
+    if (!competitor && scenario) setCompetitorState(initCompetitor(scenario.market.name === "Aggressive Competitor"));
   };
   const setOptimization = (id: string, opt: Partial<CampaignOptimization>) =>
     setOptimizationsState((prev) => ({ ...prev, [id]: { paused: false, scaleMultiplier: 1, dayparting: "24_7", ...prev[id], ...opt } }));
@@ -212,9 +278,23 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const setEventResponse = (week: 2 | 3, r: EventResponse) =>
     setEvents((prev) => ({ ...prev, [week === 2 ? "week2" : "week3"]: r }));
 
+  // Phase 3 setters
+  const setCompetitor = (c: Competitor) => setCompetitorState(c);
+  const addCompetitorAction = (a: CompetitorAction) => setCompetitorActions((prev) => [...prev, a]);
+  const resolveCannibal = (key: string) => setCannibalResolved((prev) => prev.includes(key) ? prev : [...prev, key]);
+  const addClusterReaction = (r: ClusterReactionStored) => setClusterReactions((prev) => [...prev.filter((x) => x.city !== r.city), r]);
+  const addAbTest = (t: AbTest) => setAbTests((prev) => [...prev.filter((x) => x.campaignId !== t.campaignId), t]);
+  const recordCumulativeSpend = (campaignId: string, addedSpend: number) =>
+    setCumulativeSpendByCampaign((prev) => ({ ...prev, [campaignId]: (prev[campaignId] || 0) + addedSpend }));
+  const markExhausted = (e: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }) =>
+    setExhaustedCampaigns((prev) => prev.some((x) => x.campaignId === e.campaignId) ? prev : [...prev, e]);
+  const logMicroDecision = (m: { day: number; decision: string }) => setMicroDecisionsLog((prev) => [...prev, m]);
+
   const reset = () => {
     ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_campaigns", "sim_tokens",
-     "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events"]
+     "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
+     "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
+     "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro"]
       .forEach((k) => localStorage.removeItem(k));
     clearCampaignWizard();
     setStudentState(null);
@@ -222,15 +302,28 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCmPitchState(null);
     setCampaigns([]);
     setTokens(10);
+    setTokensSpent(0);
+    setCompetitorState(null);
+    setCompetitorActions([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setAbTests([]);
+    setCumulativeSpendByCampaign({});
+    setExhaustedCampaigns([]);
+    setMicroDecisionsLog([]);
     resetSimRuntime();
   };
 
   return (
     <SimCtx.Provider value={{
-      student, scenario, cmPitch, campaigns, tokensRemaining,
+      student, scenario, cmPitch, campaigns, tokensRemaining, tokensSpent,
       currentDay, optimizations, stockLevels, decisionsLog, weekTotals, events,
+      competitor, competitorActions, cannibalResolved, clusterReactions, abTests,
+      cumulativeSpendByCampaign, exhaustedCampaigns, microDecisionsLog,
       setStudent, newScenario, setCmPitch, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
+      setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
+      recordCumulativeSpend, markExhausted, logMicroDecision,
       reset,
     }}>
       {children}
