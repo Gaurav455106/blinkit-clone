@@ -388,22 +388,84 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   const completeRun = (info: { score: number; achievementPct: number }) => {
     if (!activeRunId) return;
+    const snapshot: RunSnapshot | undefined = scenario ? {
+      scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+      abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+      microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+      optimizations, stockLevels, competitor, competitorActions,
+    } : undefined;
     setRunHistory((prev) =>
       prev.map((r) =>
         r.id === activeRunId
-          ? { ...r, status: "completed", completedAt: new Date().toISOString(), score: info.score, achievementPct: info.achievementPct }
+          ? { ...r, status: "completed", completedAt: new Date().toISOString(), score: info.score, achievementPct: info.achievementPct, snapshot }
           : r,
       ),
     );
     setActiveRunId(null);
   };
 
+  const enterReview = (runId: string): boolean => {
+    if (activeRunId) return false;
+    const entry = runHistory.find((r) => r.id === runId);
+    if (!entry || !entry.snapshot) return false;
+    const s = entry.snapshot;
+    setScenario(s.scenario);
+    setCmPitchState(s.cmPitch);
+    setCampaigns(s.campaigns);
+    setWeekTotals(s.weekTotals);
+    setDecisionsLog(s.decisionsLog);
+    setCrisisResponses(s.crisisResponses);
+    setAbTests(s.abTests);
+    setCannibalResolved(s.cannibalResolved);
+    setClusterReactions(s.clusterReactions);
+    setTokensSpent(s.tokensSpent);
+    setTokens(s.tokensRemaining);
+    setMicroDecisionsLog(s.microDecisionsLog);
+    setExhaustedCampaigns(s.exhaustedCampaigns);
+    setCumulativeSpendByCampaign(s.cumulativeSpendByCampaign);
+    setEvents(s.events);
+    setOptimizationsState(s.optimizations);
+    setStockLevelsState(s.stockLevels);
+    setCompetitorState(s.competitor);
+    setCompetitorActions(s.competitorActions);
+    setCurrentDayState(30);
+    setReviewRunId(runId);
+    return true;
+  };
+
+  const exitReview = () => {
+    setReviewRunId(null);
+    setScenario(null);
+    setCmPitchState(null);
+    setCampaigns([]);
+    setWeekTotals([]);
+    setDecisionsLog([]);
+    setCrisisResponses({});
+    setAbTests([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setTokensSpent(0);
+    setTokens(10);
+    setMicroDecisionsLog([]);
+    setExhaustedCampaigns([]);
+    setCumulativeSpendByCampaign({});
+    setEvents({});
+    setOptimizationsState({});
+    setStockLevelsState({});
+    setCompetitorState(null);
+    setCompetitorActions([]);
+    resetSimRuntime();
+    clearCampaignWizard();
+  };
+
+  const mode: "home" | "run" | "review" = reviewRunId ? "review" : activeRunId ? "run" : "home";
+
   const reset = () => {
     ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_campaigns", "sim_tokens",
      "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
      "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
      "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro",
-     "sim_crises", "sim_runHistory", "sim_activeRunId"]
+     "sim_crises", "sim_runHistory", "sim_activeRunId", "sim_reviewRunId"]
       .forEach((k) => localStorage.removeItem(k));
     clearCampaignWizard();
     setStudentState(null);
@@ -423,6 +485,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCrisisResponses({});
     setRunHistory([]);
     setActiveRunId(null);
+    setReviewRunId(null);
     resetSimRuntime();
   };
 
@@ -432,12 +495,12 @@ export function SimProvider({ children }: { children: ReactNode }) {
       currentDay, optimizations, stockLevels, decisionsLog, weekTotals, events,
       competitor, competitorActions, cannibalResolved, clusterReactions, abTests,
       cumulativeSpendByCampaign, exhaustedCampaigns, microDecisionsLog,
-      crisisResponses, runHistory, activeRunId,
+      crisisResponses, runHistory, activeRunId, reviewRunId, mode,
       setStudent, newScenario, setCmPitch, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
       setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
       recordCumulativeSpend, markExhausted, logMicroDecision,
-      recordCrisisResponse, startRun, completeRun,
+      recordCrisisResponse, startRun, completeRun, enterReview, exitReview,
       reset,
     }}>
       {children}
