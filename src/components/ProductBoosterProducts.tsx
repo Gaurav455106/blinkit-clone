@@ -11,7 +11,7 @@ interface ProductBoosterProductsProps {
 }
 
 export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProductsProps) {
-  const { scenario } = useSim();
+  const { scenario, cmPitch } = useSim();
   const [selectedIds, setSelectedIds] = useLocalStorage<string[]>("sim_selected_skus", []);
   const [strategy, setStrategy] = useLocalStorage<"hero" | "top3" | "all" | null>("sim_sku_strategy", null);
 
@@ -19,17 +19,20 @@ export function ProductBoosterProducts({ onProductsValid }: ProductBoosterProduc
 
   if (!scenario) return null;
   const { profile } = scenario;
+  const approvedIds = cmPitch?.approvedSKUs ?? profile.skus.map((s) => s.id);
 
   const toggle = (id: string) => {
+    if (!approvedIds.includes(id)) return;
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
     setStrategy(null);
   };
 
+  const approvedSkus = profile.skus.filter((s) => approvedIds.includes(s.id));
   const applyStrategy = (s: "hero" | "top3" | "all") => {
     setStrategy(s);
-    if (s === "hero") setSelectedIds([profile.skus[0].id]);
-    else if (s === "top3") setSelectedIds(profile.skus.slice(0, 3).map((x) => x.id));
-    else setSelectedIds(profile.skus.map((x) => x.id));
+    if (s === "hero") setSelectedIds(approvedSkus.slice(0, 1).map((x) => x.id));
+    else if (s === "top3") setSelectedIds(approvedSkus.slice(0, 3).map((x) => x.id));
+    else setSelectedIds(approvedSkus.map((x) => x.id));
   };
 
   return (
