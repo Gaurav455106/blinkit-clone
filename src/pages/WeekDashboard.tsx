@@ -211,6 +211,8 @@ export default function WeekDashboard() {
             highlight={weekResult.totals.roas >= 3 ? "good" : weekResult.totals.roas >= 1.5 ? "warn" : "bad"}
           />
         </div>
+        {/* Phase 3: Strategy Insights */}
+        <Phase3StrategyPanel week={week} weekResult={weekResult} />
 
         {/* Daily trend chart */}
         <div className="px-8 mt-6">
