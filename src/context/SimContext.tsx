@@ -220,6 +220,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_cumSpend", JSON.stringify(cumulativeSpendByCampaign)); }, [cumulativeSpendByCampaign]);
   useEffect(() => { localStorage.setItem("sim_exhausted", JSON.stringify(exhaustedCampaigns)); }, [exhaustedCampaigns]);
   useEffect(() => { localStorage.setItem("sim_micro", JSON.stringify(microDecisionsLog)); }, [microDecisionsLog]);
+  useEffect(() => { localStorage.setItem("sim_crises", JSON.stringify(crisisResponses)); }, [crisisResponses]);
+  useEffect(() => { localStorage.setItem("sim_runHistory", JSON.stringify(runHistory)); }, [runHistory]);
+  useEffect(() => { localStorage.setItem("sim_activeRunId", JSON.stringify(activeRunId)); }, [activeRunId]);
 
   const setStudent = (s: Student) => {
     setStudentState(s);
