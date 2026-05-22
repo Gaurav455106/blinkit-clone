@@ -1,20 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SimProvider } from "@/context/SimContext";
 import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
 import Brief from "./pages/Brief";
-import BrandCentral from "./pages/BrandCentral";
-import RunResults from "./pages/RunResults";
 import CmPitch from "./pages/CmPitch";
-import CampaignsDashboard from "./pages/CampaignsDashboard";
-import Day30Results from "./pages/Day30Results";
-import WeekDashboard from "./pages/WeekDashboard";
+import Campaign from "./pages/Campaign";
 import LiveDashboard from "./pages/LiveDashboard";
-import Index from "./pages/Index.tsx";
-import Results from "./pages/Results";
+import Day30Results from "./pages/Day30Results";
 import Leaderboard from "./pages/Leaderboard";
 import Trainer from "./pages/Trainer";
 import TrainerBatch from "./pages/TrainerBatch";
@@ -30,22 +26,31 @@ const App = () => (
       <BrowserRouter>
         <SimProvider>
           <Routes>
+            {/* Core 7 */}
             <Route path="/" element={<Login />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/brief" element={<Brief />} />
-            <Route path="/brand-central" element={<BrandCentral />} />
             <Route path="/cm-pitch" element={<CmPitch />} />
-            <Route path="/campaign" element={<Index />} />
-            <Route path="/campaigns-dashboard" element={<CampaignsDashboard />} />
-            <Route path="/live-dashboard" element={<LiveDashboard />} />
-            <Route path="/run-results" element={<LiveDashboard />} />
-            <Route path="/day-7" element={<LiveDashboard />} />
-            <Route path="/day-14" element={<LiveDashboard />} />
-            <Route path="/day-21" element={<LiveDashboard />} />
-            <Route path="/day-30-results" element={<Day30Results />} />
-            <Route path="/results" element={<Results />} />
+            <Route path="/campaign" element={<Campaign />} />
+            <Route path="/simulation" element={<LiveDashboard />} />
+            <Route path="/results" element={<Day30Results />} />
+
+            {/* Utility */}
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/trainer" element={<Trainer />} />
             <Route path="/trainer/:batch" element={<TrainerBatch />} />
+
+            {/* Legacy redirects */}
+            <Route path="/brand-central" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/campaigns-dashboard" element={<Navigate to="/campaign" replace />} />
+            <Route path="/live-dashboard" element={<Navigate to="/simulation" replace />} />
+            <Route path="/run-results" element={<Navigate to="/results" replace />} />
+            <Route path="/day-7" element={<Navigate to="/simulation" replace />} />
+            <Route path="/day-14" element={<Navigate to="/simulation" replace />} />
+            <Route path="/day-21" element={<Navigate to="/simulation" replace />} />
+            <Route path="/day-30-results" element={<Navigate to="/results" replace />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </SimProvider>

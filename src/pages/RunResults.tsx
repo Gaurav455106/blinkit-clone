@@ -158,7 +158,7 @@ export default function RunResults() {
         <div className="px-8 pt-6 pb-3 border-b border-border">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <button onClick={() => nav("/brand-central")} className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1">
+              <button onClick={() => nav("/dashboard")} className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1">
                 <ChevronLeft className="h-3 w-3" /> Brand Central
               </button>
               <h1 className="text-xl font-semibold mt-1">Live Campaign Results · {scenario.profile.emoji} {scenario.profile.name}</h1>
@@ -171,7 +171,7 @@ export default function RunResults() {
                 <div className="text-muted-foreground">Tokens left</div>
                 <div className="font-semibold text-sm">{tokensRemaining}</div>
               </div>
-              <Button onClick={() => nav("/day-30-results")} disabled={day < 30} className="gap-2">
+              <Button onClick={() => nav("/results")} disabled={day < 30} className="gap-2">
                 <Flag className="h-4 w-4" /> Lock in Day 30 results
               </Button>
             </div>

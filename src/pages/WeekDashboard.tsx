@@ -103,7 +103,7 @@ export default function WeekDashboard() {
       const nextDay = (week + 1) * 7;
       setCurrentDay(nextDay);
       if (week < 3) nav(`/day-${nextDay}`);
-      else nav("/day-30-results");
+      else nav("/results");
     }, 2000);
   };
 

@@ -131,7 +131,7 @@ export default function CmPitch() {
     };
     setCmPitch(defaultResult);
     setShowRetry(false);
-    nav("/campaigns-dashboard");
+    nav("/campaign");
   };
 
   const retryPitch = () => {
@@ -142,7 +142,7 @@ export default function CmPitch() {
 
   const confirmContinue = () => {
     if (result) setCmPitch(result);
-    nav("/campaigns-dashboard");
+    nav("/campaign");
   };
 
   return (
