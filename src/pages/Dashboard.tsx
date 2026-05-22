@@ -34,7 +34,7 @@ export default function Dashboard() {
   const activeRun = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
   const activeInProgress = activeRun && activeRun.status === "in_progress" ? activeRun : null;
   const completed = runHistory.filter((r) => r.status === "completed");
-  const past = runHistory.filter((r) => r.id !== activeRunId || r.status === "completed").reverse();
+  const past = runHistory.filter((r) => r.id !== activeInProgress?.id).reverse();
 
   const bestScore = completed.reduce((m, r) => Math.max(m, r.score ?? 0), 0);
   const avgScore = completed.length
