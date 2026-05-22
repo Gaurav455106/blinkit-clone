@@ -23,8 +23,10 @@ function fmtTarget(n: number, unit: string) {
 export default function Day30Results() {
   const nav = useNavigate();
   const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
-    abTests, cannibalResolved, clusterReactions, tokensSpent, crisisResponses,
-    activeRunId, completeRun, startRun, mode } = useSim();
+    abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+    microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+    optimizations, stockLevels, competitor, competitorActions,
+    crisisResponses, activeRunId, completeRun, startRun, mode } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
