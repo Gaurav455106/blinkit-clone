@@ -31,8 +31,8 @@ export default function Dashboard() {
   if (!student) { nav("/", { replace: true }); return null; }
   if (!scenario) { newScenario(); return null; }
 
-  const active = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
-  const activeInProgress = active && active.status === "in_progress" ? active : null;
+  const activeInProgress = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
+  const activeInProgress = activeInProgress && activeInProgress.status === "in_progress" ? activeInProgress : null;
   const completed = runHistory.filter((r) => r.status === "completed");
   const past = runHistory.filter((r) => r.id !== activeRunId || r.status === "completed").reverse();
 
@@ -43,7 +43,7 @@ export default function Dashboard() {
   const lastAttempt = completed[completed.length - 1]?.completedAt;
 
   const startNew = () => {
-    if (!active) { startRun(); nav("/brief"); return; }
+    if (!activeInProgress) { startRun(); nav("/brief"); return; }
     if (!cmPitch) nav("/cm-pitch");
     else nav("/campaign");
   };
@@ -69,7 +69,7 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
-            {active && (
+            {activeInProgress && (
               <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
                 <FileText className="h-4 w-4" /> Re-read Brief
               </Button>
@@ -103,33 +103,33 @@ export default function Dashboard() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs uppercase tracking-wide text-primary font-bold">
-                  {active ? "Continue your run" : "Ready for a new scenario"}
+                  {activeInProgress ? "Continue your run" : "Ready for a new scenario"}
                 </div>
                 <h3 className="text-lg font-semibold mt-1">
-                  {active
-                    ? `Run in progress · ${active.brandName}`
+                  {activeInProgress
+                    ? `Run in progress · ${activeInProgress.brandName}`
                     : "Read the brief, pitch the CM, build campaigns, launch."}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {active
+                  {activeInProgress
                     ? "Pick up where you left off."
                     : "Scripted mid-campaign crisis included. Make smart calls."}
                 </p>
               </div>
               <Button size="lg" onClick={startNew} className="gap-2 shrink-0">
-                {active ? <><Rocket className="h-4 w-4" /> Resume</> : <><Plus className="h-4 w-4" /> Start New Scenario</>}
+                {activeInProgress ? <><Rocket className="h-4 w-4" /> Resume</> : <><Plus className="h-4 w-4" /> Start New Scenario</>}
               </Button>
             </div>
           </Card>
 
           {/* Active run summary */}
-          {active && (
+          {activeInProgress && (
             <Card className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-xs text-muted-foreground">Active Run</div>
                   <div className="text-sm font-semibold mt-0.5">
-                    {active.brandEmoji} {active.brandName} · Started {fmtDate(active.startedAt)}
+                    {activeInProgress.brandEmoji} {activeInProgress.brandName} · Started {fmtDate(activeInProgress.startedAt)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} created
