@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Check, Home, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, Home, ChevronLeft, ChevronRight, Eye, X } from "lucide-react";
+import { useSim } from "@/context/SimContext";
 
 const FLOW = [
   { key: "brief", label: "Brief", path: "/brief" },
