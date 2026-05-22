@@ -22,13 +22,21 @@ function fmtTarget(n: number, unit: string) {
 export default function Day30Results() {
   const nav = useNavigate();
   const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
-    abTests, cannibalResolved, clusterReactions, tokensSpent } = useSim();
+    abTests, cannibalResolved, clusterReactions, tokensSpent, crisisResponses } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
   const r = useMemo(
     () => simulateRun(scenario, campaigns, cmPitch, { abTests, cannibalResolved, clusterReactions, tokensSpent }),
     [scenario, campaigns, cmPitch, abTests, cannibalResolved, clusterReactions, tokensSpent]
+  );
+
+  const crisisList = useMemo(
+    () =>
+      Object.values(crisisResponses)
+        .filter((c) => c.crisisNum)
+        .sort((a, b) => (a.crisisNum! - b.crisisNum!)),
+    [crisisResponses],
   );
 
   const achColor = r.achievementPct >= 90 ? "text-primary" :
