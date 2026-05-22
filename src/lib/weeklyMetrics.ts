@@ -1,5 +1,13 @@
 import { Scenario, CityName, CITIES } from "@/data/scenarios";
-import { SavedCampaign, CmPitchResult, CampaignOptimization, StockMap } from "@/context/SimContext";
+import { SavedCampaign, CmPitchResult, CampaignOptimization, StockMap, AbTest } from "@/context/SimContext";
+import {
+  detectArchitecture, optimalArchitecture, architectureMultiplier,
+  detectSequence, sequenceMultiplier,
+  detectCannibalization, cannibalizationDrag,
+  computeZoneMetrics, detectClusters, ClusterInsight, ZoneMetric,
+  abTestCtrMultiplier, creativeFreshness,
+} from "@/lib/phase3";
+import { CompetitorAction } from "@/data/competitor";
 
 export interface CityMetric {
   city: string;
