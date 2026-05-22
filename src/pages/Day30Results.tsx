@@ -41,6 +41,32 @@ export default function Day30Results() {
     [crisisResponses],
   );
 
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (savedRef.current) return;
+    savedRef.current = true;
+    // Mark run completed in local history
+    if (activeRunId) completeRun({ score: r.decisionTotal, achievementPct: r.achievementPct });
+    // Persist attempt to backend (background, non-blocking)
+    const firstCrisis = Object.values(crisisResponses)[0];
+    supabase.from("attempts").insert({
+      email: student.email,
+      name: student.name,
+      batch_code: student.batch,
+      profile_id: scenario.profile.id ?? scenario.profile.name,
+      scenario: { seed: scenario.seed, profile: scenario.profile.name },
+      choices: { campaigns: campaigns.length, abTests: abTests.length, tokensSpent },
+      crisis_id: firstCrisis?.crisisId ?? null,
+      crisis_choice: firstCrisis?.choiceId ?? null,
+      crisis_points: Object.values(crisisResponses).reduce((s, c: any) => s + (c.scoreDelta ?? 0), 0),
+      score_total: r.decisionTotal,
+      score_breakdown: { achievementPct: r.achievementPct, decisionScore: r.decisionScore, goalRows: r.goalRows },
+      badge: r.achievementPct >= 90 ? "gold" : r.achievementPct >= 70 ? "silver" : r.achievementPct >= 50 ? "bronze" : null,
+    }).then(({ error }) => { if (error) console.error("attempt save failed", error); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const achColor = r.achievementPct >= 90 ? "text-primary" :
     r.achievementPct >= 70 ? "text-amber-600" :
     r.achievementPct >= 50 ? "text-orange-600" : "text-destructive";
