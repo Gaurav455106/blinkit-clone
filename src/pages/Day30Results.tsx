@@ -2,11 +2,12 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+import { FlowHeader } from "@/components/FlowHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { simulateRun } from "@/lib/simResults";
-import { RefreshCw, Trophy, BarChart3 } from "lucide-react";
+import { RefreshCw, Trophy, BarChart3, Home } from "lucide-react";
 
 function fmt(n: number) { return n.toLocaleString("en-IN"); }
 function fmtTarget(n: number, unit: string) {
@@ -41,9 +42,9 @@ export default function Day30Results() {
     <div className="flex min-h-screen w-full">
       <BlinkitSidebar />
       <div className="flex-1 bg-background overflow-y-auto">
-        <div className="px-8 pt-6 pb-2">
-          <div className="text-xs text-muted-foreground">Brand Central › Campaign Complete</div>
-          <h1 className="text-xl font-semibold text-foreground mt-1">Campaign Complete — 30 Days</h1>
+        <FlowHeader crumb="Campaign Results" step="results" />
+        <div className="px-8 pt-4 pb-2">
+          <h1 className="text-xl font-semibold text-foreground">Campaign Complete — 30 Days</h1>
         </div>
 
         <div className="px-8 py-6 max-w-5xl space-y-5">
@@ -208,9 +209,12 @@ export default function Day30Results() {
             </Card>
           </div>
 
-          <div className="flex gap-3 pb-8">
-            <Button onClick={() => { newScenario(); nav("/brief"); }} className="gap-2">
+          <div className="flex gap-3 pb-8 flex-wrap">
+            <Button onClick={() => { localStorage.removeItem("sim_brief_ack"); newScenario(); nav("/brief"); }} className="gap-2">
               <RefreshCw className="h-4 w-4" /> Try New Scenario
+            </Button>
+            <Button variant="outline" onClick={() => nav("/dashboard")} className="gap-2">
+              <Home className="h-4 w-4" /> Back to Dashboard
             </Button>
             <Button variant="outline" onClick={() => nav("/leaderboard")} className="gap-2">
               <BarChart3 className="h-4 w-4" /> View Leaderboard
