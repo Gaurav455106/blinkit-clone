@@ -15,7 +15,7 @@ function fmtDate(s?: string) {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview } = useSim();
+  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, startRun } = useSim();
 
   if (!student) { nav("/", { replace: true }); return null; }
 
@@ -35,7 +35,7 @@ export default function Dashboard() {
   const lastAttempt = completed[completed.length - 1]?.completedAt;
 
   const startNew = () => {
-    if (!active) { nav("/brief"); return; }
+    if (!active) { startRun(); nav("/brief"); return; }
     if (!cmPitch) nav("/cm-pitch");
     else nav("/campaign");
   };
