@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrainerHeader } from "@/components/TrainerHeader";
+import { FlowHeader } from "@/components/FlowHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 
@@ -18,6 +19,12 @@ export default function Leaderboard() {
   const nav = useNavigate();
   const { student } = useSim();
   const [rows, setRows] = useState<Attempt[]>([]);
+
+  const [isTrainer, setIsTrainer] = useState(false);
+
+  useEffect(() => {
+    setIsTrainer(localStorage.getItem("sim_trainer") === "1");
+  }, []);
 
   useEffect(() => {
     supabase.from("attempts").select("*").order("score_total", { ascending: false }).limit(1000)
@@ -52,14 +59,26 @@ export default function Leaderboard() {
 
   return (
     <div className="min-h-screen w-full bg-background">
-      <TrainerHeader />
+      {isTrainer ? <TrainerHeader /> : (
+        <div className="sticky top-0 z-30 bg-card border-b border-border">
+          <div className="max-w-6xl mx-auto px-8 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground text-xs font-bold">B</span>
+              </div>
+              <span className="font-semibold text-sm text-foreground">Leaderboard</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => nav(-1)} className="gap-1.5 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="flex-1">
         <div className="px-8 py-6 max-w-6xl mx-auto">
-          <Button variant="ghost" size="sm" onClick={() => nav(-1)} className="gap-2 mb-3">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </Button>
-          <h1 className="text-xl font-semibold text-foreground">Leaderboard</h1>
-          <p className="text-xs text-muted-foreground">Best score per student across all attempts</p>
+          {isTrainer && <h1 className="text-xl font-semibold text-foreground mb-1">Leaderboard</h1>}
+          {isTrainer && <p className="text-xs text-muted-foreground mb-6">Best score per student across all attempts</p>}
+          {!isTrainer && <p className="text-xs text-muted-foreground mb-6">Best score per student across all attempts</p>}
 
           <Tabs defaultValue="batch" className="mt-6">
             <TabsList>
