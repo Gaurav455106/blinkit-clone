@@ -30,7 +30,9 @@ export function BlinkitSidebar() {
     nav("/", { replace: true });
   };
 
-  const navItems = mode === "home" ? HOME_ITEMS : FLOW_ITEMS;
+  // Route-based nav: dashboard/leaderboard always show home nav, even if a run is active.
+  const isHomeRoute = loc.pathname === "/dashboard" || loc.pathname === "/leaderboard";
+  const navItems = isHomeRoute || mode === "home" ? HOME_ITEMS : FLOW_ITEMS;
 
   return (
     <div className={`flex flex-col border-r border-border bg-card h-screen transition-all ${collapsed ? "w-16" : "w-56"}`}>
