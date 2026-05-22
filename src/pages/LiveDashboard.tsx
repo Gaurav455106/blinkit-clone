@@ -184,6 +184,26 @@ export default function LiveDashboard() {
   const [filter, setFilter] = useState<Filter>("last7");
   const [endOpen, setEndOpen] = useState(false);
 
+  // ── ALWAYS-ON LIFE SIGNS ────────────────────────────────────────────────
+  // Fast pulse drives jittered numbers + sparkline dot breathing (always on)
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPulse((p) => p + 1), 220);
+    return () => clearInterval(id);
+  }, []);
+  // Wall-clock — business time elapsed, never stops
+  const [wallSec, setWallSec] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setWallSec((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const wallMM = String(Math.floor(wallSec / 60)).padStart(2, "0");
+  const wallSS = String(wallSec % 60).padStart(2, "0");
+
+  // Live activity ticker — streams micro-events while playing
+  const [ticker, setTicker] = useState<{ id: number; text: string; tone: "good" | "neutral" | "warn" }[]>([]);
+
+
   // Crisis modal
   const pendingCrisis = crises.find((c) => currentDay >= c.day && !crisisResponses[c.id]);
   const [crisisOpen, setCrisisOpen] = useState(false);
