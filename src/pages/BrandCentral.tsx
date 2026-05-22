@@ -23,15 +23,12 @@ export default function BrandCentral() {
   const past = runHistory.filter((r) => r.id !== activeRunId).reverse();
 
   const startNew = () => {
-    // Wipe campaigns & re-issue scenario if there isn't an in-progress run
     if (!active) {
-      newScenario();
-      // newScenario also rebuilds scenario — but we want to stay on this brand.
-      // Refresh brief by routing back through brief if user wants. For simplicity, send to /brief.
-      nav("/brief");
+      // Begin a fresh run against the current brief
+      nav("/cm-pitch");
       return;
     }
-    // resume in-progress flow: continue where they were
+    // Resume in-progress flow
     if (campaigns.length === 0) nav("/cm-pitch");
     else nav("/campaigns-dashboard");
   };
