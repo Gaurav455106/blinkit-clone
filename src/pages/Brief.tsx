@@ -208,8 +208,8 @@ export default function Brief() {
               <Checkbox checked={ack} onCheckedChange={(v) => setAck(!!v)} />
               <span className="text-sm font-medium text-foreground">I have read the brief and understand the brand context.</span>
             </label>
-            <Button disabled={!ack} onClick={() => nav("/brand-central")} className="gap-2">
-              Acknowledge Brief & Go to Brand Central <ArrowRight className="h-4 w-4" />
+            <Button disabled={!ack} onClick={() => nav("/cm-pitch")} className="gap-2">
+              Continue to CM <ArrowRight className="h-4 w-4" />
             </Button>
           </Card>
         </div>

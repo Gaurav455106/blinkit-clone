@@ -19,7 +19,7 @@ export default function Login() {
     if (localStorage.getItem("sim_trainer") === "1") {
       nav("/trainer", { replace: true });
     } else if (student) {
-      nav("/brief", { replace: true });
+      nav("/dashboard", { replace: true });
     }
   }, [student, nav]);
 
@@ -37,7 +37,7 @@ export default function Login() {
       return;
     }
     setStudent({ name: name.trim(), email: email.trim().toLowerCase(), batch: batch.trim() });
-    nav("/brief");
+    nav("/dashboard");
   };
 
   const isTrainer = email.trim().toLowerCase() === "trainer@kraftshala.com";

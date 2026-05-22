@@ -16,7 +16,7 @@ import { ChevronRight, ChevronLeft, TrendingUp, Users, Smartphone } from "lucide
 
 type AdAsset = "product_booster" | "recommendation_ads" | "listing_spotlight" | "brand_booster" | null;
 
-export function CampaignForm() {
+export function CampaignForm({ onDone }: { onDone?: () => void } = {}) {
   const nav = useNavigate();
   const { scenario, student, addCampaign, campaigns } = useSim();
   const [currentStep, setCurrentStep] = useLocalStorage("campaign_step", 0);
@@ -63,7 +63,8 @@ export function CampaignForm() {
       "sim_sku_strategy", "sim_selected_cities", "sim_budget_value",
       "sim_dayparting", "sim_daypart_preset",
     ].forEach((k) => localStorage.removeItem(k));
-    nav("/campaigns-dashboard");
+    if (onDone) onDone();
+    else nav("/campaign");
   };
 
   const handleNext = () => {

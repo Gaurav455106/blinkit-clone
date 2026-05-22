@@ -263,7 +263,7 @@ export default function LiveDashboard() {
   useEffect(() => {
     if (currentDay >= 30 && playing) {
       setPlaying(false);
-      const t = setTimeout(() => nav("/day-30-results"), 1800);
+      const t = setTimeout(() => nav("/results"), 1800);
       return () => clearTimeout(t);
     }
   }, [currentDay, playing, nav]);
@@ -668,7 +668,7 @@ export default function LiveDashboard() {
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEndOpen(false); setPlaying(true); }}>Cancel</Button>
-            <Button onClick={() => { setEndOpen(false); nav("/day-30-results"); }}>End Simulation</Button>
+            <Button onClick={() => { setEndOpen(false); nav("/results"); }}>End Simulation</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
