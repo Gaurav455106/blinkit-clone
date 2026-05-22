@@ -194,7 +194,7 @@ export default function Dashboard() {
             <Button variant="link" onClick={() => nav("/leaderboard")} className="px-0">
               View Full Leaderboard →
             </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); nav("/brief"); }}>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); startRun(); nav("/brief"); }}>
               <RefreshCw className="h-3.5 w-3.5" /> New Brand Scenario
             </Button>
           </div>
