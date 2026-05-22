@@ -19,6 +19,7 @@ export default function Leaderboard() {
   const nav = useNavigate();
   const { student } = useSim();
   const [rows, setRows] = useState<Attempt[]>([]);
+  const [batchRows, setBatchRows] = useState<{ batch_code: string; score_total: number }[]>([]);
 
   const [isTrainer, setIsTrainer] = useState(false);
 
@@ -29,9 +30,11 @@ export default function Leaderboard() {
   useEffect(() => {
     supabase.from("attempts").select("*").order("score_total", { ascending: false }).limit(1000)
       .then(({ data }) => setRows((data as any) ?? []));
+    supabase.from("batch_scores").select("batch_code,score_total").limit(5000)
+      .then(({ data }) => setBatchRows((data as any) ?? []));
   }, []);
 
-  // Best-per-student
+  // Best-per-student (last 7 days enforced by backend cleanup)
   const bestByEmail = new Map<string, Attempt>();
   for (const r of rows) {
     const prev = bestByEmail.get(r.email);
@@ -40,21 +43,28 @@ export default function Leaderboard() {
   const allBest = Array.from(bestByEmail.values()).sort((a, b) => b.score_total - a.score_total);
   const myBatch = student ? allBest.filter((r) => r.batch_code === student.batch) : [];
 
-  // Batch aggregates
-  const batchMap = new Map<string, { batch: string; scores: number[]; mistakes: string[] }>();
-  for (const r of allBest) {
-    if (!batchMap.has(r.batch_code)) batchMap.set(r.batch_code, { batch: r.batch_code, scores: [], mistakes: [] });
-    const b = batchMap.get(r.batch_code)!;
-    b.scores.push(r.score_total);
-    const breakdown: any[] = Array.isArray(r.score_breakdown) ? r.score_breakdown : [];
-    const worst = breakdown.slice().sort((a, b) => (a.earned / a.max) - (b.earned / b.max))[0];
-    if (worst) b.mistakes.push(worst.label);
+  // Batch aggregates — sourced from batch_scores so they survive student cleanup.
+  const batchMap = new Map<string, { batch: string; scores: number[] }>();
+  for (const r of batchRows) {
+    if (!batchMap.has(r.batch_code)) batchMap.set(r.batch_code, { batch: r.batch_code, scores: [] });
+    batchMap.get(r.batch_code)!.scores.push(r.score_total);
+  }
+  // Most-common-mistake still needs score_breakdown, only available on live attempts.
+  const mistakeByBatch = new Map<string, string>();
+  for (const [batch, b] of batchMap) {
+    const recent = rows.filter((r) => r.batch_code === batch);
+    const labels: string[] = [];
+    for (const r of recent) {
+      const breakdown: any[] = Array.isArray(r.score_breakdown) ? r.score_breakdown : [];
+      const worst = breakdown.slice().sort((a, b) => (a.earned / a.max) - (b.earned / b.max))[0];
+      if (worst) labels.push(worst.label);
+    }
+    mistakeByBatch.set(batch, mode(labels) || "—");
   }
   const batches = Array.from(batchMap.values()).map((b) => {
     const avg = b.scores.reduce((s, x) => s + x, 0) / b.scores.length;
     const top = Math.max(...b.scores);
-    const mistake = mode(b.mistakes) || "—";
-    return { batch: b.batch, avg: Math.round(avg), count: b.scores.length, top, mistake };
+    return { batch: b.batch, avg: Math.round(avg), count: b.scores.length, top, mistake: mistakeByBatch.get(b.batch) ?? "—" };
   }).sort((a, b) => b.avg - a.avg);
 
   return (
