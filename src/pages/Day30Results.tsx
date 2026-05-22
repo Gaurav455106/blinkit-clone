@@ -20,7 +20,7 @@ function fmtTarget(n: number, unit: string) {
 
 export default function Day30Results() {
   const nav = useNavigate();
-  const { student, scenario, campaigns, cmPitch, newScenario } = useSim();
+  const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
