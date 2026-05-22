@@ -76,11 +76,9 @@ export default function Leaderboard() {
       )}
       <div className="flex-1">
         <div className="px-8 py-6 max-w-6xl mx-auto">
-          <Button variant="ghost" size="sm" onClick={() => nav(-1)} className="gap-2 mb-3">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </Button>
-          <h1 className="text-xl font-semibold text-foreground">Leaderboard</h1>
-          <p className="text-xs text-muted-foreground">Best score per student across all attempts</p>
+          {isTrainer && <h1 className="text-xl font-semibold text-foreground mb-1">Leaderboard</h1>}
+          {isTrainer && <p className="text-xs text-muted-foreground mb-6">Best score per student across all attempts</p>}
+          {!isTrainer && <p className="text-xs text-muted-foreground mb-6">Best score per student across all attempts</p>}
 
           <Tabs defaultValue="batch" className="mt-6">
             <TabsList>
