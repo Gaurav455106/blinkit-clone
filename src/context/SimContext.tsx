@@ -79,6 +79,28 @@ export interface CrisisResponse {
   bestChoice?: boolean;
 }
 
+export interface RunSnapshot {
+  scenario: Scenario;
+  cmPitch: CmPitchResult | null;
+  campaigns: SavedCampaign[];
+  weekTotals: WeekResultStored[];
+  decisionsLog: DecisionLogEntry[];
+  crisisResponses: Record<string, CrisisResponse>;
+  abTests: AbTest[];
+  cannibalResolved: string[];
+  clusterReactions: ClusterReactionStored[];
+  tokensSpent: number;
+  tokensRemaining: number;
+  microDecisionsLog: { day: number; decision: string }[];
+  exhaustedCampaigns: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[];
+  cumulativeSpendByCampaign: Record<string, number>;
+  events: { week2?: EventResponse; week3?: EventResponse };
+  optimizations: Record<string, CampaignOptimization>;
+  stockLevels: StockMap;
+  competitor: Competitor | null;
+  competitorActions: CompetitorAction[];
+}
+
 export interface RunHistoryEntry {
   id: string;
   scenarioSeed: string;
@@ -89,6 +111,7 @@ export interface RunHistoryEntry {
   status: "in_progress" | "completed";
   score?: number;
   achievementPct?: number;
+  snapshot?: RunSnapshot;
 }
 
 export interface WeekResultStored {
