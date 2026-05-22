@@ -278,7 +278,7 @@ export default function Day30Results() {
           </div>
 
           <div className="flex gap-3 pb-8 flex-wrap">
-            <Button onClick={() => { localStorage.removeItem("sim_brief_ack"); newScenario(); nav("/brief"); }} className="gap-2">
+            <Button onClick={() => { localStorage.removeItem("sim_brief_ack"); newScenario(); startRun(); nav("/brief"); }} className="gap-2">
               <RefreshCw className="h-4 w-4" /> Try New Scenario
             </Button>
             <Button variant="outline" onClick={() => nav("/dashboard")} className="gap-2">
