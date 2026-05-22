@@ -56,15 +56,45 @@ function useCountUp(target: number, duration = 500) {
   return val;
 }
 
-function MetricCard({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "neutral" }) {
-  const toneCls = tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-red-600" : "text-foreground";
+function Sparkline({ data, tone = "primary", pulse }: { data: number[]; tone?: "primary" | "muted"; pulse: number }) {
+  if (!data.length) return <div className="h-8" />;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const w = 100, h = 28;
+  const range = max - min || 1;
+  const step = data.length > 1 ? w / (data.length - 1) : w;
+  const pts = data.map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`).join(" ");
+  const last = data[data.length - 1];
+  const lx = (data.length - 1) * step;
+  const ly = h - ((last - min) / range) * h;
+  const stroke = tone === "primary" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+  const pulseR = 2.5 + Math.sin(pulse / 3) * 1.2;
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 mt-1.5" preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r={pulseR + 2} fill={stroke} opacity={0.18} />
+      <circle cx={lx} cy={ly} r={pulseR} fill={stroke} />
+    </svg>
+  );
+}
+
+function MetricCard({ label, value, hint, tone, spark, pulse }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "neutral"; spark?: number[]; pulse: number }) {
+  const toneCls = tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-red-600" : "text-foreground";
+  const sparkTone = tone === "bad" ? "muted" : "primary";
+  return (
+    <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer overflow-hidden">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-2xl font-semibold mt-1 ${toneCls}`}>{value}</div>
+      <div className={`text-2xl font-semibold mt-1 tabular-nums ${toneCls}`}>{value}</div>
+      {spark && <Sparkline data={spark} tone={sparkTone} pulse={pulse} />}
       {hint && <div className="text-[10px] text-muted-foreground mt-1">{hint}</div>}
     </Card>
   );
+}
+
+// Tiny deterministic noise — keeps numbers shimmering without flicker
+function jitter(base: number, seed: number, pulse: number, pct = 0.0015) {
+  const s = Math.sin(pulse / 4 + seed * 1.7) + Math.cos(pulse / 7 + seed * 0.9);
+  return base * (1 + s * pct);
 }
 
 export default function LiveDashboard() {
