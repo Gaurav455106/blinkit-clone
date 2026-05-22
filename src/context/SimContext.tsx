@@ -62,10 +62,29 @@ export interface EventResponse {
   tokenCost: number;
 }
 
+export interface CrisisResponse {
+  crisisId: string;
+  eventId: string;
+  optionKey: string;
+  tokenCost: number;
+  day: number;
+}
+
+export interface RunHistoryEntry {
+  id: string;
+  scenarioSeed: string;
+  brandName: string;
+  brandEmoji: string;
+  startedAt: string;
+  completedAt?: string;
+  status: "in_progress" | "completed";
+  score?: number;
+  achievementPct?: number;
+}
+
 export interface WeekResultStored {
   week: number;
   totals: { spend: number; impressions: number; clicks: number; atcs: number; units: number; revenue: number; roas: number };
-  // we keep the rich result transient in memory; only totals/highlights persist
 }
 
 export interface AbTest { campaignId: string; week: number; variable: string; winner: "A" | "B"; ctrMultiplier: number }
