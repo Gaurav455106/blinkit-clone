@@ -268,7 +268,7 @@ export default function LiveDashboard() {
   useEffect(() => {
     if (currentDay >= 30 && playing) {
       setPlaying(false);
-      const t = setTimeout(() => nav("/results"), 1800);
+      const t = setTimeout(() => nav("/results"), 900);
       return () => clearTimeout(t);
     }
   }, [currentDay, playing, nav]);
