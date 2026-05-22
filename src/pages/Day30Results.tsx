@@ -44,9 +44,10 @@ export default function Day30Results() {
   const savedRef = useRef(false);
   useEffect(() => {
     if (savedRef.current) return;
+    if (mode === "review") return; // never re-save when reviewing a past attempt
+    if (!activeRunId) return;
     savedRef.current = true;
-    // Mark run completed in local history
-    if (activeRunId) completeRun({ score: r.decisionTotal, achievementPct: r.achievementPct });
+    completeRun({ score: r.decisionTotal, achievementPct: r.achievementPct });
     // Persist attempt to backend (background, non-blocking)
     const firstCrisis = Object.values(crisisResponses)[0];
     supabase.from("attempts").insert({
