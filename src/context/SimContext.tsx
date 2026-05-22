@@ -239,12 +239,14 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCampaigns((prev) => prev.filter((c) => c.id !== id));
     setOptimizationsState((prev) => { const n = { ...prev }; delete n[id]; return n; });
   };
-  const consumeToken = (n = 1) => setTokens((t) => Math.max(0, t - n));
+  const consumeToken = (n = 1) => {
+    setTokens((t) => Math.max(0, t - n));
+    setTokensSpent((s) => s + n);
+  };
 
   const initSimulation = (stock: StockMap) => {
     setStockLevelsState(stock);
     setCurrentDayState(7);
-    // ensure all campaigns have default optimization
     setOptimizationsState((prev) => {
       const next = { ...prev };
       for (const c of campaigns) {
@@ -255,6 +257,14 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setDecisionsLog([]);
     setWeekTotals([]);
     setEvents({});
+    setCompetitorActions([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setAbTests([]);
+    setCumulativeSpendByCampaign({});
+    setExhaustedCampaigns([]);
+    setMicroDecisionsLog([]);
+    if (!competitor && scenario) setCompetitorState(initCompetitor(scenario.market.name === "Aggressive Competitor"));
   };
   const setOptimization = (id: string, opt: Partial<CampaignOptimization>) =>
     setOptimizationsState((prev) => ({ ...prev, [id]: { paused: false, scaleMultiplier: 1, dayparting: "24_7", ...prev[id], ...opt } }));
@@ -268,9 +278,23 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const setEventResponse = (week: 2 | 3, r: EventResponse) =>
     setEvents((prev) => ({ ...prev, [week === 2 ? "week2" : "week3"]: r }));
 
+  // Phase 3 setters
+  const setCompetitor = (c: Competitor) => setCompetitorState(c);
+  const addCompetitorAction = (a: CompetitorAction) => setCompetitorActions((prev) => [...prev, a]);
+  const resolveCannibal = (key: string) => setCannibalResolved((prev) => prev.includes(key) ? prev : [...prev, key]);
+  const addClusterReaction = (r: ClusterReactionStored) => setClusterReactions((prev) => [...prev.filter((x) => x.city !== r.city), r]);
+  const addAbTest = (t: AbTest) => setAbTests((prev) => [...prev.filter((x) => x.campaignId !== t.campaignId), t]);
+  const recordCumulativeSpend = (campaignId: string, addedSpend: number) =>
+    setCumulativeSpendByCampaign((prev) => ({ ...prev, [campaignId]: (prev[campaignId] || 0) + addedSpend }));
+  const markExhausted = (e: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }) =>
+    setExhaustedCampaigns((prev) => prev.some((x) => x.campaignId === e.campaignId) ? prev : [...prev, e]);
+  const logMicroDecision = (m: { day: number; decision: string }) => setMicroDecisionsLog((prev) => [...prev, m]);
+
   const reset = () => {
     ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_campaigns", "sim_tokens",
-     "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events"]
+     "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
+     "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
+     "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro"]
       .forEach((k) => localStorage.removeItem(k));
     clearCampaignWizard();
     setStudentState(null);
@@ -278,15 +302,28 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCmPitchState(null);
     setCampaigns([]);
     setTokens(10);
+    setTokensSpent(0);
+    setCompetitorState(null);
+    setCompetitorActions([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setAbTests([]);
+    setCumulativeSpendByCampaign({});
+    setExhaustedCampaigns([]);
+    setMicroDecisionsLog([]);
     resetSimRuntime();
   };
 
   return (
     <SimCtx.Provider value={{
-      student, scenario, cmPitch, campaigns, tokensRemaining,
+      student, scenario, cmPitch, campaigns, tokensRemaining, tokensSpent,
       currentDay, optimizations, stockLevels, decisionsLog, weekTotals, events,
+      competitor, competitorActions, cannibalResolved, clusterReactions, abTests,
+      cumulativeSpendByCampaign, exhaustedCampaigns, microDecisionsLog,
       setStudent, newScenario, setCmPitch, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
+      setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
+      recordCumulativeSpend, markExhausted, logMicroDecision,
       reset,
     }}>
       {children}
