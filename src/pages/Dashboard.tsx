@@ -18,8 +18,9 @@ export default function Dashboard() {
   const nav = useNavigate();
   const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, startRun, clearActiveRun } = useSim();
 
-  // Landing on dashboard exits any active review session.
-  useEffect(() => { if (reviewRunId) exitReview(); }, [reviewRunId, exitReview]);
+  // Landing on dashboard exits any active review session (mount only).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (reviewRunId) exitReview(); }, []);
 
   // If the active run is already completed, archive it on dashboard landing.
   useEffect(() => {
