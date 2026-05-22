@@ -278,9 +278,9 @@ export default function CmPitch() {
                 <div className="text-muted-foreground">
                   {result.approvedSKUs.length === 0 ? "None" : result.approvedSKUs.map((id) => profile.skus.find((s) => s.id === id)?.name).join(", ")}
                 </div>
-                <div className="font-semibold mt-2">Approved Cities:</div>
+                <div className="font-semibold mt-2">Approved States:</div>
                 <div className="text-muted-foreground">{result.approvedCities.join(", ") || "None"}</div>
-                {result.osaBoost && <div className="mt-2 text-primary font-semibold">+10% OSA boost in approved cities</div>}
+                {result.osaBoost && <div className="mt-2 text-primary font-semibold">+10% OSA boost in approved states</div>}
               </div>
               <Button className="w-full" onClick={confirmContinue}>Continue to Brand Central →</Button>
             </div>
