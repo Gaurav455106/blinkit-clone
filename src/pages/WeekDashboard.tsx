@@ -50,16 +50,6 @@ export default function WeekDashboard() {
     return computeWeek({ scenario, campaigns, cmPitch, opts: optimizations, stockLevels: stock, week }).result;
   }, [scenario, campaigns, cmPitch, optimizations, stockLevels, week]);
 
-  if (!student || !scenario) { nav("/"); return null; }
-
-  const cumulativeWeeks = week; // Day 7=>1, Day 14=>2, Day 21=>3
-  const daysComplete = cumulativeWeeks * 7;
-  const daysRemaining = 30 - daysComplete;
-
-  const totalBudget = scenario.budget;
-  const totalAllocated = campaigns.reduce((s, c) => s + c.budget, 0);
-  const budgetSpentSoFar = weekResult.totals.spend; // simplified: this week's spend (engine doesn't carry across weeks)
-
   // event for day 14 / day 21
   const eventWeek = week === 2 ? 2 : week === 3 ? 3 : null;
   const event = eventWeek ? getEventForWeek(eventWeek) : null;
@@ -72,6 +62,16 @@ export default function WeekDashboard() {
   const [showLoading, setShowLoading] = useState(false);
   const [editing, setEditing] = useState<SavedCampaign | null>(null);
   const [restocking, setRestocking] = useState<{ campaignId: string } | null>(null);
+
+  if (!student || !scenario) { nav("/"); return null; }
+
+  const cumulativeWeeks = week; // Day 7=>1, Day 14=>2, Day 21=>3
+  const daysComplete = cumulativeWeeks * 7;
+  const daysRemaining = 30 - daysComplete;
+
+  const totalBudget = scenario.budget;
+  const totalAllocated = campaigns.reduce((s, c) => s + c.budget, 0);
+  const budgetSpentSoFar = weekResult.totals.spend;
 
   const allDecided = campaigns.every((c) => !!decisionsByCampaign[c.id]);
 
