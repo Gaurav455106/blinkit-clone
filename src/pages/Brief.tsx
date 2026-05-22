@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+
 import { ArrowRight, Target, MapPin } from "lucide-react";
 import { CITIES, CITY_STORE_COUNT, activeStoresFor, CityName } from "@/data/scenarios";
 
@@ -32,9 +32,8 @@ export default function Brief() {
   const { profile, season, market, inventory, budget, clientGoals, cityStockMap } = scenario;
 
   return (
-    <div className="flex min-h-screen w-full">
-      <BlinkitSidebar />
-      <div className="flex-1 flex flex-col bg-background">
+    <div className="min-h-screen w-full bg-background">
+      <div className="flex-1 flex flex-col">
         <div className="px-8 pt-6 pb-2">
           <div className="text-xs text-muted-foreground">Brand Central › Client Brief</div>
           <h1 className="text-xl font-semibold text-foreground mt-1">Your Brand Brief</h1>
