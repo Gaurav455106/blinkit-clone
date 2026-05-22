@@ -309,6 +309,42 @@ export default function LiveDashboard() {
     return arr;
   }, [dayMetrics, range]);
 
+  // Per-metric sparkline series (last 14 days up to current)
+  const sparkRange = useMemo(() => {
+    const s = Math.max(1, currentDay - 13);
+    const arr: DayMetric[] = [];
+    for (let d = s; d <= currentDay; d++) arr.push(dayMetrics[d - 1]);
+    return arr;
+  }, [dayMetrics, currentDay]);
+  const sSpend = sparkRange.map((m) => m.spend);
+  const sImp = sparkRange.map((m) => m.impressions);
+  const sAtc = sparkRange.map((m) => m.atcs);
+  const sUnits = sparkRange.map((m) => m.units);
+  const sRev = sparkRange.map((m) => m.revenue);
+  const sRoas = sparkRange.map((m) => (m.spend > 0 ? m.revenue / m.spend : 0));
+
+  // Activity ticker generator — fires every ~1.3s while playing
+  useEffect(() => {
+    if (!playing) return;
+    const cities = Array.from(new Set(campaigns.flatMap((c) => c.cities))).slice(0, 6);
+    const skuNames = scenario.profile.skus.slice(0, 4).map((s) => s.name);
+    const id = setInterval(() => {
+      const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)] as T;
+      const city = pick(cities.length ? cities : ["Bangalore", "Mumbai", "Delhi"]);
+      const sku = pick(skuNames.length ? skuNames : ["Hero SKU"]);
+      const kind = Math.random();
+      let text = "", tone: "good" | "neutral" | "warn" = "neutral";
+      if (kind < 0.35) { text = `🛒 ${city} · ${sku} +${1 + Math.floor(Math.random() * 4)} ATC`; tone = "good"; }
+      else if (kind < 0.6) { text = `💰 Sale ₹${(199 + Math.floor(Math.random() * 600)).toLocaleString("en-IN")} · ${city}`; tone = "good"; }
+      else if (kind < 0.8) { text = `⚡ Impression burst on "${pick(["protein", "snacks", "atta", "shampoo", "instant noodles"])}"`; tone = "neutral"; }
+      else if (kind < 0.92) { text = `📊 CTR ↑ ${(0.4 + Math.random() * 0.6).toFixed(2)}% · ${city}`; tone = "neutral"; }
+      else { text = `⚠️ CPC spike on "${pick(["coffee", "oil", "biscuits"])}"`; tone = "warn"; }
+      setTicker((t) => [{ id: Date.now() + Math.random(), text, tone }, ...t].slice(0, 12));
+    }, 1300);
+    return () => clearInterval(id);
+  }, [playing, campaigns, scenario]);
+
+
   // Insights
   const [dismissed, setDismissed] = useState<string[]>([]);
   const insights = useMemo(() => {
