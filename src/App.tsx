@@ -18,6 +18,11 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
+function TrainerGuard({ children }: { children: React.ReactNode }) {
+  const isTrainer = localStorage.getItem("sim_trainer") === "1";
+  return isTrainer ? <>{children}</> : <Navigate to="/" replace />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
