@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Scenario, generateScenario, CityName } from "@/data/scenarios";
 import { Competitor, CompetitorAction, initCompetitor } from "@/data/competitor";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Student {
   name: string;
