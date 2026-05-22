@@ -6,6 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SimProvider } from "@/context/SimContext";
 import Login from "./pages/Login";
 import Brief from "./pages/Brief";
+import CmPitch from "./pages/CmPitch";
+import CampaignsDashboard from "./pages/CampaignsDashboard";
+import Day30Results from "./pages/Day30Results";
 import Index from "./pages/Index.tsx";
 import Results from "./pages/Results";
 import Leaderboard from "./pages/Leaderboard";
@@ -25,7 +28,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/brief" element={<Brief />} />
+            <Route path="/cm-pitch" element={<CmPitch />} />
             <Route path="/campaign" element={<Index />} />
+            <Route path="/campaigns-dashboard" element={<CampaignsDashboard />} />
+            <Route path="/day-30-results" element={<Day30Results />} />
             <Route path="/results" element={<Results />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/trainer" element={<Trainer />} />

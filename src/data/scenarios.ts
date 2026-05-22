@@ -1,7 +1,8 @@
-// Static data + deterministic scenario picker for the Blinkit simulator.
+// Static data + scenario generator for the Blinkit simulator.
 
 export type Velocity = "Very Low" | "Low" | "Medium" | "High";
 export type Difficulty = "Medium" | "Hard" | "Very Hard";
+export type GoalType = "ROAS-First" | "Awareness-First" | "Category-Creation" | "Volume-First" | "Inventory-Clearance";
 
 export interface SKU {
   id: string;
@@ -27,17 +28,13 @@ export interface BrandProfile {
   cityContext: string;
   unitEconomics: string;
   relevantCategories: string[];
+  goalType: GoalType;
 }
 
 export const BRAND_PROFILES: BrandProfile[] = [
   {
-    id: "henlo",
-    name: "Henlo",
-    emoji: "🐶",
-    category: "Dog Treats",
-    difficulty: "Medium",
-    context:
-      "Henlo is a 2-year-old D2C pet brand launching on Blinkit. Dog treats are their bestseller offline.",
+    id: "henlo", name: "Henlo", emoji: "🐾", category: "Dog Treats", difficulty: "Medium",
+    context: "Henlo is a 2-year-old D2C pet brand launching on Blinkit. Dog treats are their bestseller offline.",
     cityContext: "Bangalore",
     skus: [
       { id: "henlo-1", name: "Henlo Chicken Jerky Treats 150g", mrp: 299, margin: 15, velocity: "High" },
@@ -46,20 +43,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     ],
     goodKeywords: ["dog treats", "dental chews", "puppy snacks", "dog biscuits", "chicken jerky"],
     riskyKeywords: ["henlo", "dog food", "pet accessories"],
-    optimalObjective: "performance",
-    optimalAdFormat: "product_booster",
+    optimalObjective: "performance", optimalAdFormat: "product_booster",
     trap: "Overstocking kills margin — ₹15 margin vanishes in 15 days of storage costs",
     unitEconomics: "Avg MRP ₹249 · Avg Margin ₹12 · High velocity hero SKU",
     relevantCategories: ["Dog Needs", "Pet Food & Accessories"],
+    goalType: "ROAS-First",
   },
   {
-    id: "glow",
-    name: "Glow Republic",
-    emoji: "✨",
-    category: "Premium Skincare",
-    difficulty: "Hard",
-    context:
-      "New D2C skincare brand. Zero presence on Blinkit. Customers don't search for Glow Republic yet — brand awareness is very low.",
+    id: "glow", name: "Glow Republic", emoji: "✨", category: "Premium Skincare", difficulty: "Hard",
+    context: "New D2C skincare brand. Zero presence on Blinkit. Customers don't search for Glow Republic yet — brand awareness is very low.",
     cityContext: "Delhi NCR",
     skus: [
       { id: "glow-1", name: "Glow Republic Vitamin C Serum 30ml", mrp: 799, margin: 180, velocity: "Medium" },
@@ -68,20 +60,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     ],
     goodKeywords: ["vitamin c serum", "sunscreen spf 50", "retinol cream", "night cream", "face serum"],
     riskyKeywords: ["glow republic", "skincare routine", "beauty"],
-    optimalObjective: "reach",
-    optimalAdFormat: "listing_spotlight",
+    optimalObjective: "reach", optimalAdFormat: "listing_spotlight",
     trap: "Running Performance before Reach — no one searches your brand yet, CTR will be terrible and budget burns",
     unitEconomics: "Avg MRP ₹782 · Avg Margin ₹173 · Brand awareness is the bottleneck",
     relevantCategories: ["Beauty & Personal Care", "Skincare"],
+    goalType: "Awareness-First",
   },
   {
-    id: "vitaboost",
-    name: "VitaBoost",
-    emoji: "💊",
-    category: "Health Supplements",
-    difficulty: "Very Hard",
-    context:
-      "VitaBoost wants to pioneer the supplements category on Blinkit. No competitor has cracked it. Customers aren't trained to buy supplements in 10 minutes yet.",
+    id: "vitaboost", name: "VitaBoost", emoji: "💊", category: "Health Supplements", difficulty: "Very Hard",
+    context: "VitaBoost wants to pioneer the supplements category on Blinkit. No competitor has cracked it. Customers aren't trained to buy supplements in 10 minutes yet.",
     cityContext: "Mumbai",
     skus: [
       { id: "vita-1", name: "VitaBoost Multivitamin 60 tabs", mrp: 799, margin: 160, velocity: "Low" },
@@ -90,20 +77,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     ],
     goodKeywords: ["multivitamin", "omega 3", "iron tablets", "folic acid", "vitamin c tablets"],
     riskyKeywords: ["vitaboost", "health supplements", "vitamins"],
-    optimalObjective: "reach",
-    optimalAdFormat: "listing_spotlight",
+    optimalObjective: "reach", optimalAdFormat: "listing_spotlight",
     trap: "Category barely exists on Blinkit — customers don't search supplements here, dead stock guaranteed",
     unitEconomics: "Avg MRP ₹632 · Avg Margin ₹126 · Category not trained yet",
     relevantCategories: ["Health & Wellness", "Supplements"],
+    goalType: "Category-Creation",
   },
   {
-    id: "tinybuddy",
-    name: "TinyBuddy",
-    emoji: "👶",
-    category: "Baby Care",
-    difficulty: "Hard",
-    context:
-      "TinyBuddy is a trusted offline baby brand entering Blinkit. Their customer is the new parent — highly specific, shops in the morning, very brand-loyal once converted.",
+    id: "tinybuddy", name: "TinyBuddy", emoji: "👶", category: "Baby Care", difficulty: "Hard",
+    context: "TinyBuddy is a trusted offline baby brand entering Blinkit. Their customer is the new parent — highly specific, shops in the morning, very brand-loyal once converted.",
     cityContext: "Delhi NCR",
     skus: [
       { id: "tiny-1", name: "TinyBuddy Baby Wipes 80 pcs", mrp: 199, margin: 35, velocity: "Medium" },
@@ -112,20 +94,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     ],
     goodKeywords: ["baby wipes", "diaper cream", "baby shampoo", "rash cream", "baby essentials"],
     riskyKeywords: ["tinybuddy", "baby care", "parenting"],
-    optimalObjective: "reach",
-    optimalAdFormat: "brand_booster",
+    optimalObjective: "reach", optimalAdFormat: "brand_booster",
     trap: "Wrong dayparting — new parents shop 10AM-1PM, not 8-11PM. 24/7 ads waste budget on dead hours",
     unitEconomics: "Avg MRP ₹249 · Avg Margin ₹48 · Morning-only demand window",
     relevantCategories: ["Baby Care", "Mother & Baby"],
+    goalType: "Volume-First",
   },
   {
-    id: "munchbox",
-    name: "MunchBox",
-    emoji: "🥨",
-    category: "Packaged Snacks",
-    difficulty: "Medium",
-    context:
-      "MunchBox makes healthy snacks. Launching on Blinkit. The category is brutally competitive — Haldirams, Lay's, Bingo all bidding aggressively on generic keywords.",
+    id: "munchbox", name: "MunchBox", emoji: "🍿", category: "Packaged Snacks", difficulty: "Medium",
+    context: "MunchBox makes healthy snacks. Launching on Blinkit. The category is brutally competitive — Haldirams, Lay's, Bingo all bidding aggressively on generic keywords.",
     cityContext: "Mumbai",
     skus: [
       { id: "munch-1", name: "MunchBox Roasted Makhana Peri Peri 60g", mrp: 149, margin: 18, velocity: "High" },
@@ -134,20 +111,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     ],
     goodKeywords: ["makhana snacks", "roasted makhana", "healthy chips", "multigrain chips", "mixed nuts"],
     riskyKeywords: ["chips", "namkeen", "snacks"],
-    optimalObjective: "performance",
-    optimalAdFormat: "product_booster",
+    optimalObjective: "performance", optimalAdFormat: "product_booster",
     trap: "Bidding on generic 'chips' puts you against Haldirams and Lay's. Niche keywords win here",
     unitEconomics: "Avg MRP ₹149 · Avg Margin ₹22 · Niche keywords beat generics",
     relevantCategories: ["Snacks", "Packaged Foods"],
+    goalType: "ROAS-First",
   },
   {
-    id: "pawlife",
-    name: "PawLife",
-    emoji: "🐾",
-    category: "Pet Accessories",
-    difficulty: "Hard",
-    context:
-      "PawLife makes premium pet accessories. Launching on Blinkit. These are considered purchases — a dog owner thinks before buying a harness, unlike dog treats.",
+    id: "pawlife", name: "PawLife", emoji: "🦮", category: "Pet Accessories", difficulty: "Hard",
+    context: "PawLife makes premium pet accessories. Launching on Blinkit. These are considered purchases — a dog owner thinks before buying a harness, unlike dog treats.",
     cityContext: "Hyderabad",
     skus: [
       { id: "paw-1", name: "PawLife Adjustable Dog Leash 1.5m", mrp: 599, margin: 120, velocity: "Low" },
@@ -156,20 +128,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     ],
     goodKeywords: ["dog leash", "dog bowl", "dog harness", "pet leash", "dog collar"],
     riskyKeywords: ["pet accessories", "dog products", "pawlife"],
-    optimalObjective: "reach",
-    optimalAdFormat: "recommendation_ads",
+    optimalObjective: "reach", optimalAdFormat: "recommendation_ads",
     trap: "Students assume pet accessories behave like pet food/treats. Nobody impulse-buys a dog leash in 10 minutes",
     unitEconomics: "Avg MRP ₹632 · Avg Margin ₹127 · Considered purchase, not impulse",
     relevantCategories: ["Pet Food & Accessories", "Dog Needs"],
+    goalType: "Awareness-First",
   },
   {
-    id: "fuelup",
-    name: "FuelUp",
-    emoji: "💪",
-    category: "Protein & Fitness",
-    difficulty: "Very Hard",
-    context:
-      "FuelUp is a premium protein brand. Launching on Blinkit. Customers are gym-goers concentrated in specific localities like Koramangala, Bandra, Jubilee Hills — not spread across the entire city.",
+    id: "fuelup", name: "FuelUp", emoji: "💪", category: "Protein & Fitness", difficulty: "Very Hard",
+    context: "FuelUp is a premium protein brand. Launching on Blinkit. Customers are gym-goers concentrated in specific localities like Koramangala, Bandra, Jubilee Hills — not spread across the entire city.",
     cityContext: "Bangalore",
     skus: [
       { id: "fuel-1", name: "FuelUp Whey Protein Chocolate 500g", mrp: 1299, margin: 260, velocity: "Low" },
@@ -178,27 +145,54 @@ export const BRAND_PROFILES: BrandProfile[] = [
     ],
     goodKeywords: ["whey protein", "protein supplement", "protein bar", "plant protein", "fitness supplement"],
     riskyKeywords: ["fuelup", "gym protein"],
-    optimalObjective: "performance",
-    optimalAdFormat: "product_booster",
+    optimalObjective: "performance", optimalAdFormat: "product_booster",
     trap: "Pan India targeting burns budget. Demand is hyperlocal — only gym-dense pin codes like Koramangala, Bandra, Jubilee Hills",
     unitEconomics: "Avg MRP ₹799 · Avg Margin ₹158 · Hyperlocal demand",
     relevantCategories: ["Health & Wellness", "Sports Nutrition"],
+    goalType: "ROAS-First",
   },
 ];
 
-export const CITIES = ["Bangalore", "Delhi NCR", "Mumbai", "Hyderabad"];
+export const CITIES = ["Bangalore", "Delhi NCR", "Mumbai", "Hyderabad"] as const;
+export type CityName = typeof CITIES[number];
+
+export const CITY_STORE_COUNT: Record<CityName, number> = {
+  Bangalore: 40,
+  "Delhi NCR": 55,
+  Mumbai: 48,
+  Hyderabad: 28,
+};
+
+// City macro -> child cities used in the existing city tree dropdown
+export const CITY_TO_CHILDREN: Record<CityName, string[]> = {
+  Bangalore: ["Bengaluru"],
+  "Delhi NCR": ["New Delhi", "Noida", "Gurugram", "Faridabad"],
+  Mumbai: ["Mumbai", "Thane", "Navi Mumbai"],
+  Hyderabad: ["Hyderabad"],
+};
 
 export const SEASONS = [
-  { name: "Summer Peak", note: "May–June, heatwave, hydration & cooling categories spike" },
-  { name: "Monsoon", note: "July–September, slower foot traffic, comfort & immunity demand" },
-  { name: "Festive", note: "October–November, gifting & celebrations, 2x average basket" },
-  { name: "Winter", note: "December–January, skincare & warm food categories peak" },
-  { name: "Off-Season", note: "February–April, baseline demand, normal velocity" },
-];
+  { name: "Normal Week", note: "Baseline demand, no spikes." },
+  { name: "Festival Surge", note: "Diwali/Holi — demand +40%, CPMs +30%." },
+  { name: "Post-Festival Slowdown", note: "Demand -40%, careful with spend." },
+  { name: "Summer Season", note: "Skincare/beverage spike." },
+  { name: "New Year Health Spike", note: "Supplements/protein boom." },
+] as const;
+
+export const MARKET_CONDITIONS = [
+  { name: "Stable Market", note: "No major competitor moves." },
+  { name: "Aggressive Competitor", note: "CPMs +35%." },
+  { name: "Price War in Category", note: "Margins squeezed across the shelf." },
+  { name: "New Entrant Disrupting", note: "A new brand is buying share aggressively." },
+  { name: "Platform Pushing Private Label", note: "Blinkit pushing its own label in your category." },
+] as const;
+
+export const INVENTORY_STATE_LABELS = ["Healthy", "Shaky", "Critical", "Overstocked"] as const;
+export type InventoryStateLabel = typeof INVENTORY_STATE_LABELS[number];
 
 export interface InventoryState {
   id: string;
-  label: string;
+  label: InventoryStateLabel;
   osa: number;
   fillRate: number;
   activeStores: number;
@@ -206,106 +200,155 @@ export interface InventoryState {
   tone: "critical" | "warning" | "healthy" | "overstocked";
 }
 
-export const INVENTORY_STATES: InventoryState[] = [
-  { id: "critical", label: "Critical Stockout", osa: 54, fillRate: 62, activeStores: 22, agingUnits: 120, tone: "critical" },
-  { id: "warning", label: "Patchy Coverage", osa: 71, fillRate: 78, activeStores: 38, agingUnits: 260, tone: "warning" },
-  { id: "healthy", label: "Healthy Inventory", osa: 92, fillRate: 95, activeStores: 54, agingUnits: 80, tone: "healthy" },
-  { id: "overstocked", label: "Overstocked", osa: 96, fillRate: 98, activeStores: 60, agingUnits: 1240, tone: "overstocked" },
-];
+export type CityStockMap = Record<CityName, number>;
 
-export const MARKET_CONDITIONS = [
-  { name: "Competitor Blitz", note: "A rival just slashed prices 20% across category" },
-  { name: "Quiet Market", note: "Category demand is flat, no spike events on the horizon" },
-  { name: "Viral Moment", note: "A category trend is going viral on Instagram this week" },
-  { name: "Festive Surge", note: "Demand is up 40% across the platform, ad CPMs also rising" },
-];
-
-export interface CrisisOption {
-  key: "a" | "b" | "c";
-  label: string;
-  points: number;
+export interface ClientGoals {
+  primary: string;
+  metrics: { label: string; target: number; unit: string }[];
+  threshold: string;
 }
+
+export interface Scenario {
+  seed: string;
+  profile: BrandProfile;
+  cityStockMap: CityStockMap;
+  season: typeof SEASONS[number];
+  market: typeof MARKET_CONDITIONS[number];
+  inventory: InventoryState;
+  budget: number;
+  clientGoals: ClientGoals;
+  // legacy city field for back-compat (highest OSA city)
+  city: CityName;
+}
+
+// --- Crisis (kept from legacy Results screen) ---
+export interface CrisisOption { key: "a" | "b" | "c"; label: string; points: number }
 export interface Crisis {
-  id: string;
-  title: string;
+  id: string; title: string;
   message: (city: string) => string;
   options: CrisisOption[];
 }
-
 export const CRISES: Crisis[] = [
   {
-    id: "fill_rate",
-    title: "Fill Rate Alert",
-    message: (city) =>
-      `Supply team flag: Fill rate dropped to 62% in South ${city} dark stores. 8 stores critically low.`,
+    id: "fill_rate", title: "Fill Rate Alert",
+    message: (city) => `Supply team flag: Fill rate dropped to 62% in South ${city} dark stores. 8 stores critically low.`,
     options: [
       { key: "a", label: "Pause ads in affected zones immediately", points: 10 },
       { key: "b", label: "Continue campaign, hope stock arrives", points: -5 },
       { key: "c", label: "Pause ads AND request emergency restock", points: 15 },
     ],
   },
-  {
-    id: "cm_alert",
-    title: "Category Manager Alert",
-    message: () =>
-      `Blinkit CM: "Your top SKU has only 11% sell-through in 25 days. We need that shelf space."`,
-    options: [
-      { key: "a", label: "Drop price 20% to drive trial", points: 10 },
-      { key: "b", label: "Accept delist, focus budget on better SKUs", points: 12 },
-      { key: "c", label: "Fight to keep listing, promise to improve", points: 2 },
-    ],
-  },
-  {
-    id: "budget_stuck",
-    title: "Budget Not Spending",
-    message: () =>
-      `Blinkit AM: "Your ₹2L campaign has only spent ₹18K in 5 days. Leadership is asking questions."`,
-    options: [
-      { key: "a", label: "Check inventory first — likely an OSA problem", points: 15 },
-      { key: "b", label: "Increase bids to force ad delivery", points: -5 },
-      { key: "c", label: "Widen targeting to broader audience", points: 2 },
-    ],
-  },
-  {
-    id: "cluster_oos",
-    title: "Dark Store Cluster OOS",
-    message: (city) =>
-      `3 dark stores in central ${city} — your top demand area — just went out of stock. They drove 40% of orders.`,
-    options: [
-      { key: "a", label: "Pause campaign in that zone, redirect budget", points: 15 },
-      { key: "b", label: "Keep campaign running across all zones", points: -10 },
-      { key: "c", label: "Request emergency inter-store stock transfer", points: 10 },
-    ],
-  },
 ];
+export function pickCrisis(_seed: string): Crisis { return CRISES[0]; }
 
-// --- Seeding helpers -------------------------------------------------------
-function djb2(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
-  return Math.abs(hash);
+// --- Helpers ---
+function rand<T>(arr: readonly T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function randInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function generateCityStockMap(): CityStockMap {
+  const map = {} as CityStockMap;
+  for (const c of CITIES) map[c] = randInt(0, 95);
+  // Ensure at least one city has OSA >= 60
+  const cities = Object.keys(map) as CityName[];
+  const max = cities.reduce((a, b) => (map[a] > map[b] ? a : b));
+  if (map[max] < 60) map[max] = randInt(60, 95);
+  return map;
 }
 
-export interface Scenario {
-  seed: string;
-  profile: BrandProfile;
-  city: string;
-  season: typeof SEASONS[number];
-  inventory: InventoryState;
-  market: typeof MARKET_CONDITIONS[number];
-  budget: number;
+function generateInventoryState(label: InventoryStateLabel): InventoryState {
+  switch (label) {
+    case "Healthy":
+      return { id: "healthy", label, osa: randInt(80, 92), fillRate: randInt(85, 95), activeStores: 54, agingUnits: 80, tone: "healthy" };
+    case "Shaky":
+      return { id: "warning", label, osa: randInt(60, 79), fillRate: randInt(70, 80), activeStores: 38, agingUnits: 260, tone: "warning" };
+    case "Critical":
+      return { id: "critical", label, osa: randInt(40, 59), fillRate: randInt(55, 70), activeStores: 22, agingUnits: 120, tone: "critical" };
+    case "Overstocked":
+      return { id: "overstocked", label, osa: randInt(90, 97), fillRate: randInt(95, 99), activeStores: 60, agingUnits: randInt(1000, 1500), tone: "overstocked" };
+  }
 }
 
-export function pickScenario(seed: string): Scenario {
-  const h = djb2(seed.toLowerCase());
-  const profile = BRAND_PROFILES[h % BRAND_PROFILES.length];
-  const city = CITIES[Math.floor(h / 7) % CITIES.length];
-  const season = SEASONS[Math.floor(h / 49) % SEASONS.length];
-  const inventory = INVENTORY_STATES[Math.floor(h / 343) % INVENTORY_STATES.length];
-  const market = MARKET_CONDITIONS[Math.floor(h / 2401) % MARKET_CONDITIONS.length];
-  return { seed, profile, city, season, inventory, market, budget: 200000 };
+function generateClientGoals(profile: BrandProfile, inventoryLabel: InventoryStateLabel): ClientGoals {
+  if (inventoryLabel === "Overstocked") {
+    return {
+      primary: "Move aging stock before it expires",
+      metrics: [
+        { label: "Sell-through", target: 85, unit: "%" },
+        { label: "Reduce aging units", target: 1500, unit: "units" },
+        { label: "Minimum ROAS", target: 1.5, unit: "x" },
+      ],
+      threshold: "90%+ goal achievement = promotion to Senior Executive.",
+    };
+  }
+  const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+  switch (profile.goalType) {
+    case "ROAS-First":
+      return {
+        primary: "Drive sales and ROAS",
+        metrics: [
+          { label: "ROAS", target: pick([3, 4, 5]), unit: "x" },
+          { label: "Units sold", target: pick([600, 800, 1000]), unit: "units" },
+          { label: "Sell-through", target: pick([50, 60, 70]), unit: "%" },
+        ],
+        threshold: "90%+ goal achievement = promotion to Senior Executive.",
+      };
+    case "Awareness-First":
+      return {
+        primary: "Build brand recognition",
+        metrics: [
+          { label: "Impressions", target: pick([3000000, 5000000, 7000000]), unit: "imp" },
+          { label: "CTR", target: pick([2, 2.5, 3]), unit: "%" },
+          { label: "Branded search lift", target: pick([20, 30, 40]), unit: "%" },
+        ],
+        threshold: "90%+ goal achievement = promotion to Senior Executive.",
+      };
+    case "Category-Creation":
+      return {
+        primary: "Pioneer this category on Blinkit",
+        metrics: [
+          { label: "Reach", target: pick([800000, 1000000, 1200000]), unit: "users" },
+          { label: "Impressions", target: pick([6000000, 7000000, 8000000]), unit: "imp" },
+          { label: "Category awareness lift", target: pick([15, 20, 25]), unit: "%" },
+        ],
+        threshold: "90%+ goal achievement = promotion to Senior Executive.",
+      };
+    case "Volume-First":
+      return {
+        primary: "Maximum units sold",
+        metrics: [
+          { label: "Units", target: pick([1200, 1500, 1800]), unit: "units" },
+          { label: "CVR", target: pick([6, 8, 10]), unit: "%" },
+          { label: "Repeat purchase", target: pick([20, 25, 30]), unit: "%" },
+        ],
+        threshold: "90%+ goal achievement = promotion to Senior Executive.",
+      };
+    default:
+      return { primary: "Drive sales", metrics: [], threshold: "" };
+  }
 }
 
-export function pickCrisis(seed: string): Crisis {
-  return CRISES[djb2(seed + "crisis") % CRISES.length];
+export function generateScenario(): Scenario {
+  const profile = rand(BRAND_PROFILES);
+  const cityStockMap = generateCityStockMap();
+  const season = rand(SEASONS);
+  const market = rand(MARKET_CONDITIONS);
+  const inventoryLabel = rand(INVENTORY_STATE_LABELS);
+  const inventory = generateInventoryState(inventoryLabel);
+  const clientGoals = generateClientGoals(profile, inventoryLabel);
+  const cities = Object.keys(cityStockMap) as CityName[];
+  const topCity = cities.reduce((a, b) => (cityStockMap[a] > cityStockMap[b] ? a : b));
+  return {
+    seed: `${profile.id}-${Date.now()}`,
+    profile, cityStockMap, season, market, inventory,
+    budget: 200000, clientGoals, city: topCity,
+  };
+}
+
+// Back-compat: old code calls pickScenario(seed) — now ignore seed and generate fresh
+export function pickScenario(_seed: string): Scenario {
+  return generateScenario();
+}
+
+export function activeStoresFor(city: CityName, osaPct: number) {
+  return Math.round((osaPct / 100) * CITY_STORE_COUNT[city]);
 }

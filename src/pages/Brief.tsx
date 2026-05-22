@@ -6,7 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Target, MapPin } from "lucide-react";
+import { CITIES, CITY_STORE_COUNT, activeStoresFor, CityName } from "@/data/scenarios";
+
+function formatTarget(t: { label: string; target: number; unit: string }) {
+  let v: string;
+  if (t.unit === "imp" || t.unit === "users") {
+    if (t.target >= 100000) v = `${(t.target / 100000).toFixed(t.target % 100000 === 0 ? 0 : 1)}L`;
+    else v = t.target.toLocaleString("en-IN");
+  } else {
+    v = t.target.toString();
+  }
+  return `${v}${t.unit === "x" || t.unit === "%" ? t.unit : t.unit === "imp" || t.unit === "users" ? "" : ` ${t.unit}`}`;
+}
 
 export default function Brief() {
   const nav = useNavigate();
@@ -17,14 +29,7 @@ export default function Brief() {
     nav("/");
     return null;
   }
-  const { profile, city, season, inventory, market, budget } = scenario;
-
-  const tone = {
-    critical: "text-destructive bg-destructive/10",
-    warning: "text-orange-600 bg-orange-100",
-    healthy: "text-primary bg-primary/10",
-    overstocked: "text-blue-600 bg-blue-100",
-  }[inventory.tone];
+  const { profile, season, market, inventory, budget, clientGoals, cityStockMap } = scenario;
 
   return (
     <div className="flex min-h-screen w-full">
@@ -37,13 +42,11 @@ export default function Brief() {
         </div>
 
         <div className="flex-1 px-8 py-6 overflow-y-auto space-y-5 max-w-5xl">
-          {/* Hero brand card */}
+          {/* Brand header */}
           <Card className="p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
-                <div className="h-14 w-14 rounded-xl bg-accent flex items-center justify-center text-3xl">
-                  {profile.emoji}
-                </div>
+                <div className="h-14 w-14 rounded-xl bg-accent flex items-center justify-center text-3xl">{profile.emoji}</div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-xl font-bold text-foreground">{profile.name}</h2>
@@ -53,6 +56,7 @@ export default function Brief() {
                       profile.difficulty === "Hard" ? "bg-orange-500 text-white" :
                       "bg-destructive text-destructive-foreground"
                     }>{profile.difficulty}</Badge>
+                    <Badge variant="outline" className="border-primary text-primary">{profile.goalType}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{profile.context}</p>
                 </div>
@@ -64,13 +68,80 @@ export default function Brief() {
             </div>
           </Card>
 
+          {/* Client goal — prominent amber box */}
+          <Card className="p-6 border-2 border-amber-300 bg-amber-50">
+            <div className="flex items-start gap-3">
+              <Target className="h-6 w-6 text-amber-700 shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-amber-900 uppercase tracking-wide">🎯 What the client wants</h3>
+                <div className="mt-3">
+                  <div className="text-xs font-semibold text-amber-900">PRIMARY GOAL</div>
+                  <div className="text-base font-bold text-amber-950">{clientGoals.primary}</div>
+                </div>
+                <div className="mt-4">
+                  <div className="text-xs font-semibold text-amber-900 mb-2">TARGET METRICS</div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {clientGoals.metrics.map((m) => (
+                      <div key={m.label} className="rounded-md bg-white border border-amber-200 p-3">
+                        <div className="text-[11px] text-muted-foreground">{m.label}</div>
+                        <div className="text-lg font-bold text-foreground">{formatTarget(m)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-amber-900">
+                  <strong>Threshold:</strong> {clientGoals.threshold}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Stock availability map */}
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">📍 Stock Availability Map</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-muted-foreground border-b border-border">
+                    <th className="text-left py-2">City</th>
+                    <th className="text-right py-2">OSA %</th>
+                    <th className="text-right py-2">Dark Stores</th>
+                    <th className="text-right py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CITIES.map((c) => {
+                    const osa = cityStockMap[c as CityName];
+                    const stores = activeStoresFor(c as CityName, osa);
+                    const total = CITY_STORE_COUNT[c as CityName];
+                    const status =
+                      osa >= 70 ? { label: "✅ Stocked", cls: "bg-primary/10 text-primary border-primary/40" } :
+                      osa >= 30 ? { label: "⚠️ Partial", cls: "bg-amber-100 text-amber-800 border-amber-300" } :
+                      { label: "❌ No Stock", cls: "bg-destructive/10 text-destructive border-destructive/40" };
+                    return (
+                      <tr key={c} className="border-b border-border last:border-0">
+                        <td className="py-2 font-medium text-foreground">{c}</td>
+                        <td className="py-2 text-right">{osa}%</td>
+                        <td className="py-2 text-right">{stores}/{total}</td>
+                        <td className="py-2 text-right">
+                          <span className={`text-xs px-2 py-1 rounded border ${status.cls}`}>{status.label}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 bg-amber-50 border border-amber-200 rounded p-2">
+              ⚠️ Ads can only serve in cities where you have stock. Selecting cities without stock = wasted budget.
+            </p>
+          </Card>
+
           {/* Context cards */}
           <div className="grid grid-cols-3 gap-4">
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">City</div>
-              <div className="text-base font-semibold text-foreground mt-1">{city}</div>
-              <div className="text-[11px] text-muted-foreground mt-1">Primary launch market</div>
-            </Card>
             <Card className="p-4">
               <div className="text-xs text-muted-foreground">Season</div>
               <div className="text-base font-semibold text-foreground mt-1">{season.name}</div>
@@ -81,48 +152,48 @@ export default function Brief() {
               <div className="text-base font-semibold text-foreground mt-1">{market.name}</div>
               <div className="text-[11px] text-muted-foreground mt-1">{market.note}</div>
             </Card>
+            <Card className="p-4">
+              <div className="text-xs text-muted-foreground">Inventory State</div>
+              <div className="text-base font-semibold text-foreground mt-1">{inventory.label}</div>
+              <div className="text-[11px] text-muted-foreground mt-1">OSA {inventory.osa}% · Aging {inventory.agingUnits}</div>
+            </Card>
           </div>
-
-          {/* Inventory */}
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-foreground">Inventory Snapshot</h3>
-              <span className={`text-xs font-medium px-2 py-1 rounded ${tone}`}>{inventory.label}</span>
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <Stat label="OSA %" value={`${inventory.osa}%`} bad={inventory.osa < 70} />
-              <Stat label="Fill Rate %" value={`${inventory.fillRate}%`} bad={inventory.fillRate < 75} />
-              <Stat label="Active Dark Stores" value={String(inventory.activeStores)} bad={inventory.activeStores < 30} />
-              <Stat label="Aging Units" value={String(inventory.agingUnits)} bad={inventory.agingUnits > 800} />
-            </div>
-          </Card>
 
           {/* SKU portfolio */}
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-foreground mb-3">SKU Portfolio</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground border-b border-border">
-                    <th className="text-left py-2">Product</th>
-                    <th className="text-right py-2">MRP</th>
-                    <th className="text-right py-2">Margin</th>
-                    <th className="text-right py-2">Velocity</th>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-muted-foreground border-b border-border">
+                  <th className="text-left py-2">Product</th>
+                  <th className="text-right py-2">MRP</th>
+                  <th className="text-right py-2">Margin</th>
+                  <th className="text-right py-2">Velocity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profile.skus.map((s) => (
+                  <tr key={s.id} className="border-b border-border last:border-0">
+                    <td className="py-2 text-foreground">{s.name}</td>
+                    <td className="py-2 text-right">₹{s.mrp}</td>
+                    <td className="py-2 text-right">₹{s.margin}</td>
+                    <td className="py-2 text-right">{s.velocity}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {profile.skus.map((s) => (
-                    <tr key={s.id} className="border-b border-border last:border-0">
-                      <td className="py-2 text-foreground">{s.name}</td>
-                      <td className="py-2 text-right">₹{s.mrp}</td>
-                      <td className="py-2 text-right">₹{s.margin}</td>
-                      <td className="py-2 text-right">{s.velocity}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
             <p className="text-[11px] text-muted-foreground mt-3">{profile.unitEconomics}</p>
+          </Card>
+
+          {/* Constraints */}
+          <Card className="p-4 bg-muted/40">
+            <h3 className="text-sm font-semibold text-foreground mb-2">📋 Your Constraints</h3>
+            <ul className="text-xs text-foreground space-y-1">
+              <li>• Total Budget: ₹2,00,000</li>
+              <li>• Timeline: 30 days</li>
+              <li>• Decision Tokens: 10 (for mid-campaign optimizations)</li>
+              <li>• Success Threshold: 90% goal achievement = promotion</li>
+            </ul>
           </Card>
 
           {/* Ack & continue */}
@@ -131,21 +202,12 @@ export default function Brief() {
               <Checkbox checked={ack} onCheckedChange={(v) => setAck(!!v)} />
               <span className="text-sm font-medium text-foreground">I have read the brief and understand the brand context.</span>
             </label>
-            <Button disabled={!ack} onClick={() => nav("/campaign")} className="gap-2">
-              Start Campaign <ArrowRight className="h-4 w-4" />
+            <Button disabled={!ack} onClick={() => nav("/cm-pitch")} className="gap-2">
+              Acknowledge Brief & Continue to CM Meeting <ArrowRight className="h-4 w-4" />
             </Button>
           </Card>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
-  return (
-    <div>
-      <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className={`text-lg font-semibold ${bad ? "text-destructive" : "text-foreground"}`}>{value}</div>
     </div>
   );
 }
