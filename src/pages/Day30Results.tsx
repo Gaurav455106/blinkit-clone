@@ -143,6 +143,38 @@ export default function Day30Results() {
             </Card>
           )}
 
+          {/* Crisis Decisions */}
+          {crisisList.length > 0 && (
+            <Card className="p-5">
+              <h3 className="text-sm font-semibold mb-3">🚨 Crisis Decisions</h3>
+              <div className="space-y-3">
+                {crisisList.map((c) => {
+                  const pct = c.maxScore ? (c.score! / c.maxScore) * 100 : 0;
+                  const tone = c.bestChoice ? "text-primary" : pct >= 60 ? "text-amber-600" : "text-destructive";
+                  return (
+                    <Card key={c.crisisId} className="p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="text-xs text-muted-foreground">Day {c.day}</div>
+                          <div className="text-sm font-semibold">{c.title}</div>
+                          <div className="text-xs mt-1">Chose: <span className="font-medium">{c.optionLabel}</span></div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">Effect: {c.effectLabel}</div>
+                          <div className="text-[11px] mt-1 italic">
+                            {c.bestChoice ? "✅ Best available choice." : pct >= 60 ? "🟡 Solid call but not optimal." : "🔴 A stronger option was available."}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className={`text-lg font-bold ${tone}`}>+{c.score}</div>
+                          <div className="text-[10px] text-muted-foreground">/ {c.maxScore} pts</div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           {/* Decision Timeline */}
           {decisionsLog.length > 0 && (
             <Card className="p-5">
