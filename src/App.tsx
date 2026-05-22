@@ -12,6 +12,7 @@ import CmPitch from "./pages/CmPitch";
 import CampaignsDashboard from "./pages/CampaignsDashboard";
 import Day30Results from "./pages/Day30Results";
 import WeekDashboard from "./pages/WeekDashboard";
+import LiveDashboard from "./pages/LiveDashboard";
 import Index from "./pages/Index.tsx";
 import Results from "./pages/Results";
 import Leaderboard from "./pages/Leaderboard";
