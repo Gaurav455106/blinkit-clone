@@ -63,12 +63,20 @@ export interface StockAlert {
   status: "low" | "oos";
   remaining: number;
 }
+export interface PacingInfo {
+  campaignId: string;
+  cumulativeSpend: number;
+  budget: number;
+  pacePct: number;
+  projectedExhaustionDay: number | null;
+  exhausted: boolean;
+}
 export interface WeekResult {
   week: number;
   startDay: number;
   endDay: number;
   campaigns: CampaignWeekMetric[];
-  dailySpend: number[]; // length 7
+  dailySpend: number[];
   totals: {
     spend: number;
     impressions: number;
@@ -79,6 +87,11 @@ export interface WeekResult {
     roas: number;
   };
   stockAlerts: StockAlert[];
+  // Phase 3
+  clusters: ClusterInsight[];
+  pacing: PacingInfo[];
+  cannibalPairs: { keyword: string; city: string; campaignIds: string[] }[];
+  zoneMetrics: ZoneMetric[];
 }
 
 const HOUR_BLOCKS = [
