@@ -511,6 +511,12 @@ export function SimProvider({ children }: { children: ReactNode }) {
           : r,
       ),
     );
+    // Clear the live-run row in the backend (the completed attempt itself is
+    // saved separately by Day30Results via supabase.from('attempts').insert).
+    if (student) {
+      supabase.from("run_sessions").delete().eq("email", student.email)
+        .then(({ error }) => { if (error) console.warn("[sim] run_sessions delete failed", error); });
+    }
     // Keep activeRunId set so /results stays viewable until the student leaves.
     // It is cleared when they land on /dashboard or start a new scenario.
   };
