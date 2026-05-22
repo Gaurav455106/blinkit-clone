@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,18 +8,27 @@ import { Zap } from "lucide-react";
 
 export default function Login() {
   const nav = useNavigate();
-  const { setStudent } = useSim();
+  const { student, setStudent, reset } = useSim();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [batch, setBatch] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
 
+  useEffect(() => {
+    if (localStorage.getItem("sim_trainer") === "1") {
+      nav("/trainer", { replace: true });
+    } else if (student) {
+      nav("/brief", { replace: true });
+    }
+  }, [student, nav]);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
     if (email.trim().toLowerCase() === "trainer@kraftshala.com") {
       if (password !== "kraft2024") { setErr("Incorrect trainer password"); return; }
+      localStorage.setItem("sim_trainer", "1");
       nav("/trainer");
       return;
     }
