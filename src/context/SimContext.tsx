@@ -391,10 +391,12 @@ export function SimProvider({ children }: { children: ReactNode }) {
       currentDay, optimizations, stockLevels, decisionsLog, weekTotals, events,
       competitor, competitorActions, cannibalResolved, clusterReactions, abTests,
       cumulativeSpendByCampaign, exhaustedCampaigns, microDecisionsLog,
+      crisisResponses, runHistory, activeRunId,
       setStudent, newScenario, setCmPitch, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
       setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
       recordCumulativeSpend, markExhausted, logMicroDecision,
+      recordCrisisResponse, startRun, completeRun,
       reset,
     }}>
       {children}
