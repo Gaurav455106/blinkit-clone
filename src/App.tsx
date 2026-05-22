@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SimProvider } from "@/context/SimContext";
 import Login from "./pages/Login";
 import Brief from "./pages/Brief";
+import BrandCentral from "./pages/BrandCentral";
+import RunResults from "./pages/RunResults";
 import CmPitch from "./pages/CmPitch";
 import CampaignsDashboard from "./pages/CampaignsDashboard";
 import Day30Results from "./pages/Day30Results";
