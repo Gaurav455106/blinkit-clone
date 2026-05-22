@@ -70,6 +70,13 @@ export interface CrisisResponse {
   optionKey: string;
   tokenCost: number;
   day: number;
+  crisisNum?: 1 | 2 | 3;
+  score?: number;
+  maxScore?: number;
+  optionLabel?: string;
+  effectLabel?: string;
+  title?: string;
+  bestChoice?: boolean;
 }
 
 export interface RunHistoryEntry {
