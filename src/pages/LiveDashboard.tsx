@@ -705,7 +705,7 @@ export default function LiveDashboard() {
           <Card className="p-8 text-center max-w-sm">
             <Rocket className="h-10 w-10 text-primary mx-auto mb-3" />
             <div className="text-lg font-semibold">🏁 Simulation Complete!</div>
-            <div className="text-sm text-muted-foreground mt-1">Day 30 of 30. Calculating final results…</div>
+            <div className="text-sm text-muted-foreground mt-1">Loading your results…</div>
           </Card>
         </div>
       )}
