@@ -255,8 +255,8 @@ export default function WeekDashboard() {
                 {weekResult.campaigns.map((m) => {
                   const isOpen = expanded === m.campaignId;
                   return (
-                    <>
-                      <tr key={m.campaignId} className="border-t border-border cursor-pointer hover:bg-muted/30" onClick={() => setExpanded(isOpen ? null : m.campaignId)}>
+                    <Fragment key={m.campaignId}>
+                      <tr className="border-t border-border cursor-pointer hover:bg-muted/30" onClick={() => setExpanded(isOpen ? null : m.campaignId)}>
                         <td className="px-4 py-3 font-medium">{m.name}</td>
                         <td className="px-4 py-3 capitalize text-xs">{campaigns.find(c => c.id === m.campaignId)?.objective ?? "-"}</td>
                         <td className="px-4 py-3">{statusBadge(m.status)}</td>
@@ -274,7 +274,7 @@ export default function WeekDashboard() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>
