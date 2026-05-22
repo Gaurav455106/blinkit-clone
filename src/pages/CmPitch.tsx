@@ -157,9 +157,9 @@ export default function CmPitch() {
     <div className="flex min-h-screen w-full">
       <BlinkitSidebar />
       <div className="flex-1 bg-background overflow-y-auto">
-        <div className="px-8 pt-6 pb-2">
-          <div className="text-xs text-muted-foreground">Brand Central › Category Manager Meeting</div>
-          <h1 className="text-xl font-semibold text-foreground mt-1">Pitch to Category Manager</h1>
+        <FlowHeader crumb="Category Manager Meeting" step="cm-pitch" backTo="/brief" backLabel="Brief" />
+        <div className="px-8 pt-4 pb-2">
+          <h1 className="text-xl font-semibold text-foreground">Pitch to Category Manager</h1>
         </div>
 
         <div className="px-8 py-6 max-w-5xl space-y-5">
