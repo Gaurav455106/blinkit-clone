@@ -1,6 +1,8 @@
-import { Menu, LayoutGrid, ShoppingBag, Eye, BarChart3, BookOpen, ChevronRight } from "lucide-react";
+import { Menu, LayoutGrid, ShoppingBag, Eye, BarChart3, BookOpen, ChevronRight, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { WhatsNewCard } from "./WhatsNewCard";
+import { useSim } from "@/context/SimContext";
 
 const navItems = [
   { title: "Campaigns", icon: LayoutGrid, active: true },
