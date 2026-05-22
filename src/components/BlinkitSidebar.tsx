@@ -22,13 +22,15 @@ export function BlinkitSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const nav = useNavigate();
   const loc = useLocation();
-  const { student, reset } = useSim();
+  const { student, reset, mode } = useSim();
 
   const signOut = () => {
     localStorage.removeItem("sim_trainer");
     reset();
     nav("/", { replace: true });
   };
+
+  const navItems = mode === "home" ? HOME_ITEMS : FLOW_ITEMS;
 
   return (
     <div className={`flex flex-col border-r border-border bg-card h-screen transition-all ${collapsed ? "w-16" : "w-56"}`}>
