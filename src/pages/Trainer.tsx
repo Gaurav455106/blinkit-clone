@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Users, GraduationCap, TrendingUp } from "lucide-react";
 
@@ -32,9 +32,9 @@ export default function Trainer() {
   const overallAvg = best.length ? Math.round(best.reduce((s, x) => s + x.score_total, 0) / best.length) : 0;
 
   return (
-    <div className="flex min-h-screen w-full">
-      <BlinkitSidebar />
-      <div className="flex-1 bg-background">
+    <div className="min-h-screen w-full bg-background">
+      <div className="flex-1">
+
         <div className="px-8 py-6 max-w-6xl">
           <h1 className="text-xl font-semibold text-foreground">Trainer Dashboard</h1>
           <p className="text-xs text-muted-foreground">Cohort performance across all batches</p>

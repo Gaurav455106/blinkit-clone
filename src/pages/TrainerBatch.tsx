@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Download } from "lucide-react";
 
@@ -36,9 +36,9 @@ export default function TrainerBatch() {
   };
 
   return (
-    <div className="flex min-h-screen w-full">
-      <BlinkitSidebar />
-      <div className="flex-1 bg-background">
+    <div className="min-h-screen w-full bg-background">
+      <div className="flex-1">
+
         <div className="px-8 py-6 max-w-6xl">
           <Link to="/trainer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3">
             <ArrowLeft className="h-3 w-3" /> Trainer dashboard
