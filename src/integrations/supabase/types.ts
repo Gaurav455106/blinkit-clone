@@ -25,11 +25,13 @@ export type Database = {
           crisis_points: number
           email: string
           id: string
+          last_seen_at: string
           name: string
           profile_id: string
           scenario: Json
           score_breakdown: Json
           score_total: number
+          snapshot: Json | null
         }
         Insert: {
           badge?: string | null
@@ -41,11 +43,13 @@ export type Database = {
           crisis_points?: number
           email: string
           id?: string
+          last_seen_at?: string
           name: string
           profile_id: string
           scenario?: Json
           score_breakdown?: Json
           score_total?: number
+          snapshot?: Json | null
         }
         Update: {
           badge?: string | null
@@ -57,11 +61,70 @@ export type Database = {
           crisis_points?: number
           email?: string
           id?: string
+          last_seen_at?: string
           name?: string
           profile_id?: string
           scenario?: Json
           score_breakdown?: Json
           score_total?: number
+          snapshot?: Json | null
+        }
+        Relationships: []
+      }
+      batch_scores: {
+        Row: {
+          achievement_pct: number | null
+          badge: string | null
+          batch_code: string
+          created_at: string
+          id: string
+          score_total: number
+        }
+        Insert: {
+          achievement_pct?: number | null
+          badge?: string | null
+          batch_code: string
+          created_at?: string
+          id?: string
+          score_total: number
+        }
+        Update: {
+          achievement_pct?: number | null
+          badge?: string | null
+          batch_code?: string
+          created_at?: string
+          id?: string
+          score_total?: number
+        }
+        Relationships: []
+      }
+      run_sessions: {
+        Row: {
+          batch_code: string
+          email: string
+          last_seen_at: string
+          name: string
+          run_id: string
+          started_at: string
+          state: Json
+        }
+        Insert: {
+          batch_code: string
+          email: string
+          last_seen_at?: string
+          name: string
+          run_id: string
+          started_at?: string
+          state?: Json
+        }
+        Update: {
+          batch_code?: string
+          email?: string
+          last_seen_at?: string
+          name?: string
+          run_id?: string
+          started_at?: string
+          state?: Json
         }
         Relationships: []
       }
@@ -70,7 +133,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_idle_students: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
