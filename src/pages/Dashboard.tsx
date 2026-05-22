@@ -31,8 +31,8 @@ export default function Dashboard() {
   if (!student) { nav("/", { replace: true }); return null; }
   if (!scenario) { newScenario(); return null; }
 
-  const activeInProgress = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
-  const activeInProgress = activeInProgress && activeInProgress.status === "in_progress" ? activeInProgress : null;
+  const activeRun = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
+  const activeInProgress = activeRun && activeRun.status === "in_progress" ? activeRun : null;
   const completed = runHistory.filter((r) => r.status === "completed");
   const past = runHistory.filter((r) => r.id !== activeRunId || r.status === "completed").reverse();
 
