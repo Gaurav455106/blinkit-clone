@@ -43,7 +43,7 @@ const App = () => (
 
             {/* Utility */}
             <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/trainer" element={<Trainer />} />
+            <Route path="/trainer" element={<TrainerGuard><Trainer /></TrainerGuard>} />
 
             {/* Legacy redirects */}
             <Route path="/brand-central" element={<Navigate to="/dashboard" replace />} />
