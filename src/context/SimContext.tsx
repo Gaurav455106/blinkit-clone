@@ -267,7 +267,84 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const setStudent = (s: Student) => {
     setStudentState(s);
     if (!scenario) setScenario(generateScenario());
+    // Hydrate from cloud (best-effort, non-blocking).
+    void hydrateFromCloud(s);
   };
+
+  async function hydrateFromCloud(s: Student) {
+    try {
+      // Bump last_seen_at on any existing live session row & on past attempts.
+      await supabase.from("attempts").update({ last_seen_at: new Date().toISOString() }).eq("email", s.email);
+
+      const { data: attemptRows } = await supabase
+        .from("attempts").select("*").eq("email", s.email).order("created_at", { ascending: true });
+      if (attemptRows && attemptRows.length) {
+        const cloudHistory: RunHistoryEntry[] = attemptRows.map((a: any) => {
+          const snap = a.snapshot as RunSnapshot | null;
+          return {
+            id: a.id,
+            scenarioSeed: snap?.scenario?.seed ?? a.scenario?.seed ?? "",
+            brandName: snap?.scenario?.profile?.name ?? a.scenario?.profile ?? "Run",
+            brandEmoji: snap?.scenario?.profile?.emoji ?? "🛒",
+            startedAt: a.created_at,
+            completedAt: a.created_at,
+            status: "completed",
+            score: a.score_total,
+            achievementPct: a.score_breakdown?.achievementPct,
+            snapshot: snap ?? undefined,
+          };
+        });
+        // Merge: cloud history wins by id; preserve any in-progress local entries.
+        setRunHistory((prev) => {
+          const byId = new Map<string, RunHistoryEntry>();
+          for (const r of cloudHistory) byId.set(r.id, r);
+          for (const r of prev) if (!byId.has(r.id)) byId.set(r.id, r);
+          return Array.from(byId.values());
+        });
+      }
+
+      const { data: sessionRow } = await supabase
+        .from("run_sessions").select("*").eq("email", s.email).maybeSingle();
+      if (sessionRow && sessionRow.state) {
+        const st: any = sessionRow.state;
+        if (st.scenario) setScenario(st.scenario);
+        if (st.cmPitch !== undefined) setCmPitchState(st.cmPitch);
+        if (st.campaigns) setCampaigns(st.campaigns);
+        if (st.weekTotals) setWeekTotals(st.weekTotals);
+        if (st.decisionsLog) setDecisionsLog(st.decisionsLog);
+        if (st.crisisResponses) setCrisisResponses(st.crisisResponses);
+        if (st.abTests) setAbTests(st.abTests);
+        if (st.cannibalResolved) setCannibalResolved(st.cannibalResolved);
+        if (st.clusterReactions) setClusterReactions(st.clusterReactions);
+        if (typeof st.tokensSpent === "number") setTokensSpent(st.tokensSpent);
+        if (typeof st.tokensRemaining === "number") setTokens(st.tokensRemaining);
+        if (st.microDecisionsLog) setMicroDecisionsLog(st.microDecisionsLog);
+        if (st.exhaustedCampaigns) setExhaustedCampaigns(st.exhaustedCampaigns);
+        if (st.cumulativeSpendByCampaign) setCumulativeSpendByCampaign(st.cumulativeSpendByCampaign);
+        if (st.events) setEvents(st.events);
+        if (st.optimizations) setOptimizationsState(st.optimizations);
+        if (st.stockLevels) setStockLevelsState(st.stockLevels);
+        if (st.competitor !== undefined) setCompetitorState(st.competitor);
+        if (st.competitorActions) setCompetitorActions(st.competitorActions);
+        if (typeof st.currentDay === "number") setCurrentDayState(st.currentDay);
+        setActiveRunId(sessionRow.run_id);
+        // Make sure runHistory contains this in-progress entry.
+        setRunHistory((prev) => prev.some((r) => r.id === sessionRow.run_id) ? prev : [
+          ...prev,
+          {
+            id: sessionRow.run_id,
+            scenarioSeed: st.scenario?.seed ?? "",
+            brandName: st.scenario?.profile?.name ?? "Run",
+            brandEmoji: st.scenario?.profile?.emoji ?? "🛒",
+            startedAt: sessionRow.started_at,
+            status: "in_progress",
+          },
+        ]);
+      }
+    } catch (e) {
+      console.warn("[sim] cloud hydrate failed", e);
+    }
+  }
 
   const clearCampaignWizard = () => {
     [
