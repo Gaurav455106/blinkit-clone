@@ -56,15 +56,45 @@ function useCountUp(target: number, duration = 500) {
   return val;
 }
 
-function MetricCard({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "neutral" }) {
-  const toneCls = tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-red-600" : "text-foreground";
+function Sparkline({ data, tone = "primary", pulse }: { data: number[]; tone?: "primary" | "muted"; pulse: number }) {
+  if (!data.length) return <div className="h-8" />;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const w = 100, h = 28;
+  const range = max - min || 1;
+  const step = data.length > 1 ? w / (data.length - 1) : w;
+  const pts = data.map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`).join(" ");
+  const last = data[data.length - 1];
+  const lx = (data.length - 1) * step;
+  const ly = h - ((last - min) / range) * h;
+  const stroke = tone === "primary" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))";
+  const pulseR = 2.5 + Math.sin(pulse / 3) * 1.2;
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 mt-1.5" preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r={pulseR + 2} fill={stroke} opacity={0.18} />
+      <circle cx={lx} cy={ly} r={pulseR} fill={stroke} />
+    </svg>
+  );
+}
+
+function MetricCard({ label, value, hint, tone, spark, pulse }: { label: string; value: string; hint?: string; tone?: "good" | "bad" | "neutral"; spark?: number[]; pulse: number }) {
+  const toneCls = tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-red-600" : "text-foreground";
+  const sparkTone = tone === "bad" ? "muted" : "primary";
+  return (
+    <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer overflow-hidden">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-2xl font-semibold mt-1 ${toneCls}`}>{value}</div>
+      <div className={`text-2xl font-semibold mt-1 tabular-nums ${toneCls}`}>{value}</div>
+      {spark && <Sparkline data={spark} tone={sparkTone} pulse={pulse} />}
       {hint && <div className="text-[10px] text-muted-foreground mt-1">{hint}</div>}
     </Card>
   );
+}
+
+// Tiny deterministic noise — keeps numbers shimmering without flicker
+function jitter(base: number, seed: number, pulse: number, pct = 0.0015) {
+  const s = Math.sin(pulse / 4 + seed * 1.7) + Math.cos(pulse / 7 + seed * 0.9);
+  return base * (1 + s * pct);
 }
 
 export default function LiveDashboard() {
@@ -153,6 +183,26 @@ export default function LiveDashboard() {
   const [speed, setSpeed] = useState<SpeedKey>("normal");
   const [filter, setFilter] = useState<Filter>("last7");
   const [endOpen, setEndOpen] = useState(false);
+
+  // ── ALWAYS-ON LIFE SIGNS ────────────────────────────────────────────────
+  // Fast pulse drives jittered numbers + sparkline dot breathing (always on)
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPulse((p) => p + 1), 220);
+    return () => clearInterval(id);
+  }, []);
+  // Wall-clock — business time elapsed, never stops
+  const [wallSec, setWallSec] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setWallSec((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const wallMM = String(Math.floor(wallSec / 60)).padStart(2, "0");
+  const wallSS = String(wallSec % 60).padStart(2, "0");
+
+  // Live activity ticker — streams micro-events while playing
+  const [ticker, setTicker] = useState<{ id: number; text: string; tone: "good" | "neutral" | "warn" }[]>([]);
+
 
   // Crisis modal
   const pendingCrisis = crises.find((c) => currentDay >= c.day && !crisisResponses[c.id]);
@@ -259,6 +309,42 @@ export default function LiveDashboard() {
     return arr;
   }, [dayMetrics, range]);
 
+  // Per-metric sparkline series (last 14 days up to current)
+  const sparkRange = useMemo(() => {
+    const s = Math.max(1, currentDay - 13);
+    const arr: DayMetric[] = [];
+    for (let d = s; d <= currentDay; d++) arr.push(dayMetrics[d - 1]);
+    return arr;
+  }, [dayMetrics, currentDay]);
+  const sSpend = sparkRange.map((m) => m.spend);
+  const sImp = sparkRange.map((m) => m.impressions);
+  const sAtc = sparkRange.map((m) => m.atcs);
+  const sUnits = sparkRange.map((m) => m.units);
+  const sRev = sparkRange.map((m) => m.revenue);
+  const sRoas = sparkRange.map((m) => (m.spend > 0 ? m.revenue / m.spend : 0));
+
+  // Activity ticker generator — fires every ~1.3s while playing
+  useEffect(() => {
+    if (!playing) return;
+    const cities = Array.from(new Set(campaigns.flatMap((c) => c.cities))).slice(0, 6);
+    const skuNames = scenario.profile.skus.slice(0, 4).map((s) => s.name);
+    const id = setInterval(() => {
+      const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)] as T;
+      const city = pick(cities.length ? cities : ["Bangalore", "Mumbai", "Delhi"]);
+      const sku = pick(skuNames.length ? skuNames : ["Hero SKU"]);
+      const kind = Math.random();
+      let text = "", tone: "good" | "neutral" | "warn" = "neutral";
+      if (kind < 0.35) { text = `🛒 ${city} · ${sku} +${1 + Math.floor(Math.random() * 4)} ATC`; tone = "good"; }
+      else if (kind < 0.6) { text = `💰 Sale ₹${(199 + Math.floor(Math.random() * 600)).toLocaleString("en-IN")} · ${city}`; tone = "good"; }
+      else if (kind < 0.8) { text = `⚡ Impression burst on "${pick(["protein", "snacks", "atta", "shampoo", "instant noodles"])}"`; tone = "neutral"; }
+      else if (kind < 0.92) { text = `📊 CTR ↑ ${(0.4 + Math.random() * 0.6).toFixed(2)}% · ${city}`; tone = "neutral"; }
+      else { text = `⚠️ CPC spike on "${pick(["coffee", "oil", "biscuits"])}"`; tone = "warn"; }
+      setTicker((t) => [{ id: Date.now() + Math.random(), text, tone }, ...t].slice(0, 12));
+    }, 1300);
+    return () => clearInterval(id);
+  }, [playing, campaigns, scenario]);
+
+
   // Insights
   const [dismissed, setDismissed] = useState<string[]>([]);
   const insights = useMemo(() => {
@@ -312,6 +398,14 @@ export default function LiveDashboard() {
               <h1 className="text-xl font-semibold mt-1">Ad Summary</h1>
             </div>
             <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                </span>
+                <span className="text-[10px] font-semibold tracking-wider text-red-600">LIVE</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">⏱ {wallMM}:{wallSS}</span>
+              </div>
               <div className="text-2xl font-bold tabular-nums">📅 Day {currentDay} of 30</div>
               <div className="flex items-center gap-1.5">
                 <Button size="sm" variant={speed === "slow" ? "default" : "outline"} onClick={() => setSpeed("slow")} className="h-7 px-2">
@@ -327,6 +421,7 @@ export default function LiveDashboard() {
               </div>
               <Progress value={pctTime} className="w-56 h-1.5 mt-1" />
             </div>
+
             <div className="flex items-center gap-3">
               <div className="text-right text-xs">
                 <div className="text-muted-foreground">💰 {money(allSpend)} / {money(totalBudget)}</div>
@@ -361,20 +456,51 @@ export default function LiveDashboard() {
               </Button>
             </div>
 
-            {/* METRIC CARDS */}
+            {/* METRIC CARDS — values shimmer via jitter, sparkline dot breathes via pulse */}
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              <MetricCard label="Budget Consumed" value={money(animSpend)} hint={`${Math.round(pctBudget)}% of brief`} />
-              <MetricCard label="Impressions" value={fmt(animImp)} />
-              <MetricCard label="ATCs" value={fmt(animAtc)} />
-              <MetricCard label="Qty Sold" value={fmt(animUnits)} />
-              <MetricCard label="Sales" value={money(animRev)} />
+              <MetricCard pulse={pulse} spark={sSpend} label="Budget Consumed" value={money(playing ? jitter(animSpend, 1, pulse) : animSpend)} hint={`${Math.round(pctBudget)}% of brief`} />
+              <MetricCard pulse={pulse} spark={sImp} label="Impressions" value={fmt(playing ? jitter(animImp, 2, pulse, 0.003) : animImp)} />
+              <MetricCard pulse={pulse} spark={sAtc} label="ATCs" value={fmt(playing ? jitter(animAtc, 3, pulse, 0.0025) : animAtc)} />
+              <MetricCard pulse={pulse} spark={sUnits} label="Qty Sold" value={fmt(playing ? jitter(animUnits, 4, pulse, 0.002) : animUnits)} />
+              <MetricCard pulse={pulse} spark={sRev} label="Sales" value={money(playing ? jitter(animRev, 5, pulse) : animRev)} />
               <MetricCard
+                pulse={pulse}
+                spark={sRoas}
                 label="ROAS"
-                value={`${animRoas.toFixed(2)}×`}
+                value={`${(playing ? jitter(animRoas, 6, pulse, 0.001) : animRoas).toFixed(2)}×`}
                 hint={`Goal ${goalRoas}×`}
                 tone={roas >= goalRoas ? "good" : roas >= goalRoas * 0.7 ? "neutral" : "bad"}
               />
             </div>
+
+            {/* LIVE ACTIVITY TICKER */}
+            <Card className="px-3 py-2 overflow-hidden">
+              <div className="flex items-center gap-3 text-[11px]">
+                <div className="flex items-center gap-1.5 shrink-0 font-semibold text-muted-foreground">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  </span>
+                  ACTIVITY
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <div className="flex items-center gap-4 whitespace-nowrap">
+                    {ticker.length === 0 && <span className="text-muted-foreground italic">Waiting for first impression…</span>}
+                    {ticker.map((t) => (
+                      <span
+                        key={t.id}
+                        className={`inline-block animate-fade-in tabular-nums ${
+                          t.tone === "good" ? "text-emerald-600" : t.tone === "warn" ? "text-red-600" : "text-foreground/80"
+                        }`}
+                      >
+                        {t.text}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
 
             {/* CHART */}
             <Card className="p-4">
