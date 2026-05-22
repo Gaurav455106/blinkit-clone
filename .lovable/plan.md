@@ -1,79 +1,93 @@
-This is a large build. Here is how I will ship it in one pass, organized so each piece plugs into your existing campaign flow without breaking it.
+## Goal
 
-## 1. Backend (Lovable Cloud)
+Reshape the post-login flow so students land on a **Brand Central hub** after the Brief, can review **past simulation runs**, scrub through results with a **Day 1 → Day 30 slider**, and face **crises mid-campaign** (one scripted per scenario + a chance of a random one).
 
-Enable Lovable Cloud and create two tables:
-
-- `attempts` — stores every campaign attempt
-  - id, email, name, batch_code, scenario_seed
-  - profile_id, city, season, market, inventory_state (jsonb)
-  - choices (jsonb: objective, ad_format, geography, skus, keywords, budget_type)
-  - crisis_id, crisis_choice, crisis_points
-  - score_total, score_breakdown (jsonb), badge
-  - created_at
-- `trainers` — single hardcoded check is fine; no table needed. Trainer login is matched in code against `trainer@kraftshala.com / kraft2024`.
-
-Public read for leaderboard, public insert for attempts. No auth — login is just name+email+batch captured into form state and stored on each attempt row.
-
-## 2. Static data module (`src/data/scenarios.ts`)
-
-One file holds:
-- 7 brand profiles (SKUs, good/risky keywords, optimal objective, optimal ad format, trap, difficulty, category)
-- 4 cities, 5 seasons, 4 inventory states (with OSA/Fill/DarkStores/Aging ranges), 4 market conditions
-- 4 crisis scenarios with options + points
-- Deterministic seeding helper `pickScenario(email)` using a small string hash so the same email always gets the same scenario; `pickScenario(email + Date.now())` for retry.
-
-## 3. New routes
+## New flow
 
 ```
-/                  → Login (Screen A)
-/brief             → Brand Brief (Screen B)
-/campaign          → existing CampaignForm (now reads from scenario context)
-/results           → Results + Crisis popup on mount
-/leaderboard       → 3 tabs
-/trainer           → Trainer dashboard
-/trainer/:batch    → Batch detail
+Login → Brief → Brand Central (hub)
+                  ├── Past Runs list
+                  ├── "Start New Run" → CM Pitch → Campaign wizard → Campaigns Dashboard → Launch
+                  └── Click a past/active run → Results View (slider)
 ```
 
-A new `ScenarioContext` (React context + localStorage) holds the current student + assigned scenario so the existing CampaignForm steps can read from it.
+## 1. Brand Central hub (`/brand-central`)
 
-## 4. Hooks into existing CampaignForm
+New page replacing the current direct Brief→CmPitch jump. Layout uses existing Blinkit sidebar + card system.
 
-Minimal surgical edits — no rewrites of working steps:
-- `ProductBoosterProducts`: replace hardcoded product list with `scenario.profile.skus`.
-- `ProductBoosterTargeting` / `RecommendationTargeting`: replace suggested keywords with `scenario.profile.keywords` (good + risky mixed, risky tagged internally for scoring but visually identical aside from a subtle marker).
-- On final "Done", instead of just closing, persist all choices into `ScenarioContext` and navigate to `/results`.
+- Header: "Welcome back, {name}" + brand profile chip from Brief.
+- Primary CTA: **Start New Simulation Run** → routes to `/cm-pitch` (resets active campaign state, keeps brief).
+- **My Simulation Runs** table: scenario name, launched-on date, status (Draft / Live Day X / Completed), score (if done), action (Resume / View Results / Delete).
+- Empty state when no runs yet.
+- Runs are loaded from the existing `attempts` table (filtered by email) plus any in-progress run held in `SimContext` / localStorage.
 
-## 5. Results flow
+A "run" = one full Brief→Day 30 attempt. Each Launch creates a `run_id`; that id is what gets persisted at Day 30.
 
-On `/results` mount:
-1. Show one randomly-chosen crisis modal first (blocking).
-2. After user picks an option, compute score using the 8-dimension matrix exactly as specified.
-3. Insert attempt row into Supabase.
-4. Render results screen: big score, badge, verdict, breakdown bars, "Right / Cost you points" columns, trap callout, CTAs to `/leaderboard` and retry (which goes back to `/brief` with new seed).
+## 2. Results with day-range slider
 
-## 6. Leaderboard
+Replace the four separate Day 7/14/21/30 page navigations with a single **Run Results** page (`/run/:runId`) containing:
 
-Single page, three tabs (My Batch / Batch vs Batch / All Students). Pulls from `attempts` table, computes best-per-student and per-batch aggregates client side. Current student row highlighted using the email stored in context.
+- A horizontal slider: Day 1 → Day 30 with snap stops at 3, 7, 15, 21, 30 and free scrub in between.
+- Live-updating KPI cards (Impressions, Clicks, CTR, Spend, ROAS, Conversions, Stock left) computed by interpolating the existing `weeklyMetrics` curves for the selected day.
+- Per-campaign breakdown table for the selected day.
+- Strategy Insights panel (existing Phase3StrategyPanel) shown contextually for the current day window.
+- Timeline strip below slider marking: launch, scheduled crisis day, any random crisis days, weekly checkpoints, Day 30 final.
+- When the slider passes a crisis day that hasn't been resolved yet, the crisis modal blocks further scrubbing until the student picks an option.
+- "Lock in Day 30 results" button visible only once slider reaches 30 and all crises are resolved → writes the attempt row and routes to the existing Day 30 results / scoring page.
 
-## 7. Trainer dashboard
+The existing `/day-7`, `/day-14`, `/day-21` routes become thin redirects to `/run/:runId?day=7|14|21` for back-compat.
 
-`/trainer` lists batch aggregates. `/trainer/:batch` lists individual attempts. CSV export is a client-side blob download from the loaded rows.
+## 3. Crises (scheduled + random)
 
-## 8. Design
+Extend `src/lib/events.ts`:
 
-Reuses existing tokens (Blinkit green primary, light card surfaces, numbered stepper). Brief screen styled as an in-platform "client brief" card. Crisis popup is a shadcn Dialog. Results uses the same card system with colored score bars.
+- **Scheduled crisis**: each brand profile in `src/data/scenarios.ts` gets a `scheduledCrisis: { day, id }` (e.g., Maggi → stockout Day 12, Surf → competitor price-drop Day 9). Deterministic per scenario seed.
+- **Random crisis**: 50% chance of one extra crisis on a random day between 5 and 25 (seeded by `email + runId` so it's stable per run).
+- Crisis types reuse the existing crisis dataset (stockout, competitor blitz, dark-store outage, rating dip, budget freeze). Each has 2–3 response options with point deltas and metric side-effects.
+- New `crises` array on the run record (in `SimContext`): `{ id, day, status: 'pending'|'resolved', choice, pointsDelta }`.
+- When resolved, the chosen option mutates the day-onwards metric curve (e.g., stockout choice "airlift stock" restores fill rate from day+2 onward at a budget cost).
+- Crisis modal is the existing shadcn Dialog, styled with Blinkit green accent + urgent red header strip.
+
+## 4. SimContext changes
+
+- Add `runs: Run[]` and `activeRunId` in addition to the current single-run state.
+- `Run` = `{ id, scenarioSeed, briefSnapshot, campaigns, stock, crises, createdAt, completedAt?, score? }`.
+- Persist runs array to localStorage; sync completed runs to `attempts` Supabase table on Day 30 lock-in.
+- Helpers: `startNewRun()`, `selectRun(id)`, `resolveCrisis(runId, crisisId, choice)`, `getMetricsForDay(runId, day)`.
+
+## 5. Routing changes (`src/App.tsx`)
+
+- Add `/brand-central` and `/run/:runId`.
+- Change post-Brief navigation to `/brand-central`.
+- Keep legacy weekly routes as redirects.
+
+## 6. Files
+
+**New**
+- `src/pages/BrandCentral.tsx`
+- `src/pages/RunResults.tsx`
+- `src/components/DayRangeSlider.tsx`
+- `src/components/RunTimeline.tsx`
+- `src/components/CrisisModal.tsx`
+
+**Edited (surgical)**
+- `src/App.tsx` — routes
+- `src/context/SimContext.tsx` — multi-run model + crisis state
+- `src/lib/events.ts` — scheduled + random crisis generator
+- `src/lib/weeklyMetrics.ts` — `getMetricsForDay(day)` interpolator
+- `src/data/scenarios.ts` — add `scheduledCrisis` per profile
+- `src/pages/Brief.tsx` — navigate to `/brand-central`
+- `src/pages/CampaignsDashboard.tsx` — Launch creates a `Run`, routes to `/run/:runId`
+- `src/pages/Day30Results.tsx` — read from selected run instead of singleton
 
 ## Technical notes
 
-- All new files; only 3 existing files touched: `App.tsx` (routes), `ProductBoosterProducts.tsx`, and the two targeting components (data source swap).
-- `CampaignForm.tsx` gets one small change: on Done → navigate to `/results` with choices in context.
-- Scoring lives in `src/lib/scoring.ts` — pure function, easy to test.
-- Email hash uses a tiny djb2 implementation, no deps.
+- Day-level metric interpolation: extend existing weekly curves with a smooth cumulative function (linear between checkpoints is fine for v1) so the slider feels live.
+- Crisis seeding uses djb2 hash of `email+runId` for reproducibility.
+- No DB schema change needed — `attempts.scenario` jsonb already absorbs the extra `runId`, `crises`, `scheduledCrisis` fields.
 
-## What I will NOT do without confirmation
+## Out of scope
 
-- I will not change the look of your existing 5 campaign steps beyond swapping the data they show.
-- I will not add real auth (the spec says simple name/email/batch capture).
-
-Ready to build all of this in one go on approval.
+- Multi-brand / multi-platform (Phase 4).
+- Real-time competitor reactions to crisis choice.
+- Editing past completed runs.
