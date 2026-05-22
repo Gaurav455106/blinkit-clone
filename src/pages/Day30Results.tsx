@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { simulateRun } from "@/lib/simResults";
+import { supabase } from "@/integrations/supabase/client";
 import { RefreshCw, Trophy, BarChart3, Home } from "lucide-react";
 
 function fmt(n: number) { return n.toLocaleString("en-IN"); }
@@ -22,7 +23,8 @@ function fmtTarget(n: number, unit: string) {
 export default function Day30Results() {
   const nav = useNavigate();
   const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
-    abTests, cannibalResolved, clusterReactions, tokensSpent, crisisResponses } = useSim();
+    abTests, cannibalResolved, clusterReactions, tokensSpent, crisisResponses,
+    activeRunId, completeRun } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
@@ -38,6 +40,32 @@ export default function Day30Results() {
         .sort((a, b) => (a.crisisNum! - b.crisisNum!)),
     [crisisResponses],
   );
+
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (savedRef.current) return;
+    savedRef.current = true;
+    // Mark run completed in local history
+    if (activeRunId) completeRun({ score: r.decisionTotal, achievementPct: r.achievementPct });
+    // Persist attempt to backend (background, non-blocking)
+    const firstCrisis = Object.values(crisisResponses)[0];
+    supabase.from("attempts").insert({
+      email: student.email,
+      name: student.name,
+      batch_code: student.batch,
+      profile_id: scenario.profile.id ?? scenario.profile.name,
+      scenario: { seed: scenario.seed, profile: scenario.profile.name },
+      choices: { campaigns: campaigns.length, abTests: abTests.length, tokensSpent },
+      crisis_id: firstCrisis?.crisisId ?? null,
+      crisis_choice: firstCrisis?.optionKey ?? null,
+      crisis_points: Object.values(crisisResponses).reduce((s, c) => s + (c.score ?? 0), 0),
+      score_total: r.decisionTotal,
+      score_breakdown: { achievementPct: r.achievementPct, decisionScore: r.decisionScore, goalRows: r.goalRows },
+      badge: r.achievementPct >= 90 ? "gold" : r.achievementPct >= 70 ? "silver" : r.achievementPct >= 50 ? "bronze" : null,
+    }).then(({ error }) => { if (error) console.error("attempt save failed", error); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const achColor = r.achievementPct >= 90 ? "text-primary" :
     r.achievementPct >= 70 ? "text-amber-600" :

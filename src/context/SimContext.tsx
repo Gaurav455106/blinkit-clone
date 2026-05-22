@@ -366,6 +366,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
           : r,
       ),
     );
+    setActiveRunId(null);
   };
 
   const reset = () => {
