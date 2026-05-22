@@ -502,7 +502,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
       setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
       recordCumulativeSpend, markExhausted, logMicroDecision,
-      recordCrisisResponse, startRun, completeRun, enterReview, exitReview,
+      recordCrisisResponse, startRun, completeRun, clearActiveRun: () => setActiveRunId(null), enterReview, exitReview,
       reset,
     }}>
       {children}
