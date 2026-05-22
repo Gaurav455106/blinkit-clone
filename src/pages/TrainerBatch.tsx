@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Download } from "lucide-react";
 
