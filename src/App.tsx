@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SimProvider } from "@/context/SimContext";
 import Login from "./pages/Login";
 import Brief from "./pages/Brief";
+import BrandCentral from "./pages/BrandCentral";
+import RunResults from "./pages/RunResults";
 import CmPitch from "./pages/CmPitch";
 import CampaignsDashboard from "./pages/CampaignsDashboard";
 import Day30Results from "./pages/Day30Results";
@@ -29,12 +31,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/brief" element={<Brief />} />
+            <Route path="/brand-central" element={<BrandCentral />} />
             <Route path="/cm-pitch" element={<CmPitch />} />
             <Route path="/campaign" element={<Index />} />
             <Route path="/campaigns-dashboard" element={<CampaignsDashboard />} />
-            <Route path="/day-7" element={<WeekDashboard />} />
-            <Route path="/day-14" element={<WeekDashboard />} />
-            <Route path="/day-21" element={<WeekDashboard />} />
+            <Route path="/run-results" element={<RunResults />} />
+            <Route path="/day-7" element={<RunResults />} />
+            <Route path="/day-14" element={<RunResults />} />
+            <Route path="/day-21" element={<RunResults />} />
             <Route path="/day-30-results" element={<Day30Results />} />
             <Route path="/results" element={<Results />} />
             <Route path="/leaderboard" element={<Leaderboard />} />

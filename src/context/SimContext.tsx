@@ -62,10 +62,29 @@ export interface EventResponse {
   tokenCost: number;
 }
 
+export interface CrisisResponse {
+  crisisId: string;
+  eventId: string;
+  optionKey: string;
+  tokenCost: number;
+  day: number;
+}
+
+export interface RunHistoryEntry {
+  id: string;
+  scenarioSeed: string;
+  brandName: string;
+  brandEmoji: string;
+  startedAt: string;
+  completedAt?: string;
+  status: "in_progress" | "completed";
+  score?: number;
+  achievementPct?: number;
+}
+
 export interface WeekResultStored {
   week: number;
   totals: { spend: number; impressions: number; clicks: number; atcs: number; units: number; revenue: number; roas: number };
-  // we keep the rich result transient in memory; only totals/highlights persist
 }
 
 export interface AbTest { campaignId: string; week: number; variable: string; winner: "A" | "B"; ctrMultiplier: number }
@@ -98,6 +117,11 @@ interface SimState {
   exhaustedCampaigns: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[];
   microDecisionsLog: { day: number; decision: string }[];
 
+  // Crises (Phase 2 add-on)
+  crisisResponses: Record<string, CrisisResponse>;
+  runHistory: RunHistoryEntry[];
+  activeRunId: string | null;
+
   setStudent: (s: Student) => void;
   newScenario: () => void;
   setCmPitch: (p: CmPitchResult | null) => void;
@@ -124,6 +148,11 @@ interface SimState {
   recordCumulativeSpend: (campaignId: string, addedSpend: number) => void;
   markExhausted: (e: { campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }) => void;
   logMicroDecision: (m: { day: number; decision: string }) => void;
+
+  // Crisis actions
+  recordCrisisResponse: (r: CrisisResponse) => void;
+  startRun: () => void;
+  completeRun: (info: { score: number; achievementPct: number }) => void;
 
   reset: () => void;
 }
@@ -167,6 +196,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [cumulativeSpendByCampaign, setCumulativeSpendByCampaign] = useState<Record<string, number>>(() => load("sim_cumSpend", {}));
   const [exhaustedCampaigns, setExhaustedCampaigns] = useState<{ campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[]>(() => load("sim_exhausted", []));
   const [microDecisionsLog, setMicroDecisionsLog] = useState<{ day: number; decision: string }[]>(() => load("sim_micro", []));
+  const [crisisResponses, setCrisisResponses] = useState<Record<string, CrisisResponse>>(() => load("sim_crises", {}));
+  const [runHistory, setRunHistory] = useState<RunHistoryEntry[]>(() => load("sim_runHistory", []));
+  const [activeRunId, setActiveRunId] = useState<string | null>(() => load("sim_activeRunId", null));
 
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
@@ -188,6 +220,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_cumSpend", JSON.stringify(cumulativeSpendByCampaign)); }, [cumulativeSpendByCampaign]);
   useEffect(() => { localStorage.setItem("sim_exhausted", JSON.stringify(exhaustedCampaigns)); }, [exhaustedCampaigns]);
   useEffect(() => { localStorage.setItem("sim_micro", JSON.stringify(microDecisionsLog)); }, [microDecisionsLog]);
+  useEffect(() => { localStorage.setItem("sim_crises", JSON.stringify(crisisResponses)); }, [crisisResponses]);
+  useEffect(() => { localStorage.setItem("sim_runHistory", JSON.stringify(runHistory)); }, [runHistory]);
+  useEffect(() => { localStorage.setItem("sim_activeRunId", JSON.stringify(activeRunId)); }, [activeRunId]);
 
   const setStudent = (s: Student) => {
     setStudentState(s);
@@ -224,6 +259,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCumulativeSpendByCampaign({});
     setExhaustedCampaigns([]);
     setMicroDecisionsLog([]);
+    setCrisisResponses({});
+    setActiveRunId(null);
     resetSimRuntime();
     clearCampaignWizard();
   };
@@ -290,11 +327,44 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setExhaustedCampaigns((prev) => prev.some((x) => x.campaignId === e.campaignId) ? prev : [...prev, e]);
   const logMicroDecision = (m: { day: number; decision: string }) => setMicroDecisionsLog((prev) => [...prev, m]);
 
+  const recordCrisisResponse = (r: CrisisResponse) =>
+    setCrisisResponses((prev) => ({ ...prev, [r.crisisId]: r }));
+
+  const startRun = () => {
+    if (!scenario) return;
+    const id = `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setActiveRunId(id);
+    setCrisisResponses({});
+    setRunHistory((prev) => [
+      ...prev,
+      {
+        id,
+        scenarioSeed: scenario.seed,
+        brandName: scenario.profile.name,
+        brandEmoji: scenario.profile.emoji,
+        startedAt: new Date().toISOString(),
+        status: "in_progress",
+      },
+    ]);
+  };
+
+  const completeRun = (info: { score: number; achievementPct: number }) => {
+    if (!activeRunId) return;
+    setRunHistory((prev) =>
+      prev.map((r) =>
+        r.id === activeRunId
+          ? { ...r, status: "completed", completedAt: new Date().toISOString(), score: info.score, achievementPct: info.achievementPct }
+          : r,
+      ),
+    );
+  };
+
   const reset = () => {
     ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_campaigns", "sim_tokens",
      "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
      "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
-     "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro"]
+     "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro",
+     "sim_crises", "sim_runHistory", "sim_activeRunId"]
       .forEach((k) => localStorage.removeItem(k));
     clearCampaignWizard();
     setStudentState(null);
@@ -311,6 +381,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCumulativeSpendByCampaign({});
     setExhaustedCampaigns([]);
     setMicroDecisionsLog([]);
+    setCrisisResponses({});
+    setRunHistory([]);
+    setActiveRunId(null);
     resetSimRuntime();
   };
 
@@ -320,10 +393,12 @@ export function SimProvider({ children }: { children: ReactNode }) {
       currentDay, optimizations, stockLevels, decisionsLog, weekTotals, events,
       competitor, competitorActions, cannibalResolved, clusterReactions, abTests,
       cumulativeSpendByCampaign, exhaustedCampaigns, microDecisionsLog,
+      crisisResponses, runHistory, activeRunId,
       setStudent, newScenario, setCmPitch, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
       setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
       recordCumulativeSpend, markExhausted, logMicroDecision,
+      recordCrisisResponse, startRun, completeRun,
       reset,
     }}>
       {children}

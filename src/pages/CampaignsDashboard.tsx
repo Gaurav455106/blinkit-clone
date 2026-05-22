@@ -12,7 +12,7 @@ import { ArchitectureCard } from "@/components/ArchitectureCard";
 
 export default function CampaignsDashboard() {
   const nav = useNavigate();
-  const { student, scenario, campaigns, deleteCampaign, tokensRemaining, initSimulation } = useSim();
+  const { student, scenario, campaigns, deleteCampaign, tokensRemaining, initSimulation, startRun, activeRunId } = useSim();
   const [showLaunch, setShowLaunch] = useState(false);
   const [launching, setLaunching] = useState(false);
 
@@ -151,7 +151,8 @@ export default function CampaignsDashboard() {
                 <Button onClick={() => {
                   setLaunching(true);
                   if (scenario) initSimulation(buildInitialStock(scenario));
-                  setTimeout(() => { setLaunching(false); setShowLaunch(false); nav("/day-7"); }, 2000);
+                  if (!activeRunId) startRun();
+                  setTimeout(() => { setLaunching(false); setShowLaunch(false); nav("/run-results?day=7"); }, 2000);
                 }}>Launch & Simulate</Button>
               </div>
             </>
