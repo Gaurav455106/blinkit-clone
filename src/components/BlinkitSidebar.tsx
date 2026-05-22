@@ -69,6 +69,20 @@ export function BlinkitSidebar() {
           <WhatsNewCard />
         </div>
       )}
+
+      {/* Sign out */}
+      <button
+        onClick={signOut}
+        className="flex items-center gap-3 px-4 py-3 text-sm border-t border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+        title="Sign out"
+      >
+        <LogOut className="h-5 w-5 shrink-0" />
+        {!collapsed && (
+          <span className="flex-1 text-left truncate">
+            {student ? `Sign out (${student.name})` : "Sign out"}
+          </span>
+        )}
+      </button>
     </div>
   );
 }
