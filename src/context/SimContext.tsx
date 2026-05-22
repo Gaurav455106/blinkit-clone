@@ -196,6 +196,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [cumulativeSpendByCampaign, setCumulativeSpendByCampaign] = useState<Record<string, number>>(() => load("sim_cumSpend", {}));
   const [exhaustedCampaigns, setExhaustedCampaigns] = useState<{ campaignId: string; exhaustedDay: number; was: "winning" | "losing"; caught: boolean }[]>(() => load("sim_exhausted", []));
   const [microDecisionsLog, setMicroDecisionsLog] = useState<{ day: number; decision: string }[]>(() => load("sim_micro", []));
+  const [crisisResponses, setCrisisResponses] = useState<Record<string, CrisisResponse>>(() => load("sim_crises", {}));
+  const [runHistory, setRunHistory] = useState<RunHistoryEntry[]>(() => load("sim_runHistory", []));
+  const [activeRunId, setActiveRunId] = useState<string | null>(() => load("sim_activeRunId", null));
 
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
