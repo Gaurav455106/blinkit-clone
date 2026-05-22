@@ -18,7 +18,7 @@ type AdAsset = "product_booster" | "recommendation_ads" | "listing_spotlight" | 
 
 export function CampaignForm() {
   const nav = useNavigate();
-  const { scenario, student } = useSim();
+  const { scenario, student, addCampaign, campaigns } = useSim();
   const [currentStep, setCurrentStep] = useLocalStorage("campaign_step", 0);
   const [campaignName, setCampaignName] = useLocalStorage("campaign_name", "");
   const [objective, setObjective] = useLocalStorage<"performance" | "reach" | null>("campaign_objective", null);
@@ -30,9 +30,42 @@ export function CampaignForm() {
     if (!student || !scenario) nav("/");
   }, [student, scenario, nav]);
 
+  const saveCampaign = () => {
+    const get = <T,>(k: string, d: T): T => {
+      try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; }
+    };
+    const budgetValueRaw = get<string>("sim_budget_value", "");
+    const budget = Number(budgetValueRaw) || 0;
+    const totalAllocated = campaigns.reduce((s, c) => s + (c.budget || 0), 0);
+    const totalBudget = scenario?.budget ?? 200000;
+    if (budget <= 0) { alert("Please enter a campaign budget before saving."); return; }
+    if (totalAllocated + budget > totalBudget) {
+      alert(`This campaign's budget would exceed your remaining ₹${(totalBudget - totalAllocated).toLocaleString("en-IN")}.`);
+      return;
+    }
+    addCampaign({
+      id: `c-${Date.now()}`,
+      name: campaignName || "Untitled campaign",
+      objective,
+      adFormat: adAsset,
+      cities: get<string[]>("sim_selected_cities", []),
+      skuIds: get<string[]>("sim_selected_skus", []),
+      keywords: get<string[]>("sim_selected_keywords", []),
+      budget,
+      budgetType: get<"daily" | "overall" | null>("sim_budget_type", null),
+      geography: get<"select_cities" | "pan_india" | null>("sim_geography", null),
+    });
+    [
+      "campaign_step", "campaign_name", "campaign_objective", "campaign_adAsset",
+      "sim_selected_skus", "sim_selected_keywords", "sim_geography", "sim_budget_type",
+      "sim_sku_strategy", "sim_selected_cities", "sim_budget_value"
+    ].forEach((k) => localStorage.removeItem(k));
+    nav("/campaigns-dashboard");
+  };
+
   const handleNext = () => {
     if (currentStep < 4) setCurrentStep(currentStep + 1);
-    else nav("/results");
+    else saveCampaign();
   };
 
   const handlePrev = () => {
