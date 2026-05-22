@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
-import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,9 +37,8 @@ export default function BrandCentral() {
   };
 
   return (
-    <div className="flex min-h-screen w-full">
-      <BlinkitSidebar />
-      <div className="flex-1 bg-background overflow-y-auto">
+    <div className="min-h-screen w-full bg-background">
+      <div className="flex-1 overflow-y-auto">
         <div className="px-8 pt-6 pb-2">
           <div className="text-xs text-muted-foreground">Brand Central › Home</div>
           <div className="flex items-end justify-between gap-4 mt-1">
