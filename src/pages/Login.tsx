@@ -28,6 +28,7 @@ export default function Login() {
     setErr("");
     if (email.trim().toLowerCase() === "trainer@kraftshala.com") {
       if (password !== "kraft2024") { setErr("Incorrect trainer password"); return; }
+      localStorage.setItem("sim_trainer", "1");
       nav("/trainer");
       return;
     }
