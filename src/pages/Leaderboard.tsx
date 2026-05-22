@@ -20,6 +20,12 @@ export default function Leaderboard() {
   const { student } = useSim();
   const [rows, setRows] = useState<Attempt[]>([]);
 
+  const [isTrainer, setIsTrainer] = useState(false);
+
+  useEffect(() => {
+    setIsTrainer(localStorage.getItem("sim_trainer") === "1");
+  }, []);
+
   useEffect(() => {
     supabase.from("attempts").select("*").order("score_total", { ascending: false }).limit(1000)
       .then(({ data }) => setRows((data as any) ?? []));
