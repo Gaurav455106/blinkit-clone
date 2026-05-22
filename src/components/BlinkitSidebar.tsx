@@ -14,9 +14,18 @@ const navItems = [
 
 export function BlinkitSidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const nav = useNavigate();
+  const { student, reset } = useSim();
+
+  const signOut = () => {
+    localStorage.removeItem("sim_trainer");
+    reset();
+    nav("/", { replace: true });
+  };
 
   return (
     <div className={`flex flex-col border-r border-border bg-card h-screen transition-all ${collapsed ? "w-16" : "w-64"}`}>
+
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-border">
         <button onClick={() => setCollapsed(!collapsed)} className="text-foreground hover:text-primary">
