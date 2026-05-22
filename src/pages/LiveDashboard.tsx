@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Play, Pause, Rocket, Flag, AlertTriangle, Sparkles, Rabbit, Turtle, FastForward, X, Download, ChevronRight } from "lucide-react";
 import { buildInitialStock, computeWeek, type WeekResult } from "@/lib/weeklyMetrics";
-import { buildRunCrises, getEventById, type RunCrisis } from "@/lib/events";
+import { buildCrisis, modifierForDay, type CrisisSpec } from "@/lib/crisisEvents";
 import { toast } from "sonner";
 
 type DayMetric = { day: number; spend: number; impressions: number; clicks: number; atcs: number; units: number; revenue: number };
