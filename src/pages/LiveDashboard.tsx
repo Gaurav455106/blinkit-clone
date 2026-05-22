@@ -375,13 +375,7 @@ export default function LiveDashboard() {
   const pctBudget = Math.min(100, (allSpend / totalBudget) * 100);
   const pctTime = (currentDay / 30) * 100;
 
-  const ev = pendingCrisis ? getEventById(pendingCrisis.eventId) : null;
-  const ctx = {
-    topCity: campaignRows[0]?.c.cities[0] ?? "Bangalore",
-    topSku: scenario.profile.skus[0]?.name ?? "Hero SKU",
-    daysLeft: 30 - currentDay,
-    budgetLeft: Math.max(0, totalBudget - allSpend),
-  };
+  const ev = pendingCrisis;
 
   return (
     <div className="flex min-h-screen w-full">
