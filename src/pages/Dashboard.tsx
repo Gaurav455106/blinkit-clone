@@ -162,21 +162,29 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {past.map((r) => (
-                    <tr key={r.id} className="border-t border-border">
-                      <td className="px-4 py-3 text-xs">{fmtDate(r.completedAt ?? r.startedAt)}</td>
-                      <td className="px-4 py-3 font-medium">{r.brandEmoji} {r.brandName}</td>
-                      <td className="px-4 py-3">
-                        {r.status === "completed" ? (
-                          <Badge className="bg-primary text-primary-foreground gap-1"><Trophy className="h-3 w-3" /> Completed</Badge>
-                        ) : (
-                          <Badge variant="secondary">In progress</Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold">{r.score != null ? `${r.score}/100` : "—"}</td>
-                      <td className="px-4 py-3 text-right">{r.achievementPct != null ? (r.achievementPct >= 90 ? "✅" : "—") : "—"}</td>
-                    </tr>
-                  ))}
+                  {past.map((r) => {
+                    const canOpen = r.status === "completed" && !!r.snapshot;
+                    return (
+                      <tr
+                        key={r.id}
+                        onClick={() => canOpen && openPast(r.id)}
+                        className={`border-t border-border ${canOpen ? "cursor-pointer hover:bg-muted/40" : "opacity-70"}`}
+                        title={canOpen ? "Review this run" : "No snapshot saved for this run"}
+                      >
+                        <td className="px-4 py-3 text-xs">{fmtDate(r.completedAt ?? r.startedAt)}</td>
+                        <td className="px-4 py-3 font-medium">{r.brandEmoji} {r.brandName}</td>
+                        <td className="px-4 py-3">
+                          {r.status === "completed" ? (
+                            <Badge className="bg-primary text-primary-foreground gap-1"><Trophy className="h-3 w-3" /> Completed</Badge>
+                          ) : (
+                            <Badge variant="secondary">In progress</Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">{r.score != null ? `${r.score}/100` : "—"}</td>
+                        <td className="px-4 py-3 text-right">{r.achievementPct != null ? (r.achievementPct >= 90 ? "✅" : "—") : "—"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
