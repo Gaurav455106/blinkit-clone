@@ -130,25 +130,33 @@ export default function LiveDashboard() {
     return out;
   }, [scenario, campaigns, cmPitch, optimizations, stockLevels]);
 
-  // Day-level metrics — split each week's totals evenly across its 7 days w/ small variance
+  // Day-level metrics — split each week's totals across days w/ small variance + crisis modifiers
+  const crisisDecisions = useMemo(
+    () =>
+      Object.values(crisisResponses)
+        .filter((r) => r.crisisNum)
+        .map((r) => ({ num: r.crisisNum as 1 | 2 | 3, optionKey: r.optionKey })),
+    [crisisResponses],
+  );
   const dayMetrics: DayMetric[] = useMemo(() => {
     const out: DayMetric[] = [];
     for (let d = 1; d <= 30; d++) {
-      const w = Math.min(3, Math.floor((d - 1) / 7)); // 0..3 (cap)
+      const w = Math.min(3, Math.floor((d - 1) / 7));
       const wm = weekly[w]?.totals ?? { spend: 0, impressions: 0, clicks: 0, atcs: 0, units: 0, revenue: 0 };
       const variance = [0.92, 1.0, 1.06, 1.1, 1.04, 0.95, 0.93][(d - 1) % 7];
+      const mod = modifierForDay(d, crisisDecisions);
       out.push({
         day: d,
-        spend: (wm.spend / 7) * variance,
-        impressions: (wm.impressions / 7) * variance,
-        clicks: (wm.clicks / 7) * variance,
-        atcs: (wm.atcs / 7) * variance,
-        units: (wm.units / 7) * variance,
-        revenue: (wm.revenue / 7) * variance,
+        spend: (wm.spend / 7) * variance * mod.spendMult + mod.spendAdd,
+        impressions: (wm.impressions / 7) * variance * mod.spendMult,
+        clicks: (wm.clicks / 7) * variance * mod.spendMult,
+        atcs: (wm.atcs / 7) * variance * mod.revMult,
+        units: (wm.units / 7) * variance * mod.revMult,
+        revenue: (wm.revenue / 7) * variance * mod.revMult,
       });
     }
     return out;
-  }, [weekly]);
+  }, [weekly, crisisDecisions]);
 
   // Per-campaign daily share (proportional to weekly campaign spend)
   const campaignDaily = useMemo(() => {
