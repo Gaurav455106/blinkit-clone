@@ -20,7 +20,7 @@ function fmtTarget(n: number, unit: string) {
 
 export default function Day30Results() {
   const nav = useNavigate();
-  const { student, scenario, campaigns, cmPitch, newScenario } = useSim();
+  const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
@@ -100,6 +100,59 @@ export default function Day30Results() {
               })}
             </div>
           </Card>
+
+          {/* Weekly Performance Timeline */}
+          {weekTotals.length > 0 && (
+            <Card className="p-5">
+              <h3 className="text-sm font-semibold mb-3">📅 Weekly Performance Timeline</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map((w) => {
+                  const wt = weekTotals.find((x) => x.week === w)?.totals;
+                  const strongest = weekTotals.reduce((m, x) => x.totals.roas > (m?.totals.roas ?? 0) ? x : m, weekTotals[0]);
+                  const isStrong = strongest?.week === w;
+                  return (
+                    <Card key={w} className={`p-3 ${isStrong ? "border-primary bg-primary/5" : ""}`}>
+                      <div className="text-xs font-semibold mb-2">Week {w} {isStrong && "🏆"}</div>
+                      {wt ? (
+                        <div className="space-y-1 text-xs">
+                          <div>Spend: ₹{fmt(wt.spend)}</div>
+                          <div>Imp: {fmt(wt.impressions)}</div>
+                          <div>Units: {fmt(wt.units)}</div>
+                          <div className="font-semibold">ROAS: {wt.roas.toFixed(2)}x</div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">No data</div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* Decision Timeline */}
+          {decisionsLog.length > 0 && (
+            <Card className="p-5">
+              <h3 className="text-sm font-semibold mb-3">🗒️ Decision Timeline</h3>
+              {[1, 2, 3].map((w) => {
+                const items = decisionsLog.filter((d) => d.week === w);
+                if (items.length === 0) return null;
+                return (
+                  <div key={w} className="mb-3">
+                    <div className="text-xs font-semibold text-muted-foreground mb-1">Day {w * 7} Decisions:</div>
+                    <ul className="space-y-1 text-xs ml-3">
+                      {items.map((d, i) => (
+                        <li key={i}>
+                          • {d.description}
+                          {d.tokenCost > 0 && <span className="text-muted-foreground"> ({d.tokenCost} tokens)</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </Card>
+          )}
 
           {/* Decision score */}
           <Card className="p-5">

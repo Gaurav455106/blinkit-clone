@@ -137,13 +137,16 @@ export function simulateRun(scenario: Scenario, campaigns: SavedCampaign[], cm: 
   const kwGood = kwAll.length ? goodKw / kwAll.length >= 0.6 : false;
 
   const decisionScore = [
-    { label: "Brief comprehension", earned: objMatches ? 20 : 8, max: 20 },
-    { label: "CM Pitch quality", earned: cm?.pitchScore ?? 0, max: 15 },
-    { label: "City selection", earned: noBadCities ? 15 : 5, max: 15 },
-    { label: "SKU selection focus", earned: skuCount <= 2 ? 15 : skuCount === 3 ? 10 : 5, max: 15 },
-    { label: "Keyword quality", earned: kwGood ? 15 : 7, max: 15 },
-    { label: "Budget allocation", earned: campaigns.length >= 1 && campaigns.length <= 3 ? 10 : 5, max: 10 },
-    { label: "Goal achievement", earned: achievementPct >= 90 ? 10 : achievementPct >= 70 ? 7 : achievementPct >= 50 ? 4 : 1, max: 10 },
+    { label: "Brief comprehension", earned: objMatches ? 10 : 4, max: 10 },
+    { label: "CM Pitch quality", earned: Math.min(10, cm?.pitchScore ?? 0), max: 10 },
+    { label: "Initial Campaign Setup", earned: campaigns.length >= 1 && campaigns.length <= 3 ? 10 : 5, max: 10 },
+    { label: "Dayparting Strategy", earned: 7, max: 10 },
+    { label: "Week 1 → Week 2 Optimization", earned: 10, max: 15 },
+    { label: "Week 2 Event Response", earned: 7, max: 10 },
+    { label: "Week 3 Event Response", earned: 7, max: 10 },
+    { label: "Stock Management", earned: noBadCities ? 8 : 4, max: 10 },
+    { label: "Budget Allocation", earned: kwGood ? 8 : 5, max: 10 },
+    { label: "Goal Achievement", earned: achievementPct >= 90 ? 5 : achievementPct >= 70 ? 4 : achievementPct >= 50 ? 2 : 1, max: 5 },
   ];
   const decisionTotal = decisionScore.reduce((s, d) => s + d.earned, 0);
 

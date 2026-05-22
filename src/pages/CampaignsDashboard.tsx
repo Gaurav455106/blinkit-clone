@@ -6,12 +6,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Rocket, Trash2, Pencil } from "lucide-react";
+import { Plus, Rocket, Trash2, Pencil, Loader2 } from "lucide-react";
+import { buildInitialStock } from "@/lib/weeklyMetrics";
 
 export default function CampaignsDashboard() {
   const nav = useNavigate();
-  const { student, scenario, campaigns, deleteCampaign, tokensRemaining } = useSim();
+  const { student, scenario, campaigns, deleteCampaign, tokensRemaining, initSimulation } = useSim();
   const [showLaunch, setShowLaunch] = useState(false);
+  const [launching, setLaunching] = useState(false);
 
   if (!student || !scenario) { nav("/"); return null; }
 
@@ -130,14 +132,28 @@ export default function CampaignsDashboard() {
           <DialogHeader>
             <DialogTitle>⏰ Launch Campaigns?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm">
-            Launching campaigns and simulating Days 1-30. Once launched, you can review final performance
-            and goal achievement.
-          </p>
-          <div className="flex gap-2 justify-end pt-2">
-            <Button variant="outline" onClick={() => setShowLaunch(false)}>Cancel</Button>
-            <Button onClick={() => nav("/day-30-results")}>Launch & Simulate</Button>
-          </div>
+          {launching ? (
+            <div className="flex flex-col items-center gap-3 py-6">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <div className="font-semibold">Simulating Week 1 (Days 1-7)...</div>
+              <div className="text-xs text-muted-foreground">Your campaigns are running. Pulling performance data...</div>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm">
+                Launching campaigns. You'll review Week 1 performance and make optimization decisions
+                each week (Day 7, 14, 21) before the final Day 30 results.
+              </p>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setShowLaunch(false)}>Cancel</Button>
+                <Button onClick={() => {
+                  setLaunching(true);
+                  if (scenario) initSimulation(buildInitialStock(scenario));
+                  setTimeout(() => { setLaunching(false); setShowLaunch(false); nav("/day-7"); }, 2000);
+                }}>Launch & Simulate</Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
