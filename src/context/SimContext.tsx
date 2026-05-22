@@ -401,7 +401,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
           : r,
       ),
     );
-    setActiveRunId(null);
+    // Keep activeRunId set so /results stays viewable until the student leaves.
+    // It is cleared when they land on /dashboard or start a new scenario.
   };
 
   const enterReview = (runId: string): boolean => {
