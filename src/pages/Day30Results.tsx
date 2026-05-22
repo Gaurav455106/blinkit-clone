@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { simulateRun } from "@/lib/simResults";
+import { supabase } from "@/integrations/supabase/client";
 import { RefreshCw, Trophy, BarChart3, Home } from "lucide-react";
 
 function fmt(n: number) { return n.toLocaleString("en-IN"); }
