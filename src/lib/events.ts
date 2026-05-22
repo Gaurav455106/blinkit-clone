@@ -126,3 +126,45 @@ export function pickEvent(week: 2 | 3): SimEvent {
   const pool = week === 2 ? WEEK2_EVENTS : WEEK3_EVENTS;
   return pool[Math.floor(Math.random() * pool.length)];
 }
+
+// ---- Crisis pool (scheduled + random) ----
+export const ALL_CRISIS_EVENTS: SimEvent[] = [...WEEK2_EVENTS, ...WEEK3_EVENTS];
+
+export function getEventById(id: string): SimEvent | undefined {
+  return ALL_CRISIS_EVENTS.find((e) => e.id === id);
+}
+
+// Tiny deterministic hash
+function djb2(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) + s.charCodeAt(i);
+  return Math.abs(h);
+}
+
+export interface RunCrisis {
+  id: string;            // unique per crisis instance in this run
+  day: number;
+  eventId: string;
+  type: "scheduled" | "random";
+}
+
+/**
+ * Build the list of crises for a run, given a deterministic seed (e.g. scenario.seed).
+ * Always includes the profile's scheduledCrisis. Has a 50% chance of adding a random
+ * crisis between day 5 and day 25 (avoiding the same day as the scheduled one).
+ */
+export function buildRunCrises(seed: string, scheduled: { day: number; eventId: string }): RunCrisis[] {
+  const list: RunCrisis[] = [
+    { id: `sched-${scheduled.eventId}`, day: scheduled.day, eventId: scheduled.eventId, type: "scheduled" },
+  ];
+  const h = djb2(seed);
+  const includeRandom = (h % 100) < 60; // 60% chance
+  if (includeRandom) {
+    const pool = ALL_CRISIS_EVENTS.filter((e) => e.id !== scheduled.eventId);
+    const evt = pool[h % pool.length];
+    let day = 5 + ((h >> 4) % 21); // 5..25
+    if (Math.abs(day - scheduled.day) < 3) day = day + 4 > 28 ? day - 4 : day + 4;
+    list.push({ id: `rand-${evt.id}-${day}`, day, eventId: evt.id, type: "random" });
+  }
+  return list.sort((a, b) => a.day - b.day);
+}
