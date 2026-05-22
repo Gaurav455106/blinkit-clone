@@ -398,6 +398,14 @@ export default function LiveDashboard() {
               <h1 className="text-xl font-semibold mt-1">Ad Summary</h1>
             </div>
             <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                </span>
+                <span className="text-[10px] font-semibold tracking-wider text-red-600">LIVE</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">⏱ {wallMM}:{wallSS}</span>
+              </div>
               <div className="text-2xl font-bold tabular-nums">📅 Day {currentDay} of 30</div>
               <div className="flex items-center gap-1.5">
                 <Button size="sm" variant={speed === "slow" ? "default" : "outline"} onClick={() => setSpeed("slow")} className="h-7 px-2">
@@ -413,6 +421,7 @@ export default function LiveDashboard() {
               </div>
               <Progress value={pctTime} className="w-56 h-1.5 mt-1" />
             </div>
+
             <div className="flex items-center gap-3">
               <div className="text-right text-xs">
                 <div className="text-muted-foreground">💰 {money(allSpend)} / {money(totalBudget)}</div>
