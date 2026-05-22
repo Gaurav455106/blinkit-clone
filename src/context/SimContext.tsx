@@ -346,6 +346,37 @@ export function SimProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // ----- Debounced cloud sync of the live run -----
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!student || !activeRunId) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      const state = {
+        scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+        abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+        microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+        optimizations, stockLevels, competitor, competitorActions, currentDay,
+      };
+      const started = runHistory.find((r) => r.id === activeRunId)?.startedAt ?? new Date().toISOString();
+      supabase.from("run_sessions").upsert({
+        email: student.email,
+        name: student.name,
+        batch_code: student.batch,
+        run_id: activeRunId,
+        state: state as any,
+        started_at: started,
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: "email" }).then(({ error }) => {
+        if (error) console.warn("[sim] run_sessions upsert failed", error);
+      });
+    }, 1500);
+    return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
+  }, [student, activeRunId, scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+      abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+      microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+      optimizations, stockLevels, competitor, competitorActions, currentDay, runHistory]);
+
   const clearCampaignWizard = () => {
     [
       "campaign_step", "campaign_name", "campaign_objective", "campaign_adAsset",
