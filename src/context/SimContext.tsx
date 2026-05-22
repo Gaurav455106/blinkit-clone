@@ -179,6 +179,15 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_decisions", JSON.stringify(decisionsLog)); }, [decisionsLog]);
   useEffect(() => { localStorage.setItem("sim_weekTotals", JSON.stringify(weekTotals)); }, [weekTotals]);
   useEffect(() => { localStorage.setItem("sim_events", JSON.stringify(events)); }, [events]);
+  useEffect(() => { localStorage.setItem("sim_tokensSpent", JSON.stringify(tokensSpent)); }, [tokensSpent]);
+  useEffect(() => { localStorage.setItem("sim_competitor", JSON.stringify(competitor)); }, [competitor]);
+  useEffect(() => { localStorage.setItem("sim_competitorActions", JSON.stringify(competitorActions)); }, [competitorActions]);
+  useEffect(() => { localStorage.setItem("sim_cannibalResolved", JSON.stringify(cannibalResolved)); }, [cannibalResolved]);
+  useEffect(() => { localStorage.setItem("sim_clusterReactions", JSON.stringify(clusterReactions)); }, [clusterReactions]);
+  useEffect(() => { localStorage.setItem("sim_abTests", JSON.stringify(abTests)); }, [abTests]);
+  useEffect(() => { localStorage.setItem("sim_cumSpend", JSON.stringify(cumulativeSpendByCampaign)); }, [cumulativeSpendByCampaign]);
+  useEffect(() => { localStorage.setItem("sim_exhausted", JSON.stringify(exhaustedCampaigns)); }, [exhaustedCampaigns]);
+  useEffect(() => { localStorage.setItem("sim_micro", JSON.stringify(microDecisionsLog)); }, [microDecisionsLog]);
 
   const setStudent = (s: Student) => {
     setStudentState(s);
@@ -206,13 +215,22 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCmPitchState(null);
     setCampaigns([]);
     setTokens(10);
+    setTokensSpent(0);
+    setCompetitorState(null);
+    setCompetitorActions([]);
+    setCannibalResolved([]);
+    setClusterReactions([]);
+    setAbTests([]);
+    setCumulativeSpendByCampaign({});
+    setExhaustedCampaigns([]);
+    setMicroDecisionsLog([]);
     resetSimRuntime();
     clearCampaignWizard();
   };
 
   const setCmPitch = (p: CmPitchResult | null) => setCmPitchState(p);
   const addCampaign = (c: SavedCampaign) => {
-    setCampaigns((prev) => [...prev, c]);
+    setCampaigns((prev) => [...prev, { ...c, launchDay: c.launchDay ?? Math.max(1, currentDay) }]);
     setOptimizationsState((prev) => ({ ...prev, [c.id]: { paused: false, scaleMultiplier: 1, dayparting: "24_7" } }));
   };
   const updateCampaign = (id: string, patch: Partial<SavedCampaign>) =>
