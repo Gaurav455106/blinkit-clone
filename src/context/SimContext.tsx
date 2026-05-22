@@ -325,11 +325,44 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setExhaustedCampaigns((prev) => prev.some((x) => x.campaignId === e.campaignId) ? prev : [...prev, e]);
   const logMicroDecision = (m: { day: number; decision: string }) => setMicroDecisionsLog((prev) => [...prev, m]);
 
+  const recordCrisisResponse = (r: CrisisResponse) =>
+    setCrisisResponses((prev) => ({ ...prev, [r.crisisId]: r }));
+
+  const startRun = () => {
+    if (!scenario) return;
+    const id = `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setActiveRunId(id);
+    setCrisisResponses({});
+    setRunHistory((prev) => [
+      ...prev,
+      {
+        id,
+        scenarioSeed: scenario.seed,
+        brandName: scenario.profile.name,
+        brandEmoji: scenario.profile.emoji,
+        startedAt: new Date().toISOString(),
+        status: "in_progress",
+      },
+    ]);
+  };
+
+  const completeRun = (info: { score: number; achievementPct: number }) => {
+    if (!activeRunId) return;
+    setRunHistory((prev) =>
+      prev.map((r) =>
+        r.id === activeRunId
+          ? { ...r, status: "completed", completedAt: new Date().toISOString(), score: info.score, achievementPct: info.achievementPct }
+          : r,
+      ),
+    );
+  };
+
   const reset = () => {
     ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_campaigns", "sim_tokens",
      "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
      "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
-     "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro"]
+     "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro",
+     "sim_crises", "sim_runHistory", "sim_activeRunId"]
       .forEach((k) => localStorage.removeItem(k));
     clearCampaignWizard();
     setStudentState(null);
@@ -346,6 +379,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCumulativeSpendByCampaign({});
     setExhaustedCampaigns([]);
     setMicroDecisionsLog([]);
+    setCrisisResponses({});
+    setRunHistory([]);
+    setActiveRunId(null);
     resetSimRuntime();
   };
 
