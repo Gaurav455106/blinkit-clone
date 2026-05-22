@@ -61,9 +61,11 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
-            <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
-              <FileText className="h-4 w-4" /> Re-read Brief
-            </Button>
+            {active && (
+              <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
+                <FileText className="h-4 w-4" /> Re-read Brief
+              </Button>
+            )}
           </div>
         </div>
 
