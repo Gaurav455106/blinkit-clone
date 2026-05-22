@@ -24,7 +24,7 @@ export default function Day30Results() {
   const nav = useNavigate();
   const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
     abTests, cannibalResolved, clusterReactions, tokensSpent, crisisResponses,
-    activeRunId, completeRun } = useSim();
+    activeRunId, completeRun, startRun, mode } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
