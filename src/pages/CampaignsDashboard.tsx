@@ -12,7 +12,7 @@ import { ArchitectureCard } from "@/components/ArchitectureCard";
 
 export default function CampaignsDashboard() {
   const nav = useNavigate();
-  const { student, scenario, campaigns, deleteCampaign, tokensRemaining, initSimulation } = useSim();
+  const { student, scenario, campaigns, deleteCampaign, tokensRemaining, initSimulation, startRun, activeRunId } = useSim();
   const [showLaunch, setShowLaunch] = useState(false);
   const [launching, setLaunching] = useState(false);
 
