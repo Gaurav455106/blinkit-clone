@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 
 import { ArrowRight, Target, MapPin } from "lucide-react";
 import { CITIES, CITY_STORE_COUNT, STATE_TO_CITIES, activeStoresFor, CityName, stockedStates } from "@/data/scenarios";
+import { FlowHeader } from "@/components/FlowHeader";
+import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 
 function formatTarget(t: { label: string; target: number; unit: string }) {
   let v: string;
@@ -32,11 +34,12 @@ export default function Brief() {
   const { profile, season, market, inventory, budget, clientGoals, cityStockMap } = scenario;
 
   return (
-    <div className="min-h-screen w-full bg-background">
-      <div className="flex-1 flex flex-col">
-        <div className="px-8 pt-6 pb-2">
-          <div className="text-xs text-muted-foreground">Brand Central › Client Brief</div>
-          <h1 className="text-xl font-semibold text-foreground mt-1">Your Brand Brief</h1>
+    <div className="flex min-h-screen w-full bg-background">
+      <BlinkitSidebar />
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <FlowHeader crumb="Client Brief" step="brief" backTo="/dashboard" backLabel="Dashboard" />
+        <div className="px-8 pt-4 pb-2">
+          <h1 className="text-xl font-semibold text-foreground">Your Brand Brief</h1>
           <p className="text-xs text-muted-foreground">Hi {student.name} — here's the client you're running this campaign for.</p>
         </div>
 
@@ -208,8 +211,8 @@ export default function Brief() {
               <Checkbox checked={ack} onCheckedChange={(v) => setAck(!!v)} />
               <span className="text-sm font-medium text-foreground">I have read the brief and understand the brand context.</span>
             </label>
-            <Button disabled={!ack} onClick={() => nav("/cm-pitch")} className="gap-2">
-              Continue to CM <ArrowRight className="h-4 w-4" />
+            <Button disabled={!ack} onClick={() => { localStorage.setItem("sim_brief_ack", "1"); nav("/cm-pitch"); }} className="gap-2">
+              Continue to Category Manager <ArrowRight className="h-4 w-4" />
             </Button>
           </Card>
         </div>

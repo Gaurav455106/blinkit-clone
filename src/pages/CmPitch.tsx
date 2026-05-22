@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BLINKIT_STATES, CityName } from "@/data/scenarios";
+import { FlowHeader } from "@/components/FlowHeader";
+import { useEffect } from "react";
 import { User, ArrowRight } from "lucide-react";
 
 const REASONS = [
@@ -31,7 +33,13 @@ export default function CmPitch() {
   const nav = useNavigate();
   const { student, scenario, setCmPitch, consumeToken, tokensRemaining } = useSim();
 
-  if (!student || !scenario) { nav("/"); return null; }
+  useEffect(() => {
+    if (!student) nav("/", { replace: true });
+    else if (!scenario) nav("/brief", { replace: true });
+    else if (localStorage.getItem("sim_brief_ack") !== "1") nav("/brief", { replace: true });
+  }, [student, scenario, nav]);
+
+  if (!student || !scenario) return null;
   const { profile, cityStockMap } = scenario;
 
   const [rows, setRows] = useState<Record<string, PitchRow>>(() => {
