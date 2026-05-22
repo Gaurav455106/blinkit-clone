@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -15,18 +16,25 @@ function fmtDate(s?: string) {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, startRun } = useSim();
-
-  if (!student) { nav("/", { replace: true }); return null; }
+  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, startRun, clearActiveRun } = useSim();
 
   // Landing on dashboard exits any active review session.
-  if (reviewRunId) { exitReview(); return null; }
+  useEffect(() => { if (reviewRunId) exitReview(); }, [reviewRunId, exitReview]);
 
+  // If the active run is already completed, archive it on dashboard landing.
+  useEffect(() => {
+    if (!activeRunId) return;
+    const r = runHistory.find((x) => x.id === activeRunId);
+    if (r && r.status === "completed") clearActiveRun();
+  }, [activeRunId, runHistory, clearActiveRun]);
+
+  if (!student) { nav("/", { replace: true }); return null; }
   if (!scenario) { newScenario(); return null; }
 
   const active = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
+  const activeInProgress = active && active.status === "in_progress" ? active : null;
   const completed = runHistory.filter((r) => r.status === "completed");
-  const past = runHistory.filter((r) => r.id !== activeRunId).reverse();
+  const past = runHistory.filter((r) => r.id !== activeRunId || r.status === "completed").reverse();
 
   const bestScore = completed.reduce((m, r) => Math.max(m, r.score ?? 0), 0);
   const avgScore = completed.length
