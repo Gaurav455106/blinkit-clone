@@ -73,7 +73,7 @@ export default function Trainer() {
                       <td className="p-3 text-sm">{top?.name} ({top?.score_total})</td>
                       <td className="p-3 text-sm text-muted-foreground">{mistake}</td>
                       <td className="p-3 text-sm">
-                        <Link to={`/trainer/${encodeURIComponent(batch)}`} className="text-primary hover:underline">View →</Link>
+                        <span className="text-xs text-muted-foreground">—</span>
                       </td>
                     </tr>
                   );

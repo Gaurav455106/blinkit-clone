@@ -2,11 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+import { FlowHeader } from "@/components/FlowHeader";
 import { CampaignForm } from "@/components/CampaignForm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Rocket, Trash2, Pencil, Loader2, Home, ChevronLeft } from "lucide-react";
+import { Plus, Rocket, Trash2, Pencil, Loader2 } from "lucide-react";
 import { buildInitialStock } from "@/lib/weeklyMetrics";
 import { ArchitectureCard } from "@/components/ArchitectureCard";
 
@@ -62,22 +63,12 @@ export default function Campaign() {
     <div className="flex min-h-screen w-full">
       <BlinkitSidebar />
       <div className="flex-1 bg-background overflow-y-auto">
-        <div className="px-8 pt-6 pb-2 flex items-start justify-between gap-4">
-          <div>
-            <div className="text-xs text-muted-foreground">Brand Central › Campaigns</div>
-            <h1 className="text-xl font-semibold text-foreground mt-1">My Campaigns</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Budget Remaining: ₹{remaining.toLocaleString("en-IN")} · Tokens: {tokensRemaining}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => nav("/dashboard")} className="gap-1">
-              <Home className="h-3.5 w-3.5" /> Dashboard
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => nav("/cm-pitch")} className="gap-1">
-              <ChevronLeft className="h-3.5 w-3.5" /> Back
-            </Button>
-          </div>
+        <FlowHeader crumb="Campaigns" step="campaign" backTo="/cm-pitch" backLabel="CM Pitch" />
+        <div className="px-8 pt-4 pb-2">
+          <h1 className="text-xl font-semibold text-foreground">My Campaigns</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Budget Remaining: ₹{remaining.toLocaleString("en-IN")} · Tokens: {tokensRemaining}
+          </p>
         </div>
 
         <div className="px-8 py-6 max-w-6xl space-y-4">

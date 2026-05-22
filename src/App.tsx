@@ -13,7 +13,7 @@ import LiveDashboard from "./pages/LiveDashboard";
 import Day30Results from "./pages/Day30Results";
 import Leaderboard from "./pages/Leaderboard";
 import Trainer from "./pages/Trainer";
-import TrainerBatch from "./pages/TrainerBatch";
+
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -28,7 +28,7 @@ const App = () => (
           <Routes>
             {/* Core 7 */}
             <Route path="/" element={<Login />} />
-            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/brief" element={<Brief />} />
             <Route path="/cm-pitch" element={<CmPitch />} />
@@ -39,7 +39,6 @@ const App = () => (
             {/* Utility */}
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/trainer" element={<Trainer />} />
-            <Route path="/trainer/:batch" element={<TrainerBatch />} />
 
             {/* Legacy redirects */}
             <Route path="/brand-central" element={<Navigate to="/dashboard" replace />} />

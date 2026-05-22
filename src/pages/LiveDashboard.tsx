@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+import { FlowHeader } from "@/components/FlowHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,7 +106,9 @@ export default function LiveDashboard() {
     crisisResponses, recordCrisisResponse, startRun, activeRunId,
   } = useSim();
 
-  if (!student || !scenario) { nav("/"); return null; }
+  if (!student) { nav("/", { replace: true }); return null; }
+  if (!scenario) { nav("/brief", { replace: true }); return null; }
+  if (campaigns.length === 0) { nav("/campaign", { replace: true }); return null; }
 
   // Init stock + run once
   useEffect(() => {
@@ -390,12 +393,12 @@ export default function LiveDashboard() {
     <div className="flex min-h-screen w-full">
       <BlinkitSidebar />
       <div className="flex-1 bg-background overflow-y-auto">
+        <FlowHeader crumb="Ad Summary" step="simulation" />
         {/* HEADER */}
-        <div className="px-8 pt-5 pb-3 border-b border-border bg-card/40">
+        <div className="px-8 pt-4 pb-3 border-b border-border bg-card/40">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-xs text-muted-foreground">Brand Central › Live</div>
-              <h1 className="text-xl font-semibold mt-1">Ad Summary</h1>
+              <h1 className="text-xl font-semibold">Ad Summary</h1>
             </div>
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-2">

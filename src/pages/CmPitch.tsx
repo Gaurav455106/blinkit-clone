@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BLINKIT_STATES, CityName } from "@/data/scenarios";
+import { FlowHeader } from "@/components/FlowHeader";
+import { useEffect } from "react";
 import { User, ArrowRight } from "lucide-react";
 
 const REASONS = [
@@ -31,7 +33,13 @@ export default function CmPitch() {
   const nav = useNavigate();
   const { student, scenario, setCmPitch, consumeToken, tokensRemaining } = useSim();
 
-  if (!student || !scenario) { nav("/"); return null; }
+  useEffect(() => {
+    if (!student) nav("/", { replace: true });
+    else if (!scenario) nav("/brief", { replace: true });
+    else if (localStorage.getItem("sim_brief_ack") !== "1") nav("/brief", { replace: true });
+  }, [student, scenario, nav]);
+
+  if (!student || !scenario) return null;
   const { profile, cityStockMap } = scenario;
 
   const [rows, setRows] = useState<Record<string, PitchRow>>(() => {
@@ -149,9 +157,9 @@ export default function CmPitch() {
     <div className="flex min-h-screen w-full">
       <BlinkitSidebar />
       <div className="flex-1 bg-background overflow-y-auto">
-        <div className="px-8 pt-6 pb-2">
-          <div className="text-xs text-muted-foreground">Brand Central › Category Manager Meeting</div>
-          <h1 className="text-xl font-semibold text-foreground mt-1">Pitch to Category Manager</h1>
+        <FlowHeader crumb="Category Manager Meeting" step="cm-pitch" backTo="/brief" backLabel="Brief" />
+        <div className="px-8 pt-4 pb-2">
+          <h1 className="text-xl font-semibold text-foreground">Pitch to Category Manager</h1>
         </div>
 
         <div className="px-8 py-6 max-w-5xl space-y-5">
