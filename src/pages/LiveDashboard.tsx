@@ -617,34 +617,61 @@ export default function LiveDashboard() {
         </div>
       </div>
 
-      {/* CRISIS MODAL */}
+      {/* CRISIS MODAL — fixed days 9 / 18 / 25, cannot be dismissed */}
       <Dialog open={crisisOpen} onOpenChange={() => {}}>
-        <DialogContent className="max-w-lg">
-          <div className="-m-6 mb-0 px-6 py-2 bg-red-600 text-white text-xs font-medium rounded-t-lg flex items-center justify-between">
-            <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> URGENT — Day {currentDay}</span>
-            <span className="tabular-nums">⏱ {crisisTimer}s</span>
-          </div>
-          <DialogHeader className="pt-4">
-            <DialogTitle>{ev?.emoji} {ev?.title}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">{ev?.body(ctx)}</p>
-          <RadioGroup value={crisisChoice} onValueChange={setCrisisChoice} className="space-y-2 py-2">
-            {ev?.options.map((o) => (
-              <Label key={o.key} htmlFor={o.key} className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-muted/50">
-                <RadioGroupItem value={o.key} id={o.key} className="mt-0.5" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium flex items-center gap-2">
-                    {o.label}
-                    {o.tokenCost > 0 && <Badge variant="outline" className="text-[10px]">🎫 {o.tokenCost}</Badge>}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">{o.effect}</div>
-                </div>
-              </Label>
-            ))}
-          </RadioGroup>
-          <DialogFooter>
-            <Button disabled={!crisisChoice} onClick={() => resolveCrisis(crisisChoice)}>Confirm Decision</Button>
-          </DialogFooter>
+        <DialogContent
+          className="max-w-[600px] p-0 overflow-hidden [&>button]:hidden"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          {ev && (
+            <>
+              <div className={`px-6 py-2.5 text-white text-xs font-semibold tracking-wide flex items-center gap-2 ${
+                ev.tone === "red" ? "bg-red-600" : ev.tone === "orange" ? "bg-orange-500" : "bg-blue-600"
+              }`}>
+                <AlertTriangle className="h-3.5 w-3.5" />
+                URGENT DECISION REQUIRED — DAY {currentDay}
+              </div>
+              <div className="px-6 pt-5 pb-4 text-center">
+                <div className="text-4xl mb-2">{ev.icon}</div>
+                <DialogTitle className="text-lg font-bold">{ev.title}</DialogTitle>
+                {ev.subtitle && <div className="text-xs text-muted-foreground mt-1">{ev.subtitle}</div>}
+              </div>
+              <div className="px-6 pb-4">
+                <p className="text-sm text-foreground/90 leading-relaxed bg-muted/40 rounded-md p-3 border border-border">
+                  {ev.message}
+                </p>
+              </div>
+              <div className="px-6 pb-2 space-y-2">
+                {ev.options.map((o) => {
+                  const selected = crisisChoice === o.key;
+                  return (
+                    <button
+                      key={o.key}
+                      onClick={() => setCrisisChoice(o.key)}
+                      className={`w-full text-left p-3 rounded-md border-2 transition-all ${
+                        selected ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold flex items-center gap-2">
+                        <span className="uppercase text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                          {o.key}
+                        </span>
+                        {o.label}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-1 pl-7">{o.effect}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="px-6 py-4 border-t border-border flex justify-end bg-muted/20">
+                <Button disabled={!crisisChoice} onClick={() => resolveCrisis(crisisChoice)}>
+                  Submit Decision
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
