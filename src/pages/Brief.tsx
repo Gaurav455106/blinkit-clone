@@ -95,7 +95,7 @@ export default function Brief() {
             </div>
           </Card>
 
-          {/* Stock availability map */}
+          {/* Stock availability map (STATES) */}
           <Card className="p-5">
             <div className="flex items-center gap-2 mb-3">
               <MapPin className="h-4 w-4 text-primary" />
@@ -105,37 +105,44 @@ export default function Brief() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-muted-foreground border-b border-border">
-                    <th className="text-left py-2">City</th>
+                    <th className="text-left py-2">State</th>
+                    <th className="text-left py-2">Cities Stocked</th>
                     <th className="text-right py-2">OSA %</th>
-                    <th className="text-right py-2">Dark Stores</th>
                     <th className="text-right py-2">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {CITIES.map((c) => {
-                    const osa = cityStockMap[c as CityName];
-                    const stores = activeStoresFor(c as CityName, osa);
-                    const total = CITY_STORE_COUNT[c as CityName];
+                  {stockedStates(scenario).map((s) => {
+                    const osa = cityStockMap[s];
+                    const cities = STATE_TO_CITIES[s] ?? [];
+                    const cityCells = cities.map((c) => {
+                      const active = Math.round((osa / 100) * c.stores);
+                      return `${c.name} (${active}/${c.stores})`;
+                    }).join(", ") || "—";
                     const status =
                       osa >= 70 ? { label: "✅ Stocked", cls: "bg-primary/10 text-primary border-primary/40" } :
                       osa >= 30 ? { label: "⚠️ Partial", cls: "bg-amber-100 text-amber-800 border-amber-300" } :
                       { label: "❌ No Stock", cls: "bg-destructive/10 text-destructive border-destructive/40" };
                     return (
-                      <tr key={c} className="border-b border-border last:border-0">
-                        <td className="py-2 font-medium text-foreground">{c}</td>
+                      <tr key={s} className="border-b border-border last:border-0">
+                        <td className="py-2 font-medium text-foreground">{s}</td>
+                        <td className="py-2 text-xs text-muted-foreground">{cityCells}</td>
                         <td className="py-2 text-right">{osa}%</td>
-                        <td className="py-2 text-right">{stores}/{total}</td>
                         <td className="py-2 text-right">
                           <span className={`text-xs px-2 py-1 rounded border ${status.cls}`}>{status.label}</span>
                         </td>
                       </tr>
                     );
                   })}
+                  {stockedStates(scenario).length === 0 && (
+                    <tr><td colSpan={4} className="py-3 text-center text-xs text-muted-foreground">No stocked states for this scenario.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-muted-foreground mt-3 bg-amber-50 border border-amber-200 rounded p-2">
-              ⚠️ Ads can only serve in cities where you have stock. Selecting cities without stock = wasted budget.
+            <p className="text-xs text-amber-900 mt-3 bg-amber-50 border border-amber-200 rounded p-2">
+              ⚠️ Blinkit shows all 23 states as selectable on the platform. But your ads can only deliver where you have stock.
+              Match your state selection to your stock reality — selecting states without stock = wasted budget.
             </p>
           </Card>
 
