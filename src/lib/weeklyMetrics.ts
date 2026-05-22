@@ -374,8 +374,43 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
 
   const startDay = (week - 1) * 7 + 1;
   const endDay = week * 7;
+
+  // Phase 3: zones + clusters
+  const zoneMetrics: ZoneMetric[] = [];
+  for (const cm of campaignMetrics) {
+    for (const cb of cm.byCity) {
+      const revenue = cb.spend * cb.roas;
+      zoneMetrics.push(...computeZoneMetrics(cb.city as CityName, cb.spend, cb.impressions, revenue, scenario.profile.id));
+    }
+  }
+  // aggregate by city+zone
+  const zMap = new Map<string, ZoneMetric>();
+  for (const z of zoneMetrics) {
+    const k = `${z.city}|${z.zone}`;
+    const ex = zMap.get(k);
+    if (!ex) zMap.set(k, { ...z });
+    else { ex.spend += z.spend; ex.impressions += z.impressions; ex.roas = (ex.roas + z.roas) / 2; }
+  }
+  const aggZones = Array.from(zMap.values());
+  const clusters = detectClusters(aggZones);
+
+  // pacing per campaign
+  const pacing: PacingInfo[] = campaignMetrics.map((m) => {
+    const dayNow = endDay;
+    const cumulative = m.spend * week; // engine recomputes week as standalone, scale up to approximate cumulative
+    const pacePct = m.budget > 0 ? +((cumulative / m.budget) * 100).toFixed(1) : 0;
+    const dailyRate = dayNow > 0 ? cumulative / dayNow : 0;
+    const remaining = m.budget - cumulative;
+    const projectedExhaustionDay = dailyRate > 0 && remaining > 0
+      ? Math.min(60, Math.round(dayNow + remaining / dailyRate))
+      : (remaining <= 0 ? dayNow : null);
+    return { campaignId: m.campaignId, cumulativeSpend: Math.round(cumulative), budget: m.budget, pacePct, projectedExhaustionDay, exhausted: cumulative >= m.budget };
+  });
+
+  const cannibalPairs = detectCannibalization(campaigns);
+
   return {
-    result: { week, startDay, endDay, campaigns: campaignMetrics, dailySpend, totals, stockAlerts },
+    result: { week, startDay, endDay, campaigns: campaignMetrics, dailySpend, totals, stockAlerts, clusters, pacing, cannibalPairs, zoneMetrics: aggZones },
     newStock,
   };
 }
