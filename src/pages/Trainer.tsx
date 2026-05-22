@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { BlinkitSidebar } from "@/components/BlinkitSidebar";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Users, GraduationCap, TrendingUp } from "lucide-react";
 
