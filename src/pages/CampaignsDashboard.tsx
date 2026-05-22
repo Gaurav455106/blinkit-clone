@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Rocket, Trash2, Pencil, Loader2 } from "lucide-react";
 import { buildInitialStock } from "@/lib/weeklyMetrics";
+import { ArchitectureCard } from "@/components/ArchitectureCard";
 
 export default function CampaignsDashboard() {
   const nav = useNavigate();
@@ -61,7 +62,8 @@ export default function CampaignsDashboard() {
           </div>
         </div>
 
-        <div className="px-8 py-6 max-w-6xl">
+        <div className="px-8 py-6 max-w-6xl space-y-4">
+          {campaigns.length > 0 && <ArchitectureCard />}
           {campaigns.length === 0 ? (
             <Card className="p-10 text-center">
               <p className="text-sm text-muted-foreground">

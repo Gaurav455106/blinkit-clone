@@ -15,6 +15,7 @@ import { CITIES, CityName } from "@/data/scenarios";
 import { buildInitialStock, computeWeek, type WeekResult, type CampaignWeekMetric } from "@/lib/weeklyMetrics";
 import { pickEvent, type SimEvent } from "@/lib/events";
 import { ChevronDown, ChevronUp, AlertTriangle, Loader2, Pause, Plus, Pencil, Package, TrendingUp } from "lucide-react";
+import { Phase3StrategyPanel } from "@/components/Phase3StrategyPanel";
 
 const eventsCache: Record<number, SimEvent> = {};
 function getEventForWeek(week: 2 | 3): SimEvent {
