@@ -15,9 +15,13 @@ function fmtDate(s?: string) {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const { student, scenario, runHistory, activeRunId, campaigns, cmPitch, newScenario } = useSim();
+  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview } = useSim();
 
   if (!student) { nav("/", { replace: true }); return null; }
+
+  // Landing on dashboard exits any active review session.
+  if (reviewRunId) { exitReview(); return null; }
+
   if (!scenario) { newScenario(); return null; }
 
   const active = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
@@ -34,6 +38,11 @@ export default function Dashboard() {
     if (!active) { nav("/brief"); return; }
     if (!cmPitch) nav("/cm-pitch");
     else nav("/campaign");
+  };
+
+  const openPast = (runId: string) => {
+    const ok = enterReview(runId);
+    if (ok) nav("/results");
   };
 
   return (
