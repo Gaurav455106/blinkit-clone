@@ -174,11 +174,12 @@ export default function LiveDashboard() {
     return map;
   }, [campaigns, weekly]);
 
-  // Crises
-  const crises: RunCrisis[] = useMemo(
-    () => buildRunCrises(scenario.seed, scenario.scheduledCrisis),
-    [scenario.seed, scenario.scheduledCrisis]
+  // Crises — FIXED days 9, 18, 25
+  const crisisSpecs: CrisisSpec[] = useMemo(
+    () => [buildCrisis(1, scenario), buildCrisis(2, scenario), buildCrisis(3, scenario)],
+    [scenario],
   );
+  const crisisIdFor = (num: 1 | 2 | 3) => `crisis-${num}`;
 
   // Time progression
   const [currentDay, setCurrentDay] = useState(1);
@@ -188,13 +189,11 @@ export default function LiveDashboard() {
   const [endOpen, setEndOpen] = useState(false);
 
   // ── ALWAYS-ON LIFE SIGNS ────────────────────────────────────────────────
-  // Fast pulse drives jittered numbers + sparkline dot breathing (always on)
   const [pulse, setPulse] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setPulse((p) => p + 1), 220);
     return () => clearInterval(id);
   }, []);
-  // Wall-clock — business time elapsed, never stops
   const [wallSec, setWallSec] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setWallSec((s) => s + 1), 1000);
@@ -203,52 +202,47 @@ export default function LiveDashboard() {
   const wallMM = String(Math.floor(wallSec / 60)).padStart(2, "0");
   const wallSS = String(wallSec % 60).padStart(2, "0");
 
-  // Live activity ticker — streams micro-events while playing
   const [ticker, setTicker] = useState<{ id: number; text: string; tone: "good" | "neutral" | "warn" }[]>([]);
 
+  // Crisis modal — fires exactly on day 9, 18, 25
+  const pendingCrisis: CrisisSpec | null = useMemo(() => {
+    for (const spec of crisisSpecs) {
+      if (currentDay >= spec.day && !crisisResponses[crisisIdFor(spec.num)]) return spec;
+    }
+    return null;
+  }, [crisisSpecs, currentDay, crisisResponses]);
 
-  // Crisis modal
-  const pendingCrisis = crises.find((c) => currentDay >= c.day && !crisisResponses[c.id]);
   const [crisisOpen, setCrisisOpen] = useState(false);
-  const [crisisChoice, setCrisisChoice] = useState("");
-  const [crisisTimer, setCrisisTimer] = useState(30);
+  const [crisisChoice, setCrisisChoice] = useState<string>("");
 
   useEffect(() => {
     if (pendingCrisis && !crisisOpen) {
       setCrisisOpen(true);
       setCrisisChoice("");
-      setCrisisTimer(30);
       setPlaying(false);
     }
-  }, [pendingCrisis?.id]); // eslint-disable-line
-
-  useEffect(() => {
-    if (!crisisOpen) return;
-    if (crisisTimer <= 0) {
-      // auto-pick neutral first low-cost option
-      const ev = pendingCrisis ? getEventById(pendingCrisis.eventId) : null;
-      const opt = ev?.options.find((o) => o.tokenCost === 0) ?? ev?.options[0];
-      if (pendingCrisis && opt) resolveCrisis(opt.key);
-      return;
-    }
-    const t = setTimeout(() => setCrisisTimer((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [crisisOpen, crisisTimer]); // eslint-disable-line
+  }, [pendingCrisis?.num]); // eslint-disable-line
 
   const resolveCrisis = (optionKey: string) => {
     if (!pendingCrisis) return;
-    const ev = getEventById(pendingCrisis.eventId);
-    const opt = ev?.options.find((o) => o.key === optionKey);
+    const opt = pendingCrisis.options.find((o) => o.key === optionKey);
     if (!opt) return;
-    if (opt.tokenCost > 0) consumeToken(opt.tokenCost);
+    const maxScore = Math.max(...pendingCrisis.options.map((o) => o.score));
     recordCrisisResponse({
-      crisisId: pendingCrisis.id,
-      eventId: pendingCrisis.eventId,
+      crisisId: crisisIdFor(pendingCrisis.num),
+      eventId: `crisis-${pendingCrisis.num}`,
       optionKey,
-      tokenCost: opt.tokenCost,
+      tokenCost: 0,
       day: currentDay,
+      crisisNum: pendingCrisis.num,
+      score: opt.score,
+      maxScore,
+      optionLabel: opt.label,
+      effectLabel: opt.effect,
+      title: pendingCrisis.title,
+      bestChoice: !!opt.best,
     });
-    toast.success(`✓ ${opt.label}`, { description: opt.effect });
+    toast.success(`Decision applied: ${opt.effect}`);
     setCrisisOpen(false);
     setTimeout(() => setPlaying(true), 400);
   };
