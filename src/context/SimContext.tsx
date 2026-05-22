@@ -30,13 +30,15 @@ export interface SavedCampaign {
   name: string;
   objective: "performance" | "reach" | null;
   adFormat: string | null;
-  cities: string[];
+  cities: string[]; // legacy name: now holds STATE names
   skuIds: string[];
   keywords: string[];
   budget: number;
   budgetType: "daily" | "overall" | null;
   geography: "select_cities" | "pan_india" | null;
   launchDay?: number; // day-of-30 when launched (default 1)
+  dayparting?: number[]; // active hour-block indices (0..7); empty/undefined = 24/7
+  daypartPreset?: "peak" | "daytime" | "24_7" | "custom";
 }
 
 export interface CampaignOptimization {
