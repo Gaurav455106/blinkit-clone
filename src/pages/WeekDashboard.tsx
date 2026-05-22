@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSim, SavedCampaign, CampaignOptimization } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { Card } from "@/components/ui/card";
@@ -27,8 +27,9 @@ function fmtMoney(n: number) { return `₹${fmt(n)}`; }
 
 export default function WeekDashboard() {
   const nav = useNavigate();
-  const { week: weekParam } = useParams();
-  const week = Number(weekParam) as 1 | 2 | 3;
+  const loc = useLocation();
+  const dayNum = parseInt(loc.pathname.replace("/day-", ""), 10) || 7;
+  const week = (dayNum === 7 ? 1 : dayNum === 14 ? 2 : 3) as 1 | 2 | 3;
   const {
     student, scenario, campaigns, cmPitch,
     tokensRemaining, optimizations, stockLevels, setOptimization,
