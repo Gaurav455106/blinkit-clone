@@ -78,7 +78,7 @@ export default function CampaignsDashboard() {
                     <th className="text-left px-4 py-3">Campaign Name</th>
                     <th className="text-left px-4 py-3">Type</th>
                     <th className="text-left px-4 py-3">Ad Format</th>
-                    <th className="text-left px-4 py-3">Cities</th>
+                    <th className="text-left px-4 py-3">States</th>
                     <th className="text-left px-4 py-3">SKUs</th>
                     <th className="text-right px-4 py-3">Budget</th>
                     <th className="text-right px-4 py-3">Actions</th>

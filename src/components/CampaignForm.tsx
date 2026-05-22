@@ -48,17 +48,20 @@ export function CampaignForm() {
       name: campaignName || "Untitled campaign",
       objective,
       adFormat: adAsset,
-      cities: get<string[]>("sim_selected_cities", []),
+      cities: get<string[]>("sim_selected_cities", []), // STATE names (legacy key)
       skuIds: get<string[]>("sim_selected_skus", []),
       keywords: get<string[]>("sim_selected_keywords", []),
       budget,
       budgetType: get<"daily" | "overall" | null>("sim_budget_type", null),
       geography: get<"select_cities" | "pan_india" | null>("sim_geography", null),
+      dayparting: get<number[]>("sim_dayparting", [0, 1, 2, 3, 4, 5, 6, 7]),
+      daypartPreset: get<"peak" | "daytime" | "24_7" | "custom">("sim_daypart_preset", "24_7"),
     });
     [
       "campaign_step", "campaign_name", "campaign_objective", "campaign_adAsset",
       "sim_selected_skus", "sim_selected_keywords", "sim_geography", "sim_budget_type",
-      "sim_sku_strategy", "sim_selected_cities", "sim_budget_value"
+      "sim_sku_strategy", "sim_selected_cities", "sim_budget_value",
+      "sim_dayparting", "sim_daypart_preset",
     ].forEach((k) => localStorage.removeItem(k));
     nav("/campaigns-dashboard");
   };

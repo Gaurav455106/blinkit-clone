@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CITIES, CityName } from "@/data/scenarios";
+import { BLINKIT_STATES, CityName } from "@/data/scenarios";
 import { User, ArrowRight } from "lucide-react";
 
 const REASONS = [
@@ -45,7 +45,7 @@ export default function CmPitch() {
   const update = (id: string, patch: Partial<PitchRow>) =>
     setRows((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
 
-  const availableCities = CITIES.filter((c) => cityStockMap[c as CityName] > 0) as CityName[];
+  const availableStates = BLINKIT_STATES;
 
   const evaluate = (): CmPitchResult => {
     const pitched = profile.skus.filter((s) => rows[s.id].enabled);
@@ -57,13 +57,15 @@ export default function CmPitch() {
         flags.push(`${s.name}: claimed "high velocity offline" but data shows ${s.velocity} velocity`);
       }
       r.cities.forEach((c) => {
-        if (cityStockMap[c] === 0) flags.push(`${s.name}: pitched in ${c} where OSA = 0%`);
+        if (cityStockMap[c] === 0) flags.push(`${s.name}: pitched in ${c} where you have NO stock`);
       });
+      if (r.cities.length === 0) flags.push(`${s.name}: no states selected`);
+      if (r.cities.length >= BLINKIT_STATES.length - 2) flags.push(`${s.name}: pitched to nearly every state — spreading too thin`);
       if (!r.reasoning) flags.push(`${s.name}: no reasoning provided`);
     });
 
-    if (pitched.length === profile.skus.length && pitched.every((s) => rows[s.id].cities.length === availableCities.length)) {
-      flags.push("Spreading thin — pitched every SKU in every city");
+    if (pitched.length === profile.skus.length && pitched.every((s) => rows[s.id].cities.length >= BLINKIT_STATES.length - 2)) {
+      flags.push("Spreading thin — pitched every SKU in nearly every state");
     }
     if (pitched.length <= 1) flags.push("Too conservative — pitched 0 or 1 SKU");
 
@@ -72,7 +74,7 @@ export default function CmPitch() {
     let osaBoost = false;
     let message = "";
 
-    if (pitched.length === 0 || flags.some((f) => f.includes("OSA = 0%")) && flags.length >= 3) {
+    if (pitched.length === 0 || (flags.some((f) => f.includes("NO stock")) && flags.length >= 3)) {
       status = "rejected";
       message = `This doesn't make sense. ${flags[0] ?? "Re-pitch with better data."}`;
     } else if (flags.length === 0 && pitched.length >= 1 && pitched.length <= 2) {
@@ -198,29 +200,24 @@ export default function CmPitch() {
                       {row.enabled && (
                         <div className="mt-3 grid grid-cols-2 gap-3">
                           <div>
-                            <div className="text-xs font-medium mb-1">Target cities</div>
-                            <div className="flex flex-wrap gap-2">
-                              {CITIES.map((c) => {
-                                const osa = cityStockMap[c as CityName];
-                                const disabled = osa === 0;
+                            <div className="text-xs font-medium mb-1">Target states</div>
+                            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 rounded border border-border">
+                              {BLINKIT_STATES.map((c) => {
                                 const selected = row.cities.includes(c as CityName);
                                 return (
                                   <button
                                     key={c}
                                     type="button"
-                                    disabled={disabled}
                                     onClick={() => {
                                       const next = selected ? row.cities.filter((x) => x !== c) : [...row.cities, c as CityName];
                                       update(s.id, { cities: next });
                                     }}
-                                    title={disabled ? "No stock in this city" : `OSA ${osa}%`}
-                                    className={`px-2 py-1 rounded border text-xs ${
-                                      disabled ? "border-border bg-muted text-muted-foreground/50 cursor-not-allowed line-through" :
+                                    className={`px-2 py-1 rounded border text-[11px] ${
                                       selected ? "border-primary bg-primary/10 text-primary" :
                                       "border-border hover:border-primary/40"
                                     }`}
                                   >
-                                    {c} ({osa}%)
+                                    {c}
                                   </button>
                                 );
                               })}
@@ -281,9 +278,9 @@ export default function CmPitch() {
                 <div className="text-muted-foreground">
                   {result.approvedSKUs.length === 0 ? "None" : result.approvedSKUs.map((id) => profile.skus.find((s) => s.id === id)?.name).join(", ")}
                 </div>
-                <div className="font-semibold mt-2">Approved Cities:</div>
+                <div className="font-semibold mt-2">Approved States:</div>
                 <div className="text-muted-foreground">{result.approvedCities.join(", ") || "None"}</div>
-                {result.osaBoost && <div className="mt-2 text-primary font-semibold">+10% OSA boost in approved cities</div>}
+                {result.osaBoost && <div className="mt-2 text-primary font-semibold">+10% OSA boost in approved states</div>}
               </div>
               <Button className="w-full" onClick={confirmContinue}>Continue to Brand Central →</Button>
             </div>
