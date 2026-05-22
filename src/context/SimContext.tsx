@@ -66,7 +66,12 @@ function load<T>(k: string, fallback: T): T {
 
 export function SimProvider({ children }: { children: ReactNode }) {
   const [student, setStudentState] = useState<Student | null>(() => load("sim_student", null));
-  const [scenario, setScenario] = useState<Scenario | null>(() => load("sim_scenario", null));
+  const [scenario, setScenario] = useState<Scenario | null>(() => {
+    const s = load<Scenario | null>("sim_scenario", null);
+    // Migrate old scenarios that don't have the new fields
+    if (s && (!(s as any).cityStockMap || !(s as any).clientGoals)) return generateScenario();
+    return s;
+  });
   const [cmPitch, setCmPitchState] = useState<CmPitchResult | null>(() => load("sim_cm_pitch", null));
   const [campaigns, setCampaigns] = useState<SavedCampaign[]>(() => load("sim_campaigns", []));
   const [tokensRemaining, setTokens] = useState<number>(() => load("sim_tokens", 10));
