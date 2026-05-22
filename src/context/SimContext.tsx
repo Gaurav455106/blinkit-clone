@@ -259,6 +259,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCumulativeSpendByCampaign({});
     setExhaustedCampaigns([]);
     setMicroDecisionsLog([]);
+    setCrisisResponses({});
+    setActiveRunId(null);
     resetSimRuntime();
     clearCampaignWizard();
   };
