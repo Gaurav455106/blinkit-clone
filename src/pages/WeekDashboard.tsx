@@ -37,19 +37,20 @@ export default function WeekDashboard() {
     events, setEventResponse, consumeToken,
   } = useSim();
 
-  if (!student || !scenario) { nav("/"); return null; }
-
   // Init stock if empty (first time landing on day-7)
   useEffect(() => {
-    if (Object.keys(stockLevels).length === 0) {
+    if (scenario && Object.keys(stockLevels).length === 0) {
       setStockLevels(buildInitialStock(scenario));
     }
   }, [scenario]); // eslint-disable-line
 
   const weekResult: WeekResult = useMemo(() => {
+    if (!scenario) return null as any;
     const stock = Object.keys(stockLevels).length ? stockLevels : buildInitialStock(scenario);
     return computeWeek({ scenario, campaigns, cmPitch, opts: optimizations, stockLevels: stock, week }).result;
   }, [scenario, campaigns, cmPitch, optimizations, stockLevels, week]);
+
+  if (!student || !scenario) { nav("/"); return null; }
 
   const cumulativeWeeks = week; // Day 7=>1, Day 14=>2, Day 21=>3
   const daysComplete = cumulativeWeeks * 7;
