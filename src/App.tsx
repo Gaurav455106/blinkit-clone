@@ -12,6 +12,7 @@ import CmPitch from "./pages/CmPitch";
 import CampaignsDashboard from "./pages/CampaignsDashboard";
 import Day30Results from "./pages/Day30Results";
 import WeekDashboard from "./pages/WeekDashboard";
+import LiveDashboard from "./pages/LiveDashboard";
 import Index from "./pages/Index.tsx";
 import Results from "./pages/Results";
 import Leaderboard from "./pages/Leaderboard";
@@ -35,10 +36,11 @@ const App = () => (
             <Route path="/cm-pitch" element={<CmPitch />} />
             <Route path="/campaign" element={<Index />} />
             <Route path="/campaigns-dashboard" element={<CampaignsDashboard />} />
-            <Route path="/run-results" element={<RunResults />} />
-            <Route path="/day-7" element={<RunResults />} />
-            <Route path="/day-14" element={<RunResults />} />
-            <Route path="/day-21" element={<RunResults />} />
+            <Route path="/live-dashboard" element={<LiveDashboard />} />
+            <Route path="/run-results" element={<LiveDashboard />} />
+            <Route path="/day-7" element={<LiveDashboard />} />
+            <Route path="/day-14" element={<LiveDashboard />} />
+            <Route path="/day-21" element={<LiveDashboard />} />
             <Route path="/day-30-results" element={<Day30Results />} />
             <Route path="/results" element={<Results />} />
             <Route path="/leaderboard" element={<Leaderboard />} />

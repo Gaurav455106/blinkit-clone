@@ -152,7 +152,7 @@ export default function CampaignsDashboard() {
                   setLaunching(true);
                   if (scenario) initSimulation(buildInitialStock(scenario));
                   if (!activeRunId) startRun();
-                  setTimeout(() => { setLaunching(false); setShowLaunch(false); nav("/run-results?day=7"); }, 2000);
+                  setTimeout(() => { setLaunching(false); setShowLaunch(false); nav("/live-dashboard"); }, 1200);
                 }}>Launch & Simulate</Button>
               </div>
             </>
