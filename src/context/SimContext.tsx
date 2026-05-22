@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Scenario, generateScenario, CityName } from "@/data/scenarios";
+import { Competitor, CompetitorAction, initCompetitor } from "@/data/competitor";
 
 export interface Student {
   name: string;
@@ -35,6 +36,7 @@ export interface SavedCampaign {
   budget: number;
   budgetType: "daily" | "overall" | null;
   geography: "select_cities" | "pan_india" | null;
+  launchDay?: number; // day-of-30 when launched (default 1)
 }
 
 export interface CampaignOptimization {
