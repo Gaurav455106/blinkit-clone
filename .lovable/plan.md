@@ -1,71 +1,61 @@
-## Problem
+# Cloud-synced runs + batch leaderboard
 
-The left sidebar always shows all 7 tabs (Dashboard, Brief, CM Pitch, Campaigns, Simulation, Results, Leaderboard) regardless of context. On `/dashboard`, those flow tabs are meaningless — there's no active run yet — and a student can click into half-finished screens with empty state. Same after "Start New Scenario" the user expects a guided flow, not free jumping.
+Make every student's progress survive across devices via Lovable Cloud, keep batch scores forever, and drop personal student rows after 7 days of inactivity. Stays inside the free tier at 100+ concurrent students.
 
-## Proposed behavior
+## 1. Database migration (one call)
 
-Sidebar items become **context-aware**, driven by what the student is actually doing:
+**Alter `attempts`:**
+- Add `snapshot jsonb` (nullable) — full run state for review rehydration.
+- Add `last_seen_at timestamptz not null default now()` — bumped on login and review.
+- Indexes: `(email, created_at desc)`, `(batch_code, score_total desc)`, `(last_seen_at)`.
 
-### Mode A — Home (no active run, not reviewing)
-Route: `/dashboard` (and `/leaderboard`)
-Sidebar shows only:
-- Dashboard
-- Leaderboard
-- Sign out
+**New `run_sessions` (one live run per student, public RLS select/insert/update/delete=true):**
+- `email text primary key`, `name text`, `batch_code text`, `run_id text`, `state jsonb`, `started_at timestamptz default now()`, `last_seen_at timestamptz default now()`.
 
-The flow tabs (Brief / CM Pitch / Campaigns / Simulation / Results) are **hidden**, because they have no run to operate on.
+**New `batch_scores` (aggregate that survives cleanup, public select=true, no public insert):**
+- `id uuid pk`, `batch_code text not null`, `score_total int not null`, `achievement_pct numeric`, `badge text`, `created_at timestamptz default now()`.
+- Index `(batch_code, score_total desc)`.
 
-### Mode B — Active run (student clicked "Start New Scenario" and is mid-flow)
-Triggered by: `activeRunId` is set in SimContext.
-Sidebar shows full flow:
-- Dashboard
-- Brief
-- CM Pitch
-- Campaigns
-- Simulation
-- Results (enabled only after Day 30)
-- Leaderboard
-- Sign out
+**Trigger:** `after insert on attempts` → copy `(batch_code, score_total, achievement_pct, badge)` into `batch_scores`.
 
-Tabs ahead of the student's current step stay clickable (current behavior) but tabs are scoped to the live run only.
+**Cleanup (pg_cron, daily 02:00 UTC, free):**
+- `delete from run_sessions where last_seen_at < now() - interval '7 days'`.
+- `delete from attempts where email in (select email from attempts group by email having max(last_seen_at) < now() - interval '7 days')`.
+- `batch_scores` untouched.
 
-### Mode C — Reviewing a past attempt
-Triggered by clicking a row in "Past Attempts" on `/dashboard`.
-- Loads that saved run's snapshot (scenario, campaigns, cmPitch, weekTotals, decisionsLog, crisisResponses, score) from `runHistory` / Supabase `attempts` into a new **review** state in SimContext (`reviewRunId`).
-- Routes to `/results` for that run.
-- Sidebar shows the full flow (same as Mode B) but in **read-only** mode — a small "Reviewing past run · Brand X" banner appears in `FlowHeader`, and a "Exit review" button returns to `/dashboard` and clears `reviewRunId`.
-- No edits possible; no new Supabase insert.
+## 2. SimContext — cloud sync
 
-## Implementation outline
+- `setStudent(name, email, batch)`: upsert `run_sessions.last_seen_at`, fetch `attempts where email=? order by created_at desc` → hydrate `runHistory`, fetch `run_sessions where email=?` → restore live run + `activeRunId` if present.
+- While `activeRunId` is set, debounce 1.5s and upsert `run_sessions {email, name, batch_code, run_id, state: <serialized run state>}`.
+- `completeRun`: insert into `attempts` with `snapshot`, then `delete from run_sessions where email=?`. Trigger writes `batch_scores`.
+- `localStorage` becomes a fast-path cache only; backend overwrites on login.
+- Snapshot guardrail: strip `decisionsLog` / `microDecisionsLog` if serialized size > 400 KB.
 
-1. **SimContext**
-   - Add `reviewRunId: string | null` and `enterReview(runId)` / `exitReview()`.
-   - When entering review, hydrate scenario/campaigns/etc. from the stored `RunHistoryEntry` snapshot (extend the entry shape to keep a `snapshot` blob written at `completeRun` time).
-   - Expose a derived `mode: "home" | "run" | "review"`.
+## 3. Leaderboard — two tabs
 
-2. **BlinkitSidebar**
-   - Filter `navItems` by `mode`:
-     - `home` → `[Dashboard, Leaderboard]`
-     - `run` / `review` → all 7 items
-   - In review mode, optionally dim Results-only-after-Day-30 logic is irrelevant (already complete).
+- **Students** tab (default for student's own batch, "All batches" toggle): from `attempts`, scoped to last 7 days by design (cleanup enforces it). Batch dropdown + free-text search.
+- **Batches** tab: from `batch_scores`, grouped by `batch_code` showing avg score, top score, attempts count. Search + sort. Survives cleanup forever.
 
-3. **Dashboard "Past Attempts" table**
-   - Make each row a button → `enterReview(run.id)` then `nav("/results")`.
-   - Add a hover state and "View" affordance.
+## 4. Dashboard
 
-4. **FlowHeader**
-   - When `mode === "review"`, render a slim banner: "Reviewing **{brandName}** — {date} · Score {score}/100" with an "Exit review" button.
+- `runHistory` comes from `attempts` (backend).
+- "Active Run" card driven by `run_sessions` row.
+- Small "Synced ✓ / Saving…" indicator next to student name.
 
-5. **Route guards (App.tsx)**
-   - `/brief`, `/cm-pitch`, `/campaign`, `/simulation`, `/results`: require `mode === "run"` or `"review"`. Otherwise redirect to `/dashboard`.
-   - This prevents typing `/brief` in the URL bar from working when no run is active.
+## Technical details
 
-6. **completeRun**
-   - Persist a `snapshot` on the `RunHistoryEntry` (campaigns, cmPitch, weekTotals, decisionsLog, crisisResponses, scenario seed) so review can rehydrate without re-running math.
+- No edge functions, no Lovable AI calls, no third-party APIs.
+- All tables use permissive public RLS (no auth in this app); writes go through anon client.
+- pg_cron extension enabled in migration.
+- At 100 students × ~6 rows each ≈ 600 rows + ~90 MB jsonb — well under 500 MB free DB cap.
+
+## Files touched
+
+- `supabase/migrations/<new>.sql`
+- `src/context/SimContext.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/pages/Leaderboard.tsx` (new Batches tab + filters)
 
 ## Out of scope
-- No changes to scoring, crisis logic, or Supabase schema.
-- Trainer Console / `/trainer` guard stays as is.
 
-## Questions before implementing
-None blocking — I'll proceed with the three modes above. If you'd rather keep Leaderboard hidden from the Home sidebar too (and only reachable via the Dashboard CTA), say so and I'll trim it.
+Real auth, trainer cross-batch analytics, scoring/crisis logic changes, the 7-tab flow gating done in the previous turn.

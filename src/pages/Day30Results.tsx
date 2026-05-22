@@ -23,8 +23,10 @@ function fmtTarget(n: number, unit: string) {
 export default function Day30Results() {
   const nav = useNavigate();
   const { student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
-    abTests, cannibalResolved, clusterReactions, tokensSpent, crisisResponses,
-    activeRunId, completeRun, startRun, mode } = useSim();
+    abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+    microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+    optimizations, stockLevels, competitor, competitorActions,
+    crisisResponses, activeRunId, completeRun, startRun, mode } = useSim();
 
   if (!student || !scenario) { nav("/"); return null; }
 
@@ -50,6 +52,19 @@ export default function Day30Results() {
     completeRun({ score: r.decisionTotal, achievementPct: r.achievementPct });
     // Persist attempt to backend (background, non-blocking)
     const firstCrisis = Object.values(crisisResponses)[0];
+    const snapshot = {
+      scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+      abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+      microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+      optimizations, stockLevels, competitor, competitorActions,
+    };
+    // Guardrail: drop the heaviest logs if snapshot blows past ~400KB
+    let snapshotForCloud: any = snapshot;
+    try {
+      if (JSON.stringify(snapshot).length > 400_000) {
+        snapshotForCloud = { ...snapshot, decisionsLog: [], microDecisionsLog: [] };
+      }
+    } catch {}
     supabase.from("attempts").insert({
       email: student.email,
       name: student.name,
@@ -63,6 +78,7 @@ export default function Day30Results() {
       score_total: r.decisionTotal,
       score_breakdown: { achievementPct: r.achievementPct, decisionScore: r.decisionScore, goalRows: r.goalRows },
       badge: r.achievementPct >= 90 ? "gold" : r.achievementPct >= 70 ? "silver" : r.achievementPct >= 50 ? "bronze" : null,
+      snapshot: snapshotForCloud,
     }).then(({ error }) => { if (error) console.error("attempt save failed", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
