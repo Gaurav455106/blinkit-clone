@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Play, Pause, Rocket, Flag, AlertTriangle, Sparkles, Rabbit, Turtle, FastForward, X, Download, ChevronRight } from "lucide-react";
 import { buildInitialStock, computeWeek, type WeekResult } from "@/lib/weeklyMetrics";
-import { buildRunCrises, getEventById, type RunCrisis } from "@/lib/events";
+import { buildCrisis, modifierForDay, type CrisisSpec } from "@/lib/crisisEvents";
 import { toast } from "sonner";
 
 type DayMetric = { day: number; spend: number; impressions: number; clicks: number; atcs: number; units: number; revenue: number };
@@ -130,25 +130,33 @@ export default function LiveDashboard() {
     return out;
   }, [scenario, campaigns, cmPitch, optimizations, stockLevels]);
 
-  // Day-level metrics — split each week's totals evenly across its 7 days w/ small variance
+  // Day-level metrics — split each week's totals across days w/ small variance + crisis modifiers
+  const crisisDecisions = useMemo(
+    () =>
+      Object.values(crisisResponses)
+        .filter((r) => r.crisisNum)
+        .map((r) => ({ num: r.crisisNum as 1 | 2 | 3, optionKey: r.optionKey })),
+    [crisisResponses],
+  );
   const dayMetrics: DayMetric[] = useMemo(() => {
     const out: DayMetric[] = [];
     for (let d = 1; d <= 30; d++) {
-      const w = Math.min(3, Math.floor((d - 1) / 7)); // 0..3 (cap)
+      const w = Math.min(3, Math.floor((d - 1) / 7));
       const wm = weekly[w]?.totals ?? { spend: 0, impressions: 0, clicks: 0, atcs: 0, units: 0, revenue: 0 };
       const variance = [0.92, 1.0, 1.06, 1.1, 1.04, 0.95, 0.93][(d - 1) % 7];
+      const mod = modifierForDay(d, crisisDecisions);
       out.push({
         day: d,
-        spend: (wm.spend / 7) * variance,
-        impressions: (wm.impressions / 7) * variance,
-        clicks: (wm.clicks / 7) * variance,
-        atcs: (wm.atcs / 7) * variance,
-        units: (wm.units / 7) * variance,
-        revenue: (wm.revenue / 7) * variance,
+        spend: (wm.spend / 7) * variance * mod.spendMult + mod.spendAdd,
+        impressions: (wm.impressions / 7) * variance * mod.spendMult,
+        clicks: (wm.clicks / 7) * variance * mod.spendMult,
+        atcs: (wm.atcs / 7) * variance * mod.revMult,
+        units: (wm.units / 7) * variance * mod.revMult,
+        revenue: (wm.revenue / 7) * variance * mod.revMult,
       });
     }
     return out;
-  }, [weekly]);
+  }, [weekly, crisisDecisions]);
 
   // Per-campaign daily share (proportional to weekly campaign spend)
   const campaignDaily = useMemo(() => {
@@ -174,11 +182,12 @@ export default function LiveDashboard() {
     return map;
   }, [campaigns, weekly]);
 
-  // Crises
-  const crises: RunCrisis[] = useMemo(
-    () => buildRunCrises(scenario.seed, scenario.scheduledCrisis),
-    [scenario.seed, scenario.scheduledCrisis]
+  // Crises — FIXED days 9, 18, 25
+  const crisisSpecs: CrisisSpec[] = useMemo(
+    () => [buildCrisis(1, scenario), buildCrisis(2, scenario), buildCrisis(3, scenario)],
+    [scenario],
   );
+  const crisisIdFor = (num: 1 | 2 | 3) => `crisis-${num}`;
 
   // Time progression
   const [currentDay, setCurrentDay] = useState(1);
@@ -188,13 +197,11 @@ export default function LiveDashboard() {
   const [endOpen, setEndOpen] = useState(false);
 
   // ── ALWAYS-ON LIFE SIGNS ────────────────────────────────────────────────
-  // Fast pulse drives jittered numbers + sparkline dot breathing (always on)
   const [pulse, setPulse] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setPulse((p) => p + 1), 220);
     return () => clearInterval(id);
   }, []);
-  // Wall-clock — business time elapsed, never stops
   const [wallSec, setWallSec] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setWallSec((s) => s + 1), 1000);
@@ -203,52 +210,47 @@ export default function LiveDashboard() {
   const wallMM = String(Math.floor(wallSec / 60)).padStart(2, "0");
   const wallSS = String(wallSec % 60).padStart(2, "0");
 
-  // Live activity ticker — streams micro-events while playing
   const [ticker, setTicker] = useState<{ id: number; text: string; tone: "good" | "neutral" | "warn" }[]>([]);
 
+  // Crisis modal — fires exactly on day 9, 18, 25
+  const pendingCrisis: CrisisSpec | null = useMemo(() => {
+    for (const spec of crisisSpecs) {
+      if (currentDay >= spec.day && !crisisResponses[crisisIdFor(spec.num)]) return spec;
+    }
+    return null;
+  }, [crisisSpecs, currentDay, crisisResponses]);
 
-  // Crisis modal
-  const pendingCrisis = crises.find((c) => currentDay >= c.day && !crisisResponses[c.id]);
   const [crisisOpen, setCrisisOpen] = useState(false);
-  const [crisisChoice, setCrisisChoice] = useState("");
-  const [crisisTimer, setCrisisTimer] = useState(30);
+  const [crisisChoice, setCrisisChoice] = useState<string>("");
 
   useEffect(() => {
     if (pendingCrisis && !crisisOpen) {
       setCrisisOpen(true);
       setCrisisChoice("");
-      setCrisisTimer(30);
       setPlaying(false);
     }
-  }, [pendingCrisis?.id]); // eslint-disable-line
-
-  useEffect(() => {
-    if (!crisisOpen) return;
-    if (crisisTimer <= 0) {
-      // auto-pick neutral first low-cost option
-      const ev = pendingCrisis ? getEventById(pendingCrisis.eventId) : null;
-      const opt = ev?.options.find((o) => o.tokenCost === 0) ?? ev?.options[0];
-      if (pendingCrisis && opt) resolveCrisis(opt.key);
-      return;
-    }
-    const t = setTimeout(() => setCrisisTimer((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [crisisOpen, crisisTimer]); // eslint-disable-line
+  }, [pendingCrisis?.num]); // eslint-disable-line
 
   const resolveCrisis = (optionKey: string) => {
     if (!pendingCrisis) return;
-    const ev = getEventById(pendingCrisis.eventId);
-    const opt = ev?.options.find((o) => o.key === optionKey);
+    const opt = pendingCrisis.options.find((o) => o.key === optionKey);
     if (!opt) return;
-    if (opt.tokenCost > 0) consumeToken(opt.tokenCost);
+    const maxScore = Math.max(...pendingCrisis.options.map((o) => o.score));
     recordCrisisResponse({
-      crisisId: pendingCrisis.id,
-      eventId: pendingCrisis.eventId,
+      crisisId: crisisIdFor(pendingCrisis.num),
+      eventId: `crisis-${pendingCrisis.num}`,
       optionKey,
-      tokenCost: opt.tokenCost,
+      tokenCost: 0,
       day: currentDay,
+      crisisNum: pendingCrisis.num,
+      score: opt.score,
+      maxScore,
+      optionLabel: opt.label,
+      effectLabel: opt.effect,
+      title: pendingCrisis.title,
+      bestChoice: !!opt.best,
     });
-    toast.success(`✓ ${opt.label}`, { description: opt.effect });
+    toast.success(`Decision applied: ${opt.effect}`);
     setCrisisOpen(false);
     setTimeout(() => setPlaying(true), 400);
   };
@@ -381,13 +383,7 @@ export default function LiveDashboard() {
   const pctBudget = Math.min(100, (allSpend / totalBudget) * 100);
   const pctTime = (currentDay / 30) * 100;
 
-  const ev = pendingCrisis ? getEventById(pendingCrisis.eventId) : null;
-  const ctx = {
-    topCity: campaignRows[0]?.c.cities[0] ?? "Bangalore",
-    topSku: scenario.profile.skus[0]?.name ?? "Hero SKU",
-    daysLeft: 30 - currentDay,
-    budgetLeft: Math.max(0, totalBudget - allSpend),
-  };
+  const ev = pendingCrisis;
 
   return (
     <div className="flex min-h-screen w-full">
@@ -629,34 +625,61 @@ export default function LiveDashboard() {
         </div>
       </div>
 
-      {/* CRISIS MODAL */}
+      {/* CRISIS MODAL — fixed days 9 / 18 / 25, cannot be dismissed */}
       <Dialog open={crisisOpen} onOpenChange={() => {}}>
-        <DialogContent className="max-w-lg">
-          <div className="-m-6 mb-0 px-6 py-2 bg-red-600 text-white text-xs font-medium rounded-t-lg flex items-center justify-between">
-            <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> URGENT — Day {currentDay}</span>
-            <span className="tabular-nums">⏱ {crisisTimer}s</span>
-          </div>
-          <DialogHeader className="pt-4">
-            <DialogTitle>{ev?.emoji} {ev?.title}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">{ev?.body(ctx)}</p>
-          <RadioGroup value={crisisChoice} onValueChange={setCrisisChoice} className="space-y-2 py-2">
-            {ev?.options.map((o) => (
-              <Label key={o.key} htmlFor={o.key} className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-muted/50">
-                <RadioGroupItem value={o.key} id={o.key} className="mt-0.5" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium flex items-center gap-2">
-                    {o.label}
-                    {o.tokenCost > 0 && <Badge variant="outline" className="text-[10px]">🎫 {o.tokenCost}</Badge>}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">{o.effect}</div>
-                </div>
-              </Label>
-            ))}
-          </RadioGroup>
-          <DialogFooter>
-            <Button disabled={!crisisChoice} onClick={() => resolveCrisis(crisisChoice)}>Confirm Decision</Button>
-          </DialogFooter>
+        <DialogContent
+          className="max-w-[600px] p-0 overflow-hidden [&>button]:hidden"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          {ev && (
+            <>
+              <div className={`px-6 py-2.5 text-white text-xs font-semibold tracking-wide flex items-center gap-2 ${
+                ev.tone === "red" ? "bg-red-600" : ev.tone === "orange" ? "bg-orange-500" : "bg-blue-600"
+              }`}>
+                <AlertTriangle className="h-3.5 w-3.5" />
+                URGENT DECISION REQUIRED — DAY {currentDay}
+              </div>
+              <div className="px-6 pt-5 pb-4 text-center">
+                <div className="text-4xl mb-2">{ev.icon}</div>
+                <DialogTitle className="text-lg font-bold">{ev.title}</DialogTitle>
+                {ev.subtitle && <div className="text-xs text-muted-foreground mt-1">{ev.subtitle}</div>}
+              </div>
+              <div className="px-6 pb-4">
+                <p className="text-sm text-foreground/90 leading-relaxed bg-muted/40 rounded-md p-3 border border-border">
+                  {ev.message}
+                </p>
+              </div>
+              <div className="px-6 pb-2 space-y-2">
+                {ev.options.map((o) => {
+                  const selected = crisisChoice === o.key;
+                  return (
+                    <button
+                      key={o.key}
+                      onClick={() => setCrisisChoice(o.key)}
+                      className={`w-full text-left p-3 rounded-md border-2 transition-all ${
+                        selected ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold flex items-center gap-2">
+                        <span className="uppercase text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                          {o.key}
+                        </span>
+                        {o.label}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-1 pl-7">{o.effect}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="px-6 py-4 border-t border-border flex justify-end bg-muted/20">
+                <Button disabled={!crisisChoice} onClick={() => resolveCrisis(crisisChoice)}>
+                  Submit Decision
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
