@@ -6,6 +6,16 @@ export type Velocity = "Very Low" | "Low" | "Medium" | "High";
 export type Difficulty = "Medium" | "Hard" | "Very Hard";
 export type GoalType = "ROAS-First" | "Awareness-First" | "Category-Creation" | "Volume-First" | "Inventory-Clearance";
 
+// ─── Offline presence (Modern Trade / General Trade sell-through signal) ──────
+export type OfflinePresence = "strong" | "moderate" | "weak" | "none";
+
+export interface StatePresenceMap {
+  /** Brand-level base presence by state. Unlisted states default to "none". */
+  base: Partial<Record<StateName, OfflinePresence>>;
+  /** Per-SKU overrides — only specify states that differ from base. Keyed by SKU id. */
+  skuOverrides?: Record<string, Partial<Record<StateName, OfflinePresence>>>;
+}
+
 export interface SKU {
   id: string;
   name: string;
@@ -34,6 +44,7 @@ export interface BrandProfile {
   primaryState: StateName;
   secondaryStates: StateName[];
   peakHours: string; // human-readable hint
+  statePresence?: StatePresenceMap;
 }
 
 // ─── 23 Blinkit-operational states ─────────────────────────────────────────
@@ -95,6 +106,10 @@ export const BRAND_PROFILES: BrandProfile[] = [
     unitEconomics: "Avg MRP ₹249 · Avg Margin ₹12 · High velocity hero SKU",
     relevantCategories: ["Dog Needs", "Pet Food & Accessories"],
     goalType: "ROAS-First",
+    statePresence: {
+      base: { Karnataka: "strong", Maharashtra: "moderate", Telangana: "moderate", Delhi: "moderate", Gujarat: "moderate", "Tamil Nadu": "weak", "West Bengal": "weak", Haryana: "weak", Kerala: "weak", Punjab: "weak", Rajasthan: "weak" },
+      skuOverrides: { "henlo-3": { Karnataka: "moderate", Maharashtra: "weak" } },
+    },
   },
   {
     id: "glow", name: "Glow Republic", emoji: "✨", category: "Premium Skincare", difficulty: "Hard",
@@ -114,6 +129,10 @@ export const BRAND_PROFILES: BrandProfile[] = [
     unitEconomics: "Avg MRP ₹782 · Avg Margin ₹173 · Brand awareness is the bottleneck",
     relevantCategories: ["Beauty & Personal Care", "Skincare"],
     goalType: "Awareness-First",
+    statePresence: {
+      base: { Maharashtra: "strong", Delhi: "moderate", Karnataka: "moderate", "Tamil Nadu": "weak", Telangana: "weak", Gujarat: "weak" },
+      skuOverrides: { "glow-3": { Maharashtra: "moderate", Delhi: "weak", Karnataka: "none" } },
+    },
   },
   {
     id: "vitaboost", name: "VitaBoost", emoji: "💊", category: "Health Supplements", difficulty: "Very Hard",
@@ -133,6 +152,10 @@ export const BRAND_PROFILES: BrandProfile[] = [
     unitEconomics: "Avg MRP ₹632 · Avg Margin ₹126 · Category not trained yet",
     relevantCategories: ["Health & Wellness", "Supplements"],
     goalType: "Category-Creation",
+    statePresence: {
+      base: { Maharashtra: "moderate", Karnataka: "moderate", Delhi: "moderate", Telangana: "weak", "Tamil Nadu": "weak", Gujarat: "weak", "West Bengal": "weak" },
+      skuOverrides: { "vita-3": { Maharashtra: "strong", Delhi: "moderate", Karnataka: "moderate" } },
+    },
   },
   {
     id: "tinybuddy", name: "TinyBuddy", emoji: "👶", category: "Baby Care", difficulty: "Hard",
@@ -152,6 +175,10 @@ export const BRAND_PROFILES: BrandProfile[] = [
     unitEconomics: "Avg MRP ₹249 · Avg Margin ₹48 · Morning-only demand window",
     relevantCategories: ["Baby Care", "Mother & Baby"],
     goalType: "Volume-First",
+    statePresence: {
+      base: { Delhi: "strong", Haryana: "strong", "Uttar Pradesh": "strong", Maharashtra: "moderate", Gujarat: "moderate", Punjab: "moderate", Rajasthan: "moderate", "West Bengal": "moderate", Karnataka: "weak", "Tamil Nadu": "weak", Telangana: "weak" },
+      skuOverrides: { "tiny-3": { Delhi: "moderate", "Uttar Pradesh": "moderate", Haryana: "moderate" } },
+    },
   },
   {
     id: "munchbox", name: "MunchBox", emoji: "🍿", category: "Packaged Snacks", difficulty: "Medium",
@@ -171,6 +198,10 @@ export const BRAND_PROFILES: BrandProfile[] = [
     unitEconomics: "Avg MRP ₹149 · Avg Margin ₹22 · Niche keywords beat generics",
     relevantCategories: ["Snacks", "Packaged Foods"],
     goalType: "ROAS-First",
+    statePresence: {
+      base: { Maharashtra: "strong", Gujarat: "moderate", Karnataka: "moderate", Delhi: "moderate", "Tamil Nadu": "moderate", "West Bengal": "moderate", Rajasthan: "weak", Punjab: "weak", "Uttar Pradesh": "weak", Haryana: "weak" },
+      skuOverrides: { "munch-2": { Maharashtra: "strong", Gujarat: "strong", "Uttar Pradesh": "moderate", Delhi: "moderate" } },
+    },
   },
   {
     id: "pawlife", name: "PawLife", emoji: "🦮", category: "Pet Accessories", difficulty: "Hard",
@@ -190,6 +221,9 @@ export const BRAND_PROFILES: BrandProfile[] = [
     unitEconomics: "Avg MRP ₹632 · Avg Margin ₹127 · Considered purchase, not impulse",
     relevantCategories: ["Pet Food & Accessories", "Dog Needs"],
     goalType: "Awareness-First",
+    statePresence: {
+      base: { Telangana: "moderate", Karnataka: "moderate", Maharashtra: "moderate", Delhi: "weak", "Tamil Nadu": "weak", Gujarat: "weak", "West Bengal": "weak" },
+    },
   },
   {
     id: "fuelup", name: "FuelUp", emoji: "💪", category: "Protein & Fitness", difficulty: "Very Hard",
@@ -209,23 +243,30 @@ export const BRAND_PROFILES: BrandProfile[] = [
     unitEconomics: "Avg MRP ₹799 · Avg Margin ₹158 · Hyperlocal demand",
     relevantCategories: ["Health & Wellness", "Sports Nutrition"],
     goalType: "ROAS-First",
+    statePresence: {
+      base: { Karnataka: "strong", Maharashtra: "strong", Delhi: "moderate", Telangana: "moderate", "Tamil Nadu": "moderate", Gujarat: "weak", "West Bengal": "weak", Haryana: "weak" },
+      skuOverrides: {
+        "fuel-2": { Karnataka: "moderate", Maharashtra: "moderate", Delhi: "weak" },
+        "fuel-3": { Karnataka: "strong", Maharashtra: "strong", Delhi: "moderate", Telangana: "moderate" },
+      },
+    },
   },
 ];
 
 export const SEASONS = [
-  { name: "Normal Week", note: "Baseline demand, no spikes." },
-  { name: "Festival Surge", note: "Diwali/Holi — demand +40%, CPMs +30%." },
-  { name: "Post-Festival Slowdown", note: "Demand -40%, careful with spend." },
-  { name: "Summer Season", note: "Skincare/beverage spike." },
-  { name: "New Year Health Spike", note: "Supplements/protein boom." },
+  { name: "Normal Week", note: "Baseline demand, no spikes.", implication: "Stable CPMs. Standard bids work — focus on efficiency over aggressive spend." },
+  { name: "Festival Surge", note: "Diwali/Holi — demand +40%, CPMs +30%.", implication: "CPMs are rising fast. Front-load budget in Week 1 before rates peak. Higher demand means more conversions — but only if you're stocked." },
+  { name: "Post-Festival Slowdown", note: "Demand -40%, careful with spend.", implication: "Demand is low. Reduce daily caps, don't overspend. Prioritise efficiency over scale this month." },
+  { name: "Summer Season", note: "Skincare/beverage spike.", implication: "Category demand is spiking. Double down on your top SKU — this is not the time to spread budget thin." },
+  { name: "New Year Health Spike", note: "Supplements/protein boom.", implication: "Health searches are surging. Aggressive keyword bidding will pay off — but only if your category is relevant." },
 ] as const;
 
 export const MARKET_CONDITIONS = [
-  { name: "Stable Market", note: "No major competitor moves." },
-  { name: "Aggressive Competitor", note: "CPMs +35%." },
-  { name: "Price War in Category", note: "Margins squeezed across the shelf." },
-  { name: "New Entrant Disrupting", note: "A new brand is buying share aggressively." },
-  { name: "Platform Pushing Private Label", note: "Blinkit pushing its own label in your category." },
+  { name: "Stable Market", note: "No major competitor moves.", implication: "No unusual pressure. Run your plan as designed." },
+  { name: "Aggressive Competitor", note: "CPMs +35%.", implication: "You need 25–35% higher bids to hold impression share. Narrow your geo to conserve budget for stocked states." },
+  { name: "Price War in Category", note: "Margins squeezed across the shelf.", implication: "Don't chase ROAS — margins are thin. Focus on sell-through volume instead." },
+  { name: "New Entrant Disrupting", note: "A new brand is buying share aggressively.", implication: "Defend your shelf. Consider Listing Spotlight to hold visibility while the new entrant burns budget on generic terms." },
+  { name: "Platform Pushing Private Label", note: "Blinkit pushing its own label in your category.", implication: "Platform will favour its own SKUs in organic ranking. You need a strong CM pitch and above-average bids to compete." },
 ] as const;
 
 export const INVENTORY_STATE_LABELS = ["Healthy", "Shaky", "Critical", "Overstocked"] as const;
@@ -243,10 +284,23 @@ export interface InventoryState {
 
 export type CityStockMap = Record<CityName, number>;
 
+export type BrandLifecycle = "Acquire" | "Convert" | "Retain";
+
+export interface GoalMetric { label: string; target: number; unit: string }
+
 export interface ClientGoals {
   primary: string;
-  metrics: { label: string; target: number; unit: string }[];
+  /** Goals that require conversion-type campaigns (product_booster, recommendation_ads) */
+  performanceGoals: GoalMetric[];
+  /** Goals that require awareness-type campaigns (listing_spotlight, brand_booster, stories) */
+  reachGoals: GoalMetric[];
+  /** Convenience union used by the scoring engine */
+  metrics: GoalMetric[];
   threshold: string;
+  /** Where this brand sits in the customer journey */
+  lifecycle: BrandLifecycle;
+  /** One-line strategic hint for students about what campaign mix to build */
+  campaignHint: string;
 }
 
 export interface ScheduledCrisis {
@@ -326,61 +380,98 @@ function generateInventoryState(label: InventoryStateLabel): InventoryState {
 }
 
 function generateClientGoals(profile: BrandProfile, inventoryLabel: InventoryStateLabel): ClientGoals {
+  const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+  const threshold = "90%+ goal achievement = promotion to Senior Executive.";
+
+  const make = (
+    primary: string,
+    lifecycle: BrandLifecycle,
+    performanceGoals: GoalMetric[],
+    reachGoals: GoalMetric[],
+    campaignHint: string,
+  ): ClientGoals => ({
+    primary, lifecycle, performanceGoals, reachGoals,
+    metrics: [...performanceGoals, ...reachGoals],
+    threshold, campaignHint,
+  });
+
   if (inventoryLabel === "Overstocked") {
-    return {
-      primary: "Move aging stock before it expires",
-      metrics: [
+    return make(
+      "Move aging stock before it expires",
+      "Retain",
+      [
         { label: "Sell-through", target: 85, unit: "%" },
         { label: "Reduce aging units", target: 1500, unit: "units" },
         { label: "Minimum ROAS", target: 1.5, unit: "x" },
       ],
-      threshold: "90%+ goal achievement = promotion to Senior Executive.",
-    };
+      [], // no awareness spend when clearing stock
+      "Clearance mode — put all budget into Product Booster or Recommendation Ads. No awareness spend until stock normalises.",
+    );
   }
-  const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+
   switch (profile.goalType) {
     case "ROAS-First":
-      return {
-        primary: "Drive sales and ROAS",
-        metrics: [
+      return make(
+        "Drive efficient sales and return on ad spend",
+        "Convert",
+        [
           { label: "ROAS", target: pick([3, 4, 5]), unit: "x" },
           { label: "Units sold", target: pick([600, 800, 1000]), unit: "units" },
           { label: "Sell-through", target: pick([50, 60, 70]), unit: "%" },
         ],
-        threshold: "90%+ goal achievement = promotion to Senior Executive.",
-      };
+        [
+          { label: "Reach", target: pick([200000, 300000, 400000]), unit: "users" },
+        ],
+        "Lead with Product Booster to convert high-intent buyers. Add a Listing Spotlight to stay visible on the shelf and build a retarget pool.",
+      );
+
     case "Awareness-First":
-      return {
-        primary: "Build brand recognition",
-        metrics: [
+      return make(
+        "Build brand recognition among new shoppers",
+        "Acquire",
+        [
+          { label: "CTR", target: pick([1.5, 2, 2.5]), unit: "%" },
+          { label: "Units sold", target: pick([80, 100, 120]), unit: "units" },
+        ],
+        [
           { label: "Impressions", target: pick([3000000, 5000000, 7000000]), unit: "imp" },
-          { label: "CTR", target: pick([2, 2.5, 3]), unit: "%" },
           { label: "Branded search lift", target: pick([20, 30, 40]), unit: "%" },
         ],
-        threshold: "90%+ goal achievement = promotion to Senior Executive.",
-      };
+        "Lead with Listing Spotlight or Brand Booster to introduce the brand. Add a small Product Booster to capture the few people already searching.",
+      );
+
     case "Category-Creation":
-      return {
-        primary: "Pioneer this category on Blinkit",
-        metrics: [
+      return make(
+        "Pioneer this category and educate new shoppers",
+        "Acquire",
+        [
+          { label: "Units sold", target: pick([60, 80, 100]), unit: "units" },
+        ],
+        [
           { label: "Reach", target: pick([800000, 1000000, 1200000]), unit: "users" },
           { label: "Impressions", target: pick([6000000, 7000000, 8000000]), unit: "imp" },
           { label: "Category awareness lift", target: pick([15, 20, 25]), unit: "%" },
         ],
-        threshold: "90%+ goal achievement = promotion to Senior Executive.",
-      };
+        "Category barely exists on Blinkit. Lead with Listing Spotlight to educate customers. Product Booster won't work until people know to search for you.",
+      );
+
     case "Volume-First":
-      return {
-        primary: "Maximum units sold",
-        metrics: [
+      return make(
+        "Maximum units sold — scale both reach and conversions",
+        "Convert",
+        [
           { label: "Units", target: pick([1200, 1500, 1800]), unit: "units" },
           { label: "CVR", target: pick([6, 8, 10]), unit: "%" },
           { label: "Repeat purchase", target: pick([20, 25, 30]), unit: "%" },
         ],
-        threshold: "90%+ goal achievement = promotion to Senior Executive.",
-      };
+        [
+          { label: "Reach", target: pick([400000, 500000, 600000]), unit: "users" },
+        ],
+        "Volume brands need both scale and conversions. Run Recommendation Ads for units AND Brand Booster to keep the funnel full.",
+      );
+
     default:
-      return { primary: "Drive sales", metrics: [], threshold: "" };
+      return make("Drive sales", "Convert", [], [], "");
   }
 }
 
@@ -412,4 +503,20 @@ export function activeStoresFor(state: CityName, osaPct: number) {
 // States where the brand actually has stock (>0 OSA)
 export function stockedStates(scenario: Scenario): CityName[] {
   return (Object.keys(scenario.cityStockMap) as CityName[]).filter((s) => scenario.cityStockMap[s] > 0);
+}
+
+/**
+ * Returns the offline (MT/GT) sell-through presence for a specific SKU in a specific state.
+ * Checks SKU-level override first, falls back to brand base, defaults to "none".
+ */
+export function getSkuStatePresence(
+  profile: BrandProfile,
+  skuId: string,
+  state: StateName,
+): OfflinePresence {
+  const sp = profile.statePresence;
+  if (!sp) return "none";
+  const override = sp.skuOverrides?.[skuId]?.[state];
+  if (override !== undefined) return override;
+  return sp.base[state] ?? "none";
 }

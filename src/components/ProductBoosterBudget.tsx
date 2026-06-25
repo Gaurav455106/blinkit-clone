@@ -40,9 +40,15 @@ export function ProductBoosterBudget() {
               <p className="text-xs text-muted-foreground">Set an amount you want to spend on the entire campaign's lifetime</p>
             </div>
             {budgetType === "overall" && (
-              <div className="relative w-56">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">₹</span>
-                <Input value={budgetValue} onChange={(e) => setBudgetValue(e.target.value.replace(/[^0-9]/g, ""))} placeholder="Enter Budget Value" className="pl-7 text-sm" />
+              <div className="space-y-3">
+                <div className="relative w-56">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">₹</span>
+                  <Input value={budgetValue} onChange={(e) => setBudgetValue(e.target.value.replace(/[^0-9]/g, ""))} placeholder="Enter Budget Value" className="pl-7 text-sm" />
+                </div>
+                <p className="text-xs text-primary font-semibold">
+                  This is the maximum you'll spend for the entire campaign.{" "}
+                  <span className="font-normal text-muted-foreground">Spend may vary by day - more on high-performing days, less on others. It won't be split evenly.</span>
+                </p>
               </div>
             )}
           </div>

@@ -16,18 +16,31 @@ function fmtDate(s?: string) {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, startRun, clearActiveRun } = useSim();
+  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, clearActiveRun, clearCampaigns, resumeRun } = useSim();
 
   // Landing on dashboard exits any active review session (mount only).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (reviewRunId) exitReview(); }, []);
 
-  // If the active run is already completed, archive it on dashboard landing.
+  // If the active run is already completed, archive it and clear campaigns.
   useEffect(() => {
     if (!activeRunId) return;
     const r = runHistory.find((x) => x.id === activeRunId);
-    if (r && r.status === "completed") clearActiveRun();
-  }, [activeRunId, runHistory, clearActiveRun]);
+    if (r && r.status === "completed") {
+      clearActiveRun();
+      clearCampaigns();
+    }
+  }, [activeRunId, runHistory, clearActiveRun, clearCampaigns]);
+
+  // On mount: clear stranded campaigns that have no active run backing them.
+  // This handles the case where a previous run completed but campaigns weren't
+  // cleared yet (e.g. clearCampaigns was added after the run already cleared activeRunId).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (activeRunId) return; // active run owns the campaigns — don't touch
+    const hasInProgressRun = runHistory.some((r) => r.status === "in_progress");
+    if (!hasInProgressRun && campaigns.length > 0) clearCampaigns();
+  }, []);
 
   if (!student) { nav("/", { replace: true }); return null; }
   if (!scenario) { newScenario(); return null; }
@@ -44,9 +57,8 @@ export default function Dashboard() {
   const lastAttempt = completed[completed.length - 1]?.completedAt;
 
   const startNew = () => {
-    if (!activeInProgress) { startRun(); nav("/brief"); return; }
-    if (!cmPitch) nav("/cm-pitch");
-    else nav("/campaign");
+    if (activeInProgress) { nav("/simulation"); return; }
+    nav("/brief"); // always start from brief for a new run
   };
 
   const openPast = (runId: string) => {
@@ -55,7 +67,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex h-screen overflow-hidden w-full">
       <BlinkitSidebar />
       <div className="flex-1 bg-background overflow-y-auto">
         <div className="px-8 pt-6 pb-2">
@@ -118,7 +130,9 @@ export default function Dashboard() {
                 </p>
               </div>
               <Button size="lg" onClick={startNew} className="gap-2 shrink-0">
-                {activeInProgress ? <><Rocket className="h-4 w-4" /> Resume</> : <><Plus className="h-4 w-4" /> Start New Scenario</>}
+                {activeInProgress
+                  ? <><Rocket className="h-4 w-4" /> Resume</>
+                  : <><Plus className="h-4 w-4" /> Start New Scenario</>}
               </Button>
             </div>
           </Card>
@@ -174,21 +188,37 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {past.map((r) => {
-                    const canOpen = r.status === "completed" && !!r.snapshot;
+                    const canReview  = r.status === "completed" && !!r.snapshot;
+                    // In-progress run with a snapshot = was interrupted but state was saved → resumable.
+                    // In-progress run without snapshot = truly lost (old behaviour pre-snapshot).
+                    const canResume  = r.status === "in_progress" && !!r.snapshot && !activeRunId;
+                    const isClickable = canReview || canResume;
+                    const handleClick = canReview
+                      ? () => openPast(r.id)
+                      : canResume
+                      ? () => { const ok = resumeRun(r.id); if (ok) nav("/simulation"); }
+                      : undefined;
                     return (
                       <tr
                         key={r.id}
-                        onClick={() => canOpen && openPast(r.id)}
-                        className={`border-t border-border ${canOpen ? "cursor-pointer hover:bg-muted/40" : "opacity-70"}`}
-                        title={canOpen ? "Review this run" : "No snapshot saved for this run"}
+                        onClick={handleClick}
+                        className={`border-t border-border transition-colors ${isClickable ? "cursor-pointer hover:bg-muted/40" : "opacity-60"}`}
+                        title={
+                          canReview  ? "Review this completed run" :
+                          canResume  ? `Resume from Day ${r.snapshot?.currentDay ?? 1}` :
+                          r.status === "in_progress" && activeRunId ? "Finish your current run before resuming this one" :
+                          "Run interrupted with no saved state — cannot be resumed"
+                        }
                       >
                         <td className="px-4 py-3 text-xs">{fmtDate(r.completedAt ?? r.startedAt)}</td>
                         <td className="px-4 py-3 font-medium">{r.brandEmoji} {r.brandName}</td>
                         <td className="px-4 py-3">
                           {r.status === "completed" ? (
                             <Badge className="bg-primary text-primary-foreground gap-1"><Trophy className="h-3 w-3" /> Completed</Badge>
+                          ) : canResume ? (
+                            <Badge variant="outline" className="text-amber-600 border-amber-400 gap-1">In Progress · Resume →</Badge>
                           ) : (
-                            <Badge variant="secondary">In progress</Badge>
+                            <Badge variant="secondary" className="text-muted-foreground">Interrupted</Badge>
                           )}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">{r.score != null ? `${r.score}/100` : "—"}</td>
@@ -205,7 +235,7 @@ export default function Dashboard() {
             <Button variant="link" onClick={() => nav("/leaderboard")} className="px-0">
               View Full Leaderboard →
             </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); startRun(); nav("/brief"); }}>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); nav("/brief"); }}>
               <RefreshCw className="h-3.5 w-3.5" /> New Brand Scenario
             </Button>
           </div>

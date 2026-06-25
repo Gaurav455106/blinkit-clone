@@ -117,7 +117,8 @@ function peakBlocks(category: string): string[] {
 }
 
 function seasonMult(name: string, category: string): number {
-  if (name === "Festival Surge") return 1.4;
+  // Keep in sync with dayEngine.ts seasonMult (1.30 for Festival, 0.70 for Post-Festival)
+  if (name === "Festival Surge") return 1.30;
   if (name === "Post-Festival Slowdown") return 0.7;
   if (name === "Summer Season" && /skin|baby|beverage/i.test(category)) return 1.1;
   if (name === "New Year Health Spike" && /supplement|protein|fitness/i.test(category)) return 1.2;
@@ -141,6 +142,54 @@ function startingStock(velocity: string): number {
   return 300;
 }
 
+/**
+ * Converts current unit counts → live OSA% per city (averaged across all SKUs).
+ * Cities that never had stock (initialOsa = 0) stay at 0.
+ */
+function liveOsaPct(stockMap: StockMap, scenario: Scenario): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const city of CITIES) {
+    const initialOsa = scenario.cityStockMap[city as CityName] ?? 0;
+    if (initialOsa === 0) {
+      result[city] = 0;
+      continue;
+    }
+    const pcts: number[] = [];
+    for (const sku of scenario.profile.skus) {
+      const max = startingStock(sku.velocity);
+      const units = stockMap[sku.id]?.[city] ?? 0;
+      pcts.push((units / max) * 100);
+    }
+    result[city] = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : 0;
+  }
+  return result;
+}
+
+/**
+ * Replenishes stock at the end of each simulated week.
+ * Weekly add = initialStock × (fillRate / 100) / 4
+ * (fillRate is monthly capacity; divide by ~4 weeks to get weekly rate)
+ * Capped at initial stock level (the scenario's "full" baseline).
+ */
+function replenishStock(stock: StockMap, scenario: Scenario): StockMap {
+  const fillRate = scenario.inventory.fillRate;
+  const replenished: StockMap = JSON.parse(JSON.stringify(stock));
+  for (const sku of scenario.profile.skus) {
+    for (const city of CITIES) {
+      const initialOsa = scenario.cityStockMap[city as CityName] ?? 0;
+      if (initialOsa === 0) continue;
+      const maxUnits = startingStock(sku.velocity);
+      const ceiling = Math.round(maxUnits * (initialOsa / 100));
+      const weeklyAdd = Math.floor(ceiling * (fillRate / 100) / 4);
+      const current = replenished[sku.id]?.[city] ?? 0;
+      if (replenished[sku.id]) {
+        replenished[sku.id][city] = Math.min(ceiling, current + weeklyAdd);
+      }
+    }
+  }
+  return replenished;
+}
+
 export function buildInitialStock(scenario: Scenario): StockMap {
   const map: StockMap = {};
   for (const sku of scenario.profile.skus) {
@@ -161,6 +210,9 @@ interface ComputeInput {
   opts: Record<string, CampaignOptimization>;
   stockLevels: StockMap;
   week: number;
+  /** Spend accumulated from all PREVIOUS weeks per campaignId. Passed by the caller so pacing
+   *  uses real cumulative spend, not a broken `m.spend * weekIndex` estimate. */
+  cumulativeSpendByPrevWeeks?: Record<string, number>;
 }
 
 export function computeWeek(input: ComputeInput): { result: WeekResult; newStock: StockMap } {
@@ -170,6 +222,9 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
   const cDrag = competitorDragFor(scenario.market.name);
   const cmBonus = cmPitch?.status === "strong" ? 1.15 : cmPitch?.status === "decent" ? 1.0 : cmPitch?.status === "weak" ? 0.9 : 1.0;
 
+  // Compute live OSA% from current unit counts (before any depletion this week)
+  const liveOsaMap = liveOsaPct(input.stockLevels, scenario);
+
   const campaignMetrics: CampaignWeekMetric[] = campaigns.map((c) => {
     const opt = opts[c.id] || { paused: false, scaleMultiplier: 1, dayparting: "24_7" as const };
     const active = !opt.paused;
@@ -178,7 +233,8 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
 
     // City-level computation
     const cityList = (c.cities.length ? c.cities : (Object.keys(scenario.cityStockMap) as CityName[])) as string[];
-    const baseImpDaily = dailyBudget * 100;
+    // ₹250 CPM = 4 impressions per ₹1 spend (1000 / 250 = 4)
+    const baseImpDaily = dailyBudget * 4;
 
     const objectiveMatch = c.objective === scenario.profile.optimalObjective ? 1.3 : 0.6;
     const goodKws = scenario.profile.goodKeywords;
@@ -195,11 +251,15 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
     const byCity: CityMetric[] = [];
 
     for (const city of cityList) {
-      const osa = scenario.cityStockMap[city as CityName] ?? scenario.inventory.osa;
+      // Stock is a binary gate only: stock > 0 → full delivery; stock = 0 → no ads, no spend.
+      // OSA level does NOT scale impressions or spend — only the on/off switch matters.
+      const osa = liveOsaMap[city] ?? 0;
       const cityShare = 1 / cityList.length;
-      const osaM = osaMult(osa) * (cmPitch?.osaBoost ? 1.1 : 1);
-      const cityMatch = (cmPitch?.approvedCities.includes(city as CityName) ?? true) && osa > 0 ? 1.0 : 0.1;
-      const dailyImpCity = baseImpDaily * cityShare * osaM * objectiveMatch * cmBonus * cDrag * season * cityMatch;
+      // cityMatch: 1.0 if any stock exists, 0.0 if OOS
+      const cityMatch = osa > 0 ? 1.0 : 0.0;
+      // CM osaBoost is a relationship benefit, not a stock-level multiplier
+      const cmOsaBoost = cmPitch?.osaBoost ? 1.1 : 1.0;
+      const dailyImpCity = baseImpDaily * cityShare * cmOsaBoost * objectiveMatch * cmBonus * cDrag * season * cityMatch;
       const weekImpCity = dailyImpCity * 7;
       const clicksCity = weekImpCity * ctrBase;
       const atcRate = 0.25 * (scenario.profile.skus.some((s) => s.velocity === "High") ? 1.1 : 0.9);
@@ -218,7 +278,7 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
         unitsCity += sold;
       }
 
-      const cpm = 80 * cDrag * season;
+      const cpm = 250 * cDrag * season;
       const spendCity = Math.min(dailyBudget * cityShare * 7, (weekImpCity / 1000) * cpm);
       const avgMrp = (c.skuIds.length ? c.skuIds : scenario.profile.skus.map((s) => s.id))
         .map((id) => scenario.profile.skus.find((s) => s.id === id)?.mrp ?? 0)
@@ -395,9 +455,12 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
   const clusters = detectClusters(aggZones);
 
   // pacing per campaign
+  // cumulativeSpendByPrevWeeks holds real spend from weeks 1..(week-1).
+  // Adding this week's spend gives true cumulative — fixes the broken `m.spend * week` bug.
   const pacing: PacingInfo[] = campaignMetrics.map((m) => {
     const dayNow = endDay;
-    const cumulative = m.spend * week; // engine recomputes week as standalone, scale up to approximate cumulative
+    const prevSpend  = input.cumulativeSpendByPrevWeeks?.[m.campaignId] ?? 0;
+    const cumulative = prevSpend + m.spend;
     const pacePct = m.budget > 0 ? +((cumulative / m.budget) * 100).toFixed(1) : 0;
     const dailyRate = dayNow > 0 ? cumulative / dayNow : 0;
     const remaining = m.budget - cumulative;
@@ -409,8 +472,11 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
 
   const cannibalPairs = detectCannibalization(campaigns);
 
+  // Replenish stock at end of week based on fill rate before handing off to next week
+  const replenishedStock = replenishStock(newStock, scenario);
+
   return {
     result: { week, startDay, endDay, campaigns: campaignMetrics, dailySpend, totals, stockAlerts, clusters, pacing, cannibalPairs, zoneMetrics: aggZones },
-    newStock,
+    newStock: replenishedStock,
   };
 }

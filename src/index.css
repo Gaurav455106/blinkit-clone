@@ -83,3 +83,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Live Dashboard activity ticker scroll */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 30s linear infinite;
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}

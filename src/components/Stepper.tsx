@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 
-const steps = [
+const DEFAULT_STEPS = [
   "Ad Format",
   "Ad Settings",
   "Product details",
@@ -10,9 +10,11 @@ const steps = [
 
 interface StepperProps {
   currentStep: number;
+  stepLabels?: string[];
 }
 
-export function Stepper({ currentStep }: StepperProps) {
+export function Stepper({ currentStep, stepLabels }: StepperProps) {
+  const steps = stepLabels ?? DEFAULT_STEPS;
   return (
     <div className="flex items-center w-full max-w-3xl mx-auto">
       {steps.map((step, i) => (

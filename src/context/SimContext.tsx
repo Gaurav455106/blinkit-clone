@@ -2,6 +2,11 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { Scenario, generateScenario, CityName } from "@/data/scenarios";
 import { Competitor, CompetitorAction, initCompetitor } from "@/data/competitor";
 import { supabase } from "@/integrations/supabase/client";
+import { pitchScoreToRelationship } from "@/lib/cmPitchLogic";
+import type { DayResult, ActiveCrisisEffect } from "@/lib/engine";
+import type { SetupScore } from "@/lib/newScoring";
+import type { EngineDayResult } from "@/lib/dayEngine";
+import { type DailyNoise, generateDailyNoise } from "@/lib/noise";
 
 export interface Student {
   name: string;
@@ -37,9 +42,17 @@ export interface SavedCampaign {
   budget: number;
   budgetType: "daily" | "overall" | null;
   geography: "select_cities" | "pan_india" | null;
-  launchDay?: number; // day-of-30 when launched (default 1)
+  categories?: string[]; // enabled category names (PB, BB)
+  feeds?: string[];      // selected feed names (Stories only)
+  launchDay?: number; // sim day when campaign starts (default 1)
+  endDay?: number;   // sim day when overall-budget campaign ends (daily = runs until budget exhausted)
   dayparting?: number[]; // active hour-block indices (0..7); empty/undefined = 24/7
   daypartPreset?: "peak" | "daytime" | "24_7" | "custom";
+  scheduleType?: "all_days" | "days_of_week"; // which days to run (Stories; defaults all_days)
+  selectedDays?: number[]; // day indices 0=Sun..6=Sat when scheduleType is "days_of_week"
+  isDraft?: boolean;
+  draftId?: string;
+  wizardSnapshot?: Record<string, string>; // localStorage key→value snapshot for edit-draft restore
 }
 
 export interface CampaignOptimization {
@@ -47,7 +60,19 @@ export interface CampaignOptimization {
   scaleMultiplier: number; // 1.0, 1.25
   dayparting: "24_7" | "peak_only";
   extraBudget?: number; // not currently applied to cost engine
+  pausedAtDay: number | null;   // sim day when paused (start of pause window)
+  resumedAtDay?: number | null; // sim day when resumed (end of pause window); null = still paused
+  crisisPaused?: boolean;       // true = this pause was triggered by a crisis auto-action
 }
+
+// ── Simulation timing constants ───────────────────────────────────────────────
+export const REAL_MS_PER_SIM_DAY: Record<"very_fast" | "normal" | "slow", number> = {
+  very_fast: 5  * 60 * 1000,   // 5 real minutes  = 1 sim day
+  normal:    10 * 60 * 1000,   // 10 real minutes = 1 sim day
+  slow:      30 * 60 * 1000,   // 30 real minutes = 1 sim day
+};
+/** Crisis auto-apply after this many sim days of no response */
+export const CRISIS_DEADLINE_DAYS = 5;
 
 export type StockMap = Record<string, Record<string, number>>; // skuId -> city -> units
 
@@ -80,6 +105,11 @@ export interface CrisisResponse {
   bestChoice?: boolean;
 }
 
+export interface DaypartingChange {
+  blocks: number[];    // active hour-block indices kept by student
+  changedDay: number;  // simulation day when change was made (for scoring)
+}
+
 export interface RunSnapshot {
   scenario: Scenario;
   cmPitch: CmPitchResult | null;
@@ -100,6 +130,28 @@ export interface RunSnapshot {
   stockLevels: StockMap;
   competitor: Competitor | null;
   competitorActions: CompetitorAction[];
+  // new engine fields
+  setupScore: SetupScore | null;
+  dayResults: DayResult[];
+  totalScenarioSpend: number;
+  crisisTriggered: Record<string, boolean>;
+  daypartingChanges: Record<string, DaypartingChange>;
+  midRunCampaignLaunched: boolean;
+  // timing
+  simMode: "demo" | "assignment";
+  assignmentPace: "very_fast" | "normal" | "slow";
+  simStartedAt: string | null;
+  crisisRevealedAt: Record<string, number>;
+  missedCrises: string[];
+  // progress — only set on interrupted mid-run snapshots so they can be resumed
+  currentDay?: number;
+}
+
+/** Frozen snapshot of engine day results saved when a run completes. */
+export interface SavedRunResult {
+  runId: string;
+  days: EngineDayResult[];
+  savedAt: string;
 }
 
 export interface RunHistoryEntry {
@@ -128,6 +180,8 @@ interface SimState {
   student: Student | null;
   scenario: Scenario | null;
   cmPitch: CmPitchResult | null;
+  /** CM relationship score 0–100. Set from pitch outcome; updated during simulation. */
+  cmRelationship: number;
   campaigns: SavedCampaign[];
   tokensRemaining: number;
   tokensSpent: number;
@@ -155,11 +209,29 @@ interface SimState {
   runHistory: RunHistoryEntry[];
   activeRunId: string | null;
   reviewRunId: string | null;
-  mode: "home" | "run" | "review";
+  mode: "home" | "setup" | "run" | "review";
+
+  // New engine state
+  setupScore: SetupScore | null;
+  dayResults: DayResult[];
+  totalScenarioSpend: number;
+  crisisTriggered: Record<string, boolean>;   // "1"|"2"|"3" -> true
+  activeCrisisEffect: ActiveCrisisEffect | null;
+  daypartingChanges: Record<string, DaypartingChange>;  // campaignId -> change
+  midRunCampaignLaunched: boolean;
+
+  // Simulation mode & timing
+  simMode: "demo" | "assignment";
+  assignmentPace: "very_fast" | "normal" | "slow";
+  simStartedAt: string | null;           // ISO timestamp set when startRun() fires
+  crisisRevealedAt: Record<string, number>; // crisisKey → unix ms when first shown
+  missedCrises: string[];                // crisisKeys auto-applied (worst option)
 
   setStudent: (s: Student) => void;
   newScenario: () => void;
   setCmPitch: (p: CmPitchResult | null) => void;
+  /** Delta applied to cmRelationship. Clamped 0–100. Pass a reason for future audit log. */
+  updateCmRelationship: (delta: number, reason?: string) => void;
   addCampaign: (c: SavedCampaign) => void;
   updateCampaign: (id: string, c: Partial<SavedCampaign>) => void;
   deleteCampaign: (id: string) => void;
@@ -186,11 +258,36 @@ interface SimState {
 
   // Crisis actions
   recordCrisisResponse: (r: CrisisResponse) => void;
+
+  // New engine actions
+  setSetupScore: (s: SetupScore) => void;
+  appendDayResults: (results: DayResult[]) => void;
+  addScenarioSpend: (amount: number) => void;
+  markCrisisTriggered: (num: 1 | 2 | 3) => void;
+  setActiveCrisisEffect: (e: ActiveCrisisEffect | null) => void;
+  recordDaypartingChange: (campaignId: string, blocks: number[], day: number) => void;
+  setMidRunCampaignLaunched: (launched: boolean) => void;
+
+  // Daily noise
+  dailyNoise: DailyNoise | null;
+
+  // Mode & timing actions
+  setSimMode: (m: "demo" | "assignment") => void;
+  setAssignmentPace: (p: "very_fast" | "normal" | "slow") => void;
+  recordCrisisRevealed: (crisisKey: string, ts: number) => void;
+  recordMissedCrisis: (crisisKey: string) => void;
+
+  savedRunResults: Record<string, SavedRunResult>;
+  saveRunResult: (r: SavedRunResult) => void;
+
   startRun: () => void;
   completeRun: (info: { score: number; achievementPct: number }) => void;
   clearActiveRun: () => void;
+  /** Clears campaigns from live state. Call after a completed run is archived so Dashboard starts clean. */
+  clearCampaigns: () => void;
   enterReview: (runId: string) => boolean;
   exitReview: () => void;
+  resumeRun: (runId: string) => boolean;
 
   reset: () => void;
 }
@@ -210,10 +307,18 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [student, setStudentState] = useState<Student | null>(() => load("sim_student", null));
   const [scenario, setScenario] = useState<Scenario | null>(() => {
     const s = load<Scenario | null>("sim_scenario", null);
-    if (s && (!(s as any).cityStockMap || !(s as any).clientGoals)) return generateScenario();
+    if (s && (
+      !(s as any).cityStockMap ||
+      !(s as any).clientGoals ||
+      !Array.isArray((s as any).clientGoals?.performanceGoals) ||
+      !Array.isArray((s as any).clientGoals?.reachGoals) ||
+      !Array.isArray((s as any).clientGoals?.metrics) ||
+      !(s as any).profile?.statePresence
+    )) return generateScenario();
     return s;
   });
   const [cmPitch, setCmPitchState] = useState<CmPitchResult | null>(() => load("sim_cm_pitch", null));
+  const [cmRelationship, setCmRelationship] = useState<number>(() => load("sim_cm_relationship", 50));
   const [campaigns, setCampaigns] = useState<SavedCampaign[]>(() => load("sim_campaigns", []));
   const [tokensRemaining, setTokens] = useState<number>(() => load("sim_tokens", 10));
 
@@ -239,9 +344,30 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [activeRunId, setActiveRunId] = useState<string | null>(() => load("sim_activeRunId", null));
   const [reviewRunId, setReviewRunId] = useState<string | null>(() => load("sim_reviewRunId", null));
 
+  // Simulation mode & timing
+  const [simMode, setSimModeState] = useState<"demo" | "assignment">(() => load("sim_mode", "demo"));
+  const [assignmentPace, setAssignmentPaceState] = useState<"very_fast" | "normal" | "slow">(() => load("sim_pace", "normal"));
+  const [simStartedAt, setSimStartedAtState] = useState<string | null>(() => load("sim_startedAt", null));
+  const [crisisRevealedAt, setCrisisRevealedAt] = useState<Record<string, number>>(() => load("sim_crisisRevealedAt", {}));
+  const [missedCrises, setMissedCrises] = useState<string[]>(() => load("sim_missedCrises", []));
+
+  // Daily noise (seeded at startRun)
+  const [dailyNoise, setDailyNoise] = useState<DailyNoise | null>(() => load("sim_dailyNoise", null));
+
+  // New engine state
+  const [setupScore, setSetupScoreState] = useState<SetupScore | null>(() => load("sim_setupScore", null));
+  const [dayResults, setDayResults] = useState<DayResult[]>(() => load("sim_dayResults", []));
+  const [totalScenarioSpend, setTotalScenarioSpend] = useState<number>(() => load("sim_totalSpend", 0));
+  const [crisisTriggered, setCrisisTriggered] = useState<Record<string, boolean>>(() => load("sim_crisisTriggered", {}));
+  const [activeCrisisEffect, setActiveCrisisEffectState] = useState<ActiveCrisisEffect | null>(() => load("sim_activeCrisisEffect", null));
+  const [daypartingChanges, setDaypartingChanges] = useState<Record<string, DaypartingChange>>(() => load("sim_daypartingChanges", {}));
+  const [midRunCampaignLaunched, setMidRunCampaignLaunchedState] = useState<boolean>(() => load("sim_midRunLaunched", false));
+  const [savedRunResults, setSavedRunResults] = useState<Record<string, SavedRunResult>>(() => load("sim_savedRunResults", {}));
+
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
   useEffect(() => { localStorage.setItem("sim_cm_pitch", JSON.stringify(cmPitch)); }, [cmPitch]);
+  useEffect(() => { localStorage.setItem("sim_cm_relationship", JSON.stringify(cmRelationship)); }, [cmRelationship]);
   useEffect(() => { localStorage.setItem("sim_campaigns", JSON.stringify(campaigns)); }, [campaigns]);
   useEffect(() => { localStorage.setItem("sim_tokens", JSON.stringify(tokensRemaining)); }, [tokensRemaining]);
   useEffect(() => { localStorage.setItem("sim_currentDay", JSON.stringify(currentDay)); }, [currentDay]);
@@ -263,6 +389,20 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_runHistory", JSON.stringify(runHistory)); }, [runHistory]);
   useEffect(() => { localStorage.setItem("sim_activeRunId", JSON.stringify(activeRunId)); }, [activeRunId]);
   useEffect(() => { localStorage.setItem("sim_reviewRunId", JSON.stringify(reviewRunId)); }, [reviewRunId]);
+  useEffect(() => { localStorage.setItem("sim_mode", JSON.stringify(simMode)); }, [simMode]);
+  useEffect(() => { localStorage.setItem("sim_pace", JSON.stringify(assignmentPace)); }, [assignmentPace]);
+  useEffect(() => { if (simStartedAt) localStorage.setItem("sim_startedAt", JSON.stringify(simStartedAt)); }, [simStartedAt]);
+  useEffect(() => { localStorage.setItem("sim_crisisRevealedAt", JSON.stringify(crisisRevealedAt)); }, [crisisRevealedAt]);
+  useEffect(() => { localStorage.setItem("sim_missedCrises", JSON.stringify(missedCrises)); }, [missedCrises]);
+  useEffect(() => { localStorage.setItem("sim_setupScore", JSON.stringify(setupScore)); }, [setupScore]);
+  useEffect(() => { localStorage.setItem("sim_dayResults", JSON.stringify(dayResults)); }, [dayResults]);
+  useEffect(() => { localStorage.setItem("sim_totalSpend", JSON.stringify(totalScenarioSpend)); }, [totalScenarioSpend]);
+  useEffect(() => { localStorage.setItem("sim_crisisTriggered", JSON.stringify(crisisTriggered)); }, [crisisTriggered]);
+  useEffect(() => { localStorage.setItem("sim_activeCrisisEffect", JSON.stringify(activeCrisisEffect)); }, [activeCrisisEffect]);
+  useEffect(() => { localStorage.setItem("sim_daypartingChanges", JSON.stringify(daypartingChanges)); }, [daypartingChanges]);
+  useEffect(() => { localStorage.setItem("sim_midRunLaunched", JSON.stringify(midRunCampaignLaunched)); }, [midRunCampaignLaunched]);
+  useEffect(() => { localStorage.setItem("sim_dailyNoise", JSON.stringify(dailyNoise)); }, [dailyNoise]);
+  useEffect(() => { localStorage.setItem("sim_savedRunResults", JSON.stringify(savedRunResults)); }, [savedRunResults]);
 
   const setStudent = (s: Student) => {
     setStudentState(s);
@@ -324,6 +464,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
         if (st.events) setEvents(st.events);
         if (st.optimizations) setOptimizationsState(st.optimizations);
         if (st.stockLevels) setStockLevelsState(st.stockLevels);
+        if (typeof st.cmRelationship === "number") setCmRelationship(st.cmRelationship);
         if (st.competitor !== undefined) setCompetitorState(st.competitor);
         if (st.competitorActions) setCompetitorActions(st.competitorActions);
         if (typeof st.currentDay === "number") setCurrentDayState(st.currentDay);
@@ -353,10 +494,12 @@ export function SimProvider({ children }: { children: ReactNode }) {
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
       const state = {
-        scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+        scenario, cmPitch, cmRelationship, campaigns, weekTotals, decisionsLog, crisisResponses,
         abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
         microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
         optimizations, stockLevels, competitor, competitorActions, currentDay,
+        setupScore, dayResults, totalScenarioSpend, crisisTriggered,
+        daypartingChanges, midRunCampaignLaunched,
       };
       const started = runHistory.find((r) => r.id === activeRunId)?.startedAt ?? new Date().toISOString();
       supabase.from("run_sessions").upsert({
@@ -372,15 +515,19 @@ export function SimProvider({ children }: { children: ReactNode }) {
       });
     }, 1500);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
-  }, [student, activeRunId, scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+  }, [student, activeRunId, scenario, cmPitch, cmRelationship, campaigns, weekTotals, decisionsLog, crisisResponses,
       abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
       microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
-      optimizations, stockLevels, competitor, competitorActions, currentDay, runHistory]);
+      optimizations, stockLevels, competitor, competitorActions, currentDay, runHistory,
+      setupScore, dayResults, totalScenarioSpend, crisisTriggered, daypartingChanges, midRunCampaignLaunched,
+      simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises]);
 
   const clearCampaignWizard = () => {
     [
       "campaign_step", "campaign_name", "campaign_objective", "campaign_adAsset",
-      "sim_selected_skus", "sim_selected_keywords", "sim_geography", "sim_budget_type", "sim_sku_strategy"
+      "sim_selected_skus", "sim_selected_keywords", "sim_geography", "sim_budget_type", "sim_sku_strategy",
+      // Brief acknowledgement — must re-pass quiz for each new scenario
+      "sim_brief_ack", "sim_budget_intent_conversion", "sim_budget_intent_reach", "sim_budget_intent_conv_pct",
     ].forEach((k) => localStorage.removeItem(k));
   };
 
@@ -391,11 +538,43 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setDecisionsLog([]);
     setWeekTotals([]);
     setEvents({});
+    // new engine state
+    setDayResults([]);
+    setTotalScenarioSpend(0);
+    setCrisisTriggered({});
+    setActiveCrisisEffectState(null);
+    setDaypartingChanges({});
+    setMidRunCampaignLaunchedState(false);
+    // timing
+    setSimStartedAtState(null);
+    setCrisisRevealedAt({});
+    setMissedCrises([]);
+    setDailyNoise(null);
   };
 
   const newScenario = () => {
+    // If an in-progress run exists, snapshot its state before wiping so it can be resumed later.
+    if (activeRunId && scenario) {
+      const currentEntry = runHistory.find((r) => r.id === activeRunId);
+      if (currentEntry && currentEntry.status === "in_progress") {
+        const interruptedSnapshot: RunSnapshot = {
+          scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
+          abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
+          microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
+          optimizations, stockLevels, competitor: competitor ?? null, competitorActions,
+          setupScore, dayResults, totalScenarioSpend, crisisTriggered,
+          daypartingChanges, midRunCampaignLaunched,
+          simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises,
+          currentDay,
+        };
+        setRunHistory((prev) =>
+          prev.map((r) => r.id === activeRunId ? { ...r, snapshot: interruptedSnapshot } : r),
+        );
+      }
+    }
     setScenario(generateScenario());
     setCmPitchState(null);
+    setCmRelationship(50);
     setCampaigns([]);
     setTokens(10);
     setTokensSpent(0);
@@ -409,14 +588,24 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setMicroDecisionsLog([]);
     setCrisisResponses({});
     setActiveRunId(null);
+    setSetupScoreState(null);
     resetSimRuntime();
     clearCampaignWizard();
   };
 
-  const setCmPitch = (p: CmPitchResult | null) => setCmPitchState(p);
+  const setCmPitch = (p: CmPitchResult | null) => {
+    setCmPitchState(p);
+    if (p) setCmRelationship(pitchScoreToRelationship(p.pitchScore));
+  };
+
+  const updateCmRelationship = (delta: number, _reason?: string) => {
+    setCmRelationship((prev) => Math.max(0, Math.min(100, prev + delta)));
+  };
   const addCampaign = (c: SavedCampaign) => {
-    setCampaigns((prev) => [...prev, { ...c, launchDay: c.launchDay ?? Math.max(1, currentDay) }]);
-    setOptimizationsState((prev) => ({ ...prev, [c.id]: { paused: false, scaleMultiplier: 1, dayparting: "24_7" } }));
+    // If a run is active, new campaigns launch from today so engine doesn't backfill
+    const launchDay = activeRunId ? Math.max(1, currentDay) : 1;
+    setCampaigns((prev) => [...prev, { ...c, launchDay: c.launchDay ?? launchDay }]);
+    setOptimizationsState((prev) => ({ ...prev, [c.id]: { paused: false, scaleMultiplier: 1, dayparting: "24_7", pausedAtDay: null } }));
   };
   const updateCampaign = (id: string, patch: Partial<SavedCampaign>) =>
     setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -431,7 +620,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   const initSimulation = (stock: StockMap) => {
     setStockLevelsState(stock);
-    setCurrentDayState(7);
+    setCurrentDayState(1);
     setOptimizationsState((prev) => {
       const next = { ...prev };
       for (const c of campaigns) {
@@ -452,7 +641,27 @@ export function SimProvider({ children }: { children: ReactNode }) {
     if (!competitor && scenario) setCompetitorState(initCompetitor(scenario.market.name === "Aggressive Competitor"));
   };
   const setOptimization = (id: string, opt: Partial<CampaignOptimization>) =>
-    setOptimizationsState((prev) => ({ ...prev, [id]: { paused: false, scaleMultiplier: 1, dayparting: "24_7", ...prev[id], ...opt } }));
+    setOptimizationsState((prev) => {
+      const cur: CampaignOptimization = prev[id] ?? { paused: false, scaleMultiplier: 1, dayparting: "24_7", pausedAtDay: null, resumedAtDay: null };
+      const isPausing  = opt.paused === true  && !cur.paused;
+      const isResuming = opt.paused === false && cur.paused;
+      return {
+        ...prev,
+        [id]: {
+          ...cur,
+          ...opt,
+          // Bug1+4: keep pausedAtDay on resume (it marks the window start); only update when actually pausing/re-pausing.
+          // Bug4: re-pause resets resumedAtDay to null (opens a new pause window from now).
+          pausedAtDay:  isPausing  ? currentDay           : cur.pausedAtDay,
+          // Bug1: set resumedAtDay (window end) instead of nulling pausedAtDay.
+          // Bug5+6: clear resumedAtDay and crisisPaused when re-pausing.
+          resumedAtDay: isPausing  ? null                 : isResuming ? currentDay : (cur.resumedAtDay ?? null),
+          crisisPaused: isPausing  ? (opt.crisisPaused ?? cur.crisisPaused ?? false)
+                      : isResuming ? false                              // Bug5+6: clear on resume
+                      : (opt.crisisPaused ?? cur.crisisPaused ?? false),
+        },
+      };
+    });
   const setStockLevels = (s: StockMap) => setStockLevelsState(s);
   const setCurrentDay = (d: number) => setCurrentDayState(d);
   const logDecision = (d: DecisionLogEntry) => setDecisionsLog((prev) => [...prev, d]);
@@ -478,11 +687,57 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const recordCrisisResponse = (r: CrisisResponse) =>
     setCrisisResponses((prev) => ({ ...prev, [r.crisisId]: r }));
 
+  // Mode & timing actions
+  const setSimMode  = (m: "demo" | "assignment") => setSimModeState(m);
+  const setAssignmentPace = (p: "very_fast" | "normal" | "slow") => setAssignmentPaceState(p);
+  const recordCrisisRevealed = (crisisKey: string, ts: number) =>
+    setCrisisRevealedAt((prev) => prev[crisisKey] ? prev : { ...prev, [crisisKey]: ts });
+  const recordMissedCrisis = (crisisKey: string) =>
+    setMissedCrises((prev) => prev.includes(crisisKey) ? prev : [...prev, crisisKey]);
+
+  // New engine actions
+  const setSetupScore = (s: SetupScore) => setSetupScoreState(s);
+  const appendDayResults = (results: DayResult[]) =>
+    setDayResults((prev) => [...prev, ...results]);
+  const addScenarioSpend = (amount: number) =>
+    setTotalScenarioSpend((prev) => prev + amount);
+  const markCrisisTriggered = (num: 1 | 2 | 3) =>
+    setCrisisTriggered((prev) => ({ ...prev, [String(num)]: true }));
+  const setActiveCrisisEffect = (e: ActiveCrisisEffect | null) =>
+    setActiveCrisisEffectState(e);
+  const recordDaypartingChange = (campaignId: string, blocks: number[], day: number) =>
+    setDaypartingChanges((prev) => ({ ...prev, [campaignId]: { blocks, changedDay: day } }));
+  const setMidRunCampaignLaunched = (launched: boolean) =>
+    setMidRunCampaignLaunchedState(launched);
+
+  const MAX_SAVED_RUN_RESULTS = 5;
+  const saveRunResult = (r: SavedRunResult) =>
+    setSavedRunResults((prev) => {
+      const merged = { ...prev, [r.runId]: r };
+      const entries = Object.values(merged).sort(
+        (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime(),
+      );
+      return Object.fromEntries(entries.slice(0, MAX_SAVED_RUN_RESULTS).map((e) => [e.runId, e]));
+    });
+
   const startRun = () => {
     if (!scenario) return;
     const id = `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setActiveRunId(id);
     setCrisisResponses({});
+    setSimStartedAtState(new Date().toISOString());
+    setCrisisRevealedAt({});
+    setMissedCrises([]);
+    // Always reset day counter on a fresh run — prevents stale Day 30 state
+    // from a previous run causing instant auto-end on the new run.
+    // Stock is reinitialized by LiveDashboard's mount effect (avoids circular import).
+    setCurrentDayState(1);
+    // Re-stamp all existing campaigns to launchDay=1 so that campaigns created
+    // in a previous run (which may have launchDay > 1) start from Day 1 in this run.
+    // Campaigns added mid-run later get launchDay = currentDay via addCampaign.
+    setCampaigns((prev) => prev.filter((c) => !c.isDraft).map((c) => ({ ...c, launchDay: 1 })));
+    // Generate seeded daily noise for this run (scenario seed + run id)
+    setDailyNoise(generateDailyNoise(`${scenario.seed}-${id}`));
     setRunHistory((prev) => [
       ...prev,
       {
@@ -503,6 +758,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
       abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
       microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
       optimizations, stockLevels, competitor, competitorActions,
+      setupScore, dayResults, totalScenarioSpend, crisisTriggered,
+      daypartingChanges, midRunCampaignLaunched,
+      simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises,
     } : undefined;
     setRunHistory((prev) =>
       prev.map((r) =>
@@ -546,7 +804,57 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCompetitorState(s.competitor);
     setCompetitorActions(s.competitorActions);
     setCurrentDayState(30);
+    if (s.setupScore !== undefined) setSetupScoreState(s.setupScore);
+    if (s.dayResults) setDayResults(s.dayResults);
+    if (typeof s.totalScenarioSpend === "number") setTotalScenarioSpend(s.totalScenarioSpend);
+    if (s.crisisTriggered) setCrisisTriggered(s.crisisTriggered);
+    if (s.daypartingChanges) setDaypartingChanges(s.daypartingChanges);
+    if (typeof s.midRunCampaignLaunched === "boolean") setMidRunCampaignLaunchedState(s.midRunCampaignLaunched);
     setReviewRunId(runId);
+    return true;
+  };
+
+  const resumeRun = (runId: string): boolean => {
+    // Don't allow resuming if another run is already active.
+    if (activeRunId) return false;
+    const entry = runHistory.find((r) => r.id === runId);
+    if (!entry?.snapshot || entry.status !== "in_progress") return false;
+    const s = entry.snapshot;
+    setScenario(s.scenario);
+    setCmPitchState(s.cmPitch);
+    setCampaigns(s.campaigns);
+    setWeekTotals(s.weekTotals);
+    setDecisionsLog(s.decisionsLog);
+    setCrisisResponses(s.crisisResponses);
+    setAbTests(s.abTests);
+    setCannibalResolved(s.cannibalResolved);
+    setClusterReactions(s.clusterReactions);
+    setTokensSpent(s.tokensSpent);
+    setTokens(s.tokensRemaining);
+    setMicroDecisionsLog(s.microDecisionsLog);
+    setExhaustedCampaigns(s.exhaustedCampaigns);
+    setCumulativeSpendByCampaign(s.cumulativeSpendByCampaign);
+    setEvents(s.events);
+    setOptimizationsState(s.optimizations);
+    setStockLevelsState(s.stockLevels);
+    setCompetitorState(s.competitor);
+    setCompetitorActions(s.competitorActions);
+    if (s.setupScore !== undefined) setSetupScoreState(s.setupScore);
+    if (s.dayResults) setDayResults(s.dayResults);
+    if (typeof s.totalScenarioSpend === "number") setTotalScenarioSpend(s.totalScenarioSpend);
+    if (s.crisisTriggered) setCrisisTriggered(s.crisisTriggered);
+    if (s.daypartingChanges) setDaypartingChanges(s.daypartingChanges);
+    if (typeof s.midRunCampaignLaunched === "boolean") setMidRunCampaignLaunchedState(s.midRunCampaignLaunched);
+    if (typeof s.simMode === "string") setSimModeState(s.simMode);
+    if (typeof s.assignmentPace === "string") setAssignmentPaceState(s.assignmentPace);
+    if (s.simStartedAt) setSimStartedAtState(s.simStartedAt);
+    if (s.crisisRevealedAt) setCrisisRevealedAt(s.crisisRevealedAt);
+    if (s.missedCrises) setMissedCrises(s.missedCrises);
+    // Restore the day the student was on when interrupted (fall back to 1 for old snapshots).
+    setCurrentDayState(typeof s.currentDay === "number" ? s.currentDay : 1);
+    // Regenerate the same deterministic noise for this run (seeded by scenario + run id).
+    setDailyNoise(generateDailyNoise(`${s.scenario.seed}-${runId}`));
+    setActiveRunId(runId);
     return true;
   };
 
@@ -571,18 +879,24 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setStockLevelsState({});
     setCompetitorState(null);
     setCompetitorActions([]);
+    setSetupScoreState(null);
     resetSimRuntime();
     clearCampaignWizard();
   };
 
-  const mode: "home" | "run" | "review" = reviewRunId ? "review" : activeRunId ? "run" : "home";
+  // "setup" = scenario exists, no active run yet (student is in Brief/CM Pitch/Campaign setup phase)
+  const mode: "home" | "setup" | "run" | "review" = reviewRunId ? "review" : activeRunId ? "run" : scenario ? "setup" : "home";
 
   const reset = () => {
     ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_campaigns", "sim_tokens",
      "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
      "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
      "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro",
-     "sim_crises", "sim_runHistory", "sim_activeRunId", "sim_reviewRunId"]
+     "sim_crises", "sim_runHistory", "sim_activeRunId", "sim_reviewRunId",
+     "sim_setupScore", "sim_dayResults", "sim_totalSpend", "sim_crisisTriggered",
+     "sim_activeCrisisEffect", "sim_daypartingChanges", "sim_midRunLaunched",
+     "sim_mode", "sim_pace", "sim_startedAt", "sim_crisisRevealedAt", "sim_missedCrises",
+     "sim_dailyNoise", "sim_savedRunResults"]
       .forEach((k) => localStorage.removeItem(k));
     clearCampaignWizard();
     setStudentState(null);
@@ -608,16 +922,50 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   return (
     <SimCtx.Provider value={{
-      student, scenario, cmPitch, campaigns, tokensRemaining, tokensSpent,
+      student, scenario, cmPitch, cmRelationship, campaigns, tokensRemaining, tokensSpent,
       currentDay, optimizations, stockLevels, decisionsLog, weekTotals, events,
       competitor, competitorActions, cannibalResolved, clusterReactions, abTests,
       cumulativeSpendByCampaign, exhaustedCampaigns, microDecisionsLog,
       crisisResponses, runHistory, activeRunId, reviewRunId, mode,
-      setStudent, newScenario, setCmPitch, addCampaign, updateCampaign, deleteCampaign, consumeToken,
+      setupScore, dayResults, totalScenarioSpend, crisisTriggered, activeCrisisEffect,
+      daypartingChanges, midRunCampaignLaunched,
+      simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises,
+      dailyNoise,
+      setStudent, newScenario, setCmPitch, updateCmRelationship, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
       setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
       recordCumulativeSpend, markExhausted, logMicroDecision,
-      recordCrisisResponse, startRun, completeRun, clearActiveRun: () => setActiveRunId(null), enterReview, exitReview,
+      recordCrisisResponse,
+      setSetupScore, appendDayResults, addScenarioSpend, markCrisisTriggered,
+      setActiveCrisisEffect, recordDaypartingChange, setMidRunCampaignLaunched,
+      savedRunResults, saveRunResult,
+      setSimMode, setAssignmentPace, recordCrisisRevealed, recordMissedCrisis,
+      startRun, completeRun,
+      clearActiveRun: () => {
+        // WS-3: Reset all run-specific state so the right panel is clean before re-launch.
+        // Campaigns + optimizations are intentionally preserved ("your campaigns stay intact").
+        setActiveRunId(null);
+        setCrisisResponses({});
+        setWeekTotals([]);
+        setDecisionsLog([]);
+        setMissedCrises([]);
+        setCrisisRevealedAt({});
+        setCrisisTriggered({});
+        setDayResults([]);
+        setTotalScenarioSpend(0);
+        setCumulativeSpendByCampaign({});
+        setExhaustedCampaigns([]);
+        setAbTests([]);
+        setMicroDecisionsLog([]);
+        setSetupScoreState(null);
+        setActiveCrisisEffectState(null);
+        setMidRunCampaignLaunchedState(false);
+        setSimStartedAtState(null);
+        setDailyNoise(null);
+        setEvents({});
+      },
+      clearCampaigns: () => { setCampaigns([]); setCmPitchState(null); setCmRelationship(50); },
+      enterReview, exitReview, resumeRun,
       reset,
     }}>
       {children}

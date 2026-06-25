@@ -1,11 +1,18 @@
 import type { Scenario } from "@/data/scenarios";
 
+export interface CrisisAutoAction {
+  type: "pause_affected_state" | "none";
+  /** How many days after crisis.day does stock restore? Fires notification when currentDay >= crisis.day + restoreAfterDays */
+  restoreAfterDays?: number;
+}
+
 export interface CrisisOption {
   key: "a" | "b" | "c" | "d";
   label: string;
   effect: string;
   score: number;
   best?: boolean;
+  autoAction?: CrisisAutoAction;
 }
 
 export interface CrisisSpec {
@@ -46,9 +53,9 @@ export function buildCrisis(num: 1 | 2 | 3, scenario: Scenario): CrisisSpec {
       tone: "red",
       message: `Fill rate dropped to 62% in ${c.topState}. Your highest-performing dark stores are running critically low on ${c.heroSku}. You have a 48-hour decision window.`,
       options: [
-        { key: "a", label: "Pause ads in affected state immediately", effect: `Ads paused in ${c.topState}; budget freed for other states.`, score: 10 },
+        { key: "a", label: "Pause ads in affected state immediately", effect: `Ads paused in ${c.topState}; budget freed for other states.`, score: 10, autoAction: { type: "pause_affected_state", restoreAfterDays: 6 } },
         { key: "b", label: "Continue campaign, hope stock arrives", effect: `Stock runs out by Day 12, ROAS drops ~50% in ${c.topState} for the remainder.`, score: 0 },
-        { key: "c", label: "Request emergency restock AND pause ads", effect: `Stock returns to 80% by Day 11. Costs ₹8,000 from remaining budget.`, score: 15, best: true },
+        { key: "c", label: "Request emergency restock AND pause ads", effect: `Stock returns to 80% by Day 11. Costs ₹8,000 from remaining budget.`, score: 15, best: true, autoAction: { type: "pause_affected_state", restoreAfterDays: 2 } },
       ],
     };
   }
@@ -122,33 +129,70 @@ export function buildCrisis(num: 1 | 2 | 3, scenario: Scenario): CrisisSpec {
 
 // Day-level multiplicative modifiers applied to spend/revenue for days >= a threshold.
 export interface DayMod { spendMult: number; revMult: number; spendAdd: number }
+
+/** Optional scenario context so crisis 3 effects branch correctly by scenario type. */
+export interface ModifierContext {
+  seasonName?: string;
+  marketName?: string;
+}
+
 export function modifierForDay(
   day: number,
   decisions: { num: 1 | 2 | 3; optionKey: string }[],
+  ctx?: ModifierContext,
 ): DayMod {
   let spendMult = 1, revMult = 1, spendAdd = 0;
+
+  const seasonName = ctx?.seasonName ?? "";
+  const marketName = ctx?.marketName ?? "";
+  const isFestival = /festival/i.test(seasonName);
+  const isCompetitor = /aggressive/i.test(marketName) || /competitor/i.test(marketName);
+
   for (const d of decisions) {
+    // ── Crisis 1: stock crisis ─────────────────────────────────────────────
     if (d.num === 1 && day >= 10) {
-      if (d.optionKey === "a") { revMult *= 0.97; spendMult *= 0.92; }
-      else if (d.optionKey === "b" && day >= 12) { revMult *= 0.6; }
-      else if (d.optionKey === "c") {
+      if (d.optionKey === "a") {
+        // Pause ads in affected state — lower revenue, lower spend
+        revMult   *= 0.97;
+        spendMult *= 0.92;
+      } else if (d.optionKey === "b" && day >= 12) {
+        // Continued despite stock-out: ROAS tanks
+        revMult *= 0.60;
+      } else if (d.optionKey === "c") {
+        // Emergency restock: small revenue lift + spread ₹8K cost over days 10-14
         revMult *= 1.05;
-        if (day === 10) spendAdd += 8000;
+        if (day >= 10 && day <= 14) spendAdd += 1_600; // ₹1,600/day × 5 days = ₹8,000
       }
     }
+
+    // ── Crisis 2: category manager sell-through alert ─────────────────────
     if (d.num === 2 && day >= 19) {
-      if (d.optionKey === "a" && day <= 23) revMult *= 1.12;
-      else if (d.optionKey === "b") revMult *= 1.08;
-      else if (d.optionKey === "c") revMult *= 1.15;
-      else if (d.optionKey === "d") revMult *= 1.02;
+      if (d.optionKey === "a" && day <= 23) revMult *= 1.12; // price-drop sales spike (5 days)
+      else if (d.optionKey === "b") revMult *= 1.08;         // delist + hero redirect
+      else if (d.optionKey === "c") revMult *= 1.15;         // SKU swap — best
+      else if (d.optionKey === "d") revMult *= 1.02;         // extension: minimal effect
     }
-    if (d.num === 3 && day >= 26) {
-      // Festival
-      if (d.optionKey === "a") { if (day <= 28) spendMult *= 1.2; }
-      if (d.optionKey === "c" && day >= 28) revMult *= 1.35;
-      // Competitor (different option semantics fall through harmlessly since keys overlap)
-      // Default scenario — push hard:
-      // We use a small set of keys; combined effects approximated.
+
+    // ── Crisis 3: final-week strategic decision (day 25) ─────────────────
+    // Crisis 3 fires at day 25; modifiers start at day 25 (not 26).
+    // Effect depends on which SCENARIO TYPE the student is in.
+    if (d.num === 3 && day >= 25) {
+      if (isFestival) {
+        // Options: a = front-load (days 25-27), b = steady, c = save for peak (days 28-30)
+        if (d.optionKey === "a" && day <= 27) spendMult *= 1.25; // front-load blitz
+        if (d.optionKey === "b") { /* steady spend: no modifier */ }
+        if (d.optionKey === "c" && day >= 28) revMult *= 1.35;   // peak-day revenue spike
+      } else if (isCompetitor) {
+        // Options: a = match price (margin hit), b = double spend (ROAS drops), c = long-tail pivot
+        if (d.optionKey === "a") { revMult *= 0.85; }             // price match → -15% ROAS
+        if (d.optionKey === "b") { spendMult *= 1.40; revMult *= 0.65; } // double spend, bad ROAS
+        if (d.optionKey === "c") { revMult *= 1.20; }             // long-tail → +20% efficiency
+      } else {
+        // Default: ranking push
+        if (d.optionKey === "a") { spendMult *= 1.30; revMult *= 1.25; } // aggressive push → top 5 rank
+        if (d.optionKey === "b") { revMult *= 1.10; }                    // moderate push → rank #8
+        if (d.optionKey === "c") { /* maintain: no modifier */ }
+      }
     }
   }
   return { spendMult, revMult, spendAdd };

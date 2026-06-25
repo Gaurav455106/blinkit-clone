@@ -6,6 +6,7 @@ import {
   detectCannibalization, scoreCannibalization,
   scoreAbTests, scoreTokenEconomy,
 } from "@/lib/phase3";
+import { requiredBuckets, isAwarenessFormat, isConversionFormat } from "@/lib/scoring";
 
 export interface CampaignMetrics {
   campaignId: string;
@@ -47,11 +48,46 @@ export interface SimRunResult {
   verdict: { tone: "good" | "warn" | "bad"; quote: string };
 }
 
-function avgOsaForCities(scenario: Scenario, cities: string[], osaBoost: boolean): number {
-  const macros = (Object.keys(scenario.cityStockMap) as CityName[]);
-  const matched = macros.filter((m) => cities.includes(m));
-  const base = matched.length ? matched.reduce((s, c) => s + scenario.cityStockMap[c], 0) / matched.length : scenario.inventory.osa;
-  return Math.min(100, base * (osaBoost ? 1.1 : 1)) / 100;
+/**
+ * Build an effective stock map that incorporates CM pitch outcomes.
+ * - Strong pitch with osaBoost: approved cities get a 10% OSA lift.
+ * - States with 0 stock stay at 0 regardless of CM approval (no stock = no delivery).
+ * - All other states keep their raw scenario values.
+ */
+function buildEffectiveStockMap(
+  scenario: Scenario,
+  cm: CmPitchResult | null,
+): Record<string, number> {
+  const map: Record<string, number> = { ...scenario.cityStockMap };
+  if (cm?.osaBoost && cm.approvedCities.length > 0) {
+    cm.approvedCities.forEach((city) => {
+      if (map[city] > 0) {
+        map[city] = Math.min(100, Math.round(map[city] * 1.1));
+      }
+    });
+  }
+  return map;
+}
+
+/**
+ * Given an effective stock map and the campaign's selected cities:
+ * - Only cities with OSA > 0 deliver impressions (Blinkit doesn't serve ads for OOS products).
+ * - avgOsa: average OSA across stocked cities only (determines conversion quality).
+ * - stateScale: fraction of selected cities that actually have stock (determines impression volume).
+ *
+ * Example: 23 states selected, 3 stocked at 80% OSA →
+ *   avgOsa = 0.80, stateScale = 3/23 = 0.13 → severely limited delivery.
+ */
+function effectiveDelivery(
+  stockMap: Record<string, number>,
+  cities: string[],
+): { avgOsa: number; stateScale: number; stockedCities: string[] } {
+  const stockedCities = cities.filter((c) => (stockMap[c] ?? 0) > 0);
+  const avgOsa = stockedCities.length
+    ? stockedCities.reduce((s, c) => s + stockMap[c], 0) / stockedCities.length / 100
+    : 0;
+  const stateScale = stockedCities.length / Math.max(cities.length, 1);
+  return { avgOsa, stateScale, stockedCities };
 }
 
 export function simulateRun(
@@ -65,11 +101,19 @@ export function simulateRun(
   const competitorDrag = scenario.market.name === "Aggressive Competitor" ? 0.7 : 1.0;
   const cmBonus = cm?.status === "strong" ? 1.15 : 1.0;
 
+  // Build the post-CM-pitch effective stock map once; all campaigns share it.
+  const effectiveStockMap = buildEffectiveStockMap(scenario, cm);
+
   const perCampaign: CampaignMetrics[] = campaigns.map((c) => {
-    const osaFactor = avgOsaForCities(scenario, c.cities, !!cm?.osaBoost);
+    // Delivery is gated purely by stocked cities (OSA > 0).
+    // Pan India with stock in 3/23 states → stateScale 0.13 → severely limited impressions.
+    const { avgOsa, stateScale } = effectiveDelivery(effectiveStockMap, c.cities);
+
     const objectiveMatch = c.objective === scenario.profile.optimalObjective ? 1.3 : 0.6;
     const baseImp = (c.budget || 0) * 100;
-    const impressions = Math.round(baseImp * osaFactor * objectiveMatch * cmBonus * competitorDrag * seasonMult);
+    // Impressions scale with stateScale (how many selected states actually have stock)
+    // and avgOsa (how well-stocked those states are).
+    const impressions = Math.round(baseImp * stateScale * avgOsa * objectiveMatch * cmBonus * competitorDrag * seasonMult);
 
     const goodKws = scenario.profile.goodKeywords;
     const goodHits = c.keywords.filter((k) => goodKws.includes(k)).length;
@@ -79,12 +123,15 @@ export function simulateRun(
 
     const ctr = 0.012 * kwQuality * formatMatch;
     const clicks = Math.round(impressions * ctr);
-    const atcs = Math.round(clicks * 0.25);
-    const units = Math.round(atcs * 0.6 * osaFactor);
+    // avgOsa gates conversions: low stock = shoppers hit OOS at checkout.
+    const atcs = Math.round(clicks * 0.25 * avgOsa);
+    const units = Math.round(atcs * 0.6);
     const spend = Math.min(c.budget || 0, Math.round((impressions / 1000) * 80 * competitorDrag));
-    const avgMrp = c.skuIds.length
-      ? c.skuIds.map((id) => scenario.profile.skus.find((s) => s.id === id)?.mrp ?? 0).reduce((a, b) => a + b, 0) / c.skuIds.length
-      : 0;
+    // Fall back to all scenario SKUs when none explicitly selected (brand_booster, listing_spotlight, stories collections)
+    const skuPool = c.skuIds.length > 0 ? c.skuIds : scenario.profile.skus.map((s) => s.id);
+    const avgMrp = skuPool
+      .map((id) => scenario.profile.skus.find((s) => s.id === id)?.mrp ?? 0)
+      .reduce((a, b) => a + b, 0) / Math.max(1, skuPool.length);
     const revenue = Math.round(units * avgMrp);
     const roas = spend > 0 ? revenue / spend : 0;
     const status: CampaignMetrics["status"] = roas >= 3 ? "strong" : roas >= 1.5 ? "average" : "failing";
@@ -141,11 +188,25 @@ export function simulateRun(
   // Decision score
   const objMatches = campaigns.some((c) => c.objective === scenario.profile.optimalObjective);
   const allCities = campaigns.flatMap((c) => c.cities);
-  const noBadCities = allCities.every((c) => (scenario.cityStockMap as any)[c] > 0);
+  // Use effectiveStockMap (post-CM) so CM-boosted cities aren't penalised.
+  const noBadCities = allCities.every((c) => (effectiveStockMap[c] ?? 0) > 0);
   const skuCount = new Set(campaigns.flatMap((c) => c.skuIds)).size;
   const kwAll = campaigns.flatMap((c) => c.keywords);
   const goodKw = kwAll.filter((k) => scenario.profile.goodKeywords.includes(k)).length;
   const kwGood = kwAll.length ? goodKw / kwAll.length >= 0.6 : false;
+
+  // ── Format bucket coverage ──────────────────────────────────────────────────
+  // Check whether the student's campaign portfolio covers the bucket(s) the
+  // brand's goal type requires.  A Volume-First brand needs BOTH awareness and
+  // conversion campaigns; a pure ROAS-First brand only needs conversion, etc.
+  const requiredBucket = requiredBuckets(scenario.profile.goalType);
+  const hasAwarenessCampaign = campaigns.some((c) => isAwarenessFormat(c.adFormat));
+  const hasConversionCampaign = campaigns.some((c) => isConversionFormat(c.adFormat));
+
+  const bucketCovered =
+    requiredBucket === "awareness"  ? hasAwarenessCampaign :
+    requiredBucket === "conversion" ? hasConversionCampaign :
+    /* both */                        hasAwarenessCampaign && hasConversionCampaign;
 
   // Phase 3 scoring
   const arch = detectArchitecture(campaigns);
@@ -160,10 +221,48 @@ export function simulateRun(
   const tokenScore = scoreTokenEconomy(phase3?.tokensSpent ?? 0);
   const clusterScore = (phase3?.clusterReactions ?? []).length > 0 ? 5 : 2;
 
+  // ── Budget Mix scoring ─────────────────────────────────────────────────────
+  // Reads the conversion% the student set in the Brief step and compares it
+  // against the recommended range for the brand's goalType.
+  const storedConvPct = typeof window !== "undefined"
+    ? Number(window.localStorage.getItem("sim_budget_intent_conv_pct") ?? "NaN")
+    : NaN;
+
+  const budgetMixRanges: Record<string, { min: number; max: number }> = {
+    "ROAS-First":        { min: 60, max: 80 },
+    "Volume-First":      { min: 50, max: 65 },
+    "Awareness-First":   { min: 20, max: 40 },
+    "Category-Creation": { min: 20, max: 40 },
+  };
+  const bmRange = budgetMixRanges[scenario.profile.goalType] ?? { min: 40, max: 60 };
+
+  let budgetMixEarned = 4; // neutral default when no value saved
+  let budgetMixLabel = "";
+  if (!isNaN(storedConvPct)) {
+    const deviation = storedConvPct < bmRange.min
+      ? bmRange.min - storedConvPct   // under-indexed on conversion
+      : storedConvPct > bmRange.max
+        ? storedConvPct - bmRange.max // over-indexed on conversion
+        : 0;
+    if (deviation === 0) {
+      budgetMixEarned = 8;
+      budgetMixLabel = `Budget mix aligned (${storedConvPct}% conversion) for ${scenario.profile.goalType}`;
+    } else if (deviation <= 10) {
+      budgetMixEarned = 5;
+      budgetMixLabel = `Budget mix slightly off — ${storedConvPct}% conversion (recommended ${bmRange.min}–${bmRange.max}% for ${scenario.profile.goalType})`;
+    } else {
+      budgetMixEarned = 2;
+      budgetMixLabel = `Budget over-indexed — ${storedConvPct}% conversion vs recommended ${bmRange.min}–${bmRange.max}% for ${scenario.profile.goalType}`;
+    }
+  }
+
   const decisionScore = [
     { label: "Brief comprehension", earned: objMatches ? 8 : 3, max: 8 },
     { label: "CM Pitch quality", earned: Math.min(8, cm?.pitchScore ?? 0), max: 8 },
-    { label: "Campaign Architecture", earned: archScore, max: 10 },
+    // bucketCovered is worth up to 4 of the 10 architecture points — the rest
+    // comes from archScore (city/SKU structure).  Missing a required bucket
+    // halves the architecture score regardless of structural quality.
+    { label: "Campaign Architecture", earned: bucketCovered ? archScore : Math.floor(archScore / 2), max: 10 },
     { label: "Launch Sequencing", earned: seqScored.score, max: 5 },
     { label: "Keyword Cannibalization", earned: Math.max(0, cannibalScore), max: 5 },
     { label: "Pin-Code Cluster Reactions", earned: clusterScore, max: 5 },
@@ -174,6 +273,7 @@ export function simulateRun(
     { label: "Stock Management", earned: noBadCities ? 7 : 3, max: 8 },
     { label: "Token Economy", earned: tokenScore, max: 5 },
     { label: "Budget Allocation", earned: kwGood ? 5 : 3, max: 5 },
+    { label: "Budget Mix Strategy", earned: budgetMixEarned, max: 8 },
     { label: "Goal Achievement", earned: achievementPct >= 90 ? 2 : achievementPct >= 70 ? 1 : 0, max: 2 },
   ];
   const decisionTotal = decisionScore.reduce((s, d) => s + d.earned, 0);
@@ -182,15 +282,39 @@ export function simulateRun(
   const wrongs: string[] = [];
   if (objMatches) rights.push(`Chose ${scenario.profile.optimalObjective} which matched the client's ${scenario.profile.goalType}`);
   if (cm?.status === "strong") rights.push("Strong CM pitch — premium shelf placement and OSA boost");
-  if (noBadCities) rights.push("Selected only stocked cities — no wasted budget");
+  if (noBadCities) rights.push("Selected only stocked cities — full budget delivered where stock exists");
   if (skuCount <= 2) rights.push("Focused SKU selection — concentrated impact");
   if (kwGood) rights.push("Mostly on-target keywords");
 
   if (!objMatches) wrongs.push(`Wrong objective — ${scenario.profile.optimalObjective} was the right call`);
-  if (!noBadCities) wrongs.push("Picked cities with zero stock — wasted impressions");
+  if (!noBadCities) wrongs.push("Included states with zero stock — Blinkit won't serve ads there, so your budget under-delivered and impression reach was limited to stocked states only");
   if (skuCount > 3) wrongs.push("Spread budget across too many SKUs — diluted impact");
   if (!kwGood && kwAll.length) wrongs.push("Selected too many risky keywords — competitive category, expensive clicks");
   if (cm?.status === "rejected" || cm?.status === "weak") wrongs.push("CM had concerns about your pitch");
+  if (budgetMixLabel) {
+    if (budgetMixEarned === 8) rights.push(budgetMixLabel);
+    else wrongs.push(budgetMixLabel);
+  }
+
+  // Bucket coverage feedback
+  if (bucketCovered) {
+    if (requiredBucket === "both") {
+      rights.push("Ran both awareness and conversion campaigns — covered the full funnel as the brief required");
+    } else if (requiredBucket === "awareness") {
+      rights.push(`Used awareness formats (listing_spotlight / brand_booster / stories) — correct for a ${scenario.profile.goalType} brand`);
+    } else {
+      rights.push(`Used conversion formats (product_booster / recommendation_ads) — correct for a ${scenario.profile.goalType} brand`);
+    }
+  } else {
+    if (requiredBucket === "both") {
+      if (!hasAwarenessCampaign) wrongs.push("Missing awareness campaign — this brand needs reach to feed the funnel. Add a listing_spotlight, brand_booster, or stories campaign.");
+      if (!hasConversionCampaign) wrongs.push("Missing conversion campaign — awareness alone won't hit the units/ROAS target. Add a product_booster or recommendation_ads campaign.");
+    } else if (requiredBucket === "awareness") {
+      wrongs.push(`${scenario.profile.goalType} brand needs awareness formats (listing_spotlight, brand_booster, stories) — running only conversion campaigns burns budget on people who don't know the brand yet.`);
+    } else {
+      wrongs.push(`${scenario.profile.goalType} brand needs conversion formats (product_booster, recommendation_ads) — awareness campaigns won't hit ROAS or units targets.`);
+    }
+  }
 
   // Phase 3 commentary
   if (arch === archOpt.optimal) rights.push(`Picked the optimal campaign architecture (${arch}) for this brand & stock map`);

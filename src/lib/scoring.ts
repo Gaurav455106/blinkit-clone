@@ -1,4 +1,37 @@
-import { Scenario, Crisis } from "@/data/scenarios";
+import { Scenario, Crisis, GoalType } from "@/data/scenarios";
+
+// ─── Format buckets ──────────────────────────────────────────────────────────
+// Awareness formats drive impressions, reach, and CTR lift.
+// Conversion formats drive units, ROAS, and CVR.
+export const AWARENESS_FORMATS = ["listing_spotlight", "brand_booster", "stories"] as const;
+export const CONVERSION_FORMATS = ["product_booster", "recommendation_ads"] as const;
+export type AwarenessFormat = typeof AWARENESS_FORMATS[number];
+export type ConversionFormat = typeof CONVERSION_FORMATS[number];
+
+/**
+ * Which bucket(s) does this goal type primarily need?
+ * "both" = the brief demands at least one campaign from each bucket.
+ */
+export function requiredBuckets(goalType: GoalType): "awareness" | "conversion" | "both" {
+  switch (goalType) {
+    case "Awareness-First":
+    case "Category-Creation":
+      return "awareness";
+    case "ROAS-First":
+    case "Inventory-Clearance":
+      return "conversion";
+    case "Volume-First":
+      // Volume brands need conversions but also need reach to build the funnel.
+      return "both";
+  }
+}
+
+export function isAwarenessFormat(fmt: string | null | undefined): boolean {
+  return AWARENESS_FORMATS.includes(fmt as AwarenessFormat);
+}
+export function isConversionFormat(fmt: string | null | undefined): boolean {
+  return CONVERSION_FORMATS.includes(fmt as ConversionFormat);
+}
 
 export interface CampaignChoices {
   objective: "performance" | "reach" | null;
@@ -52,19 +85,35 @@ const objectiveScore = (scen: Scenario, c: CampaignChoices): ScoreLine =>
     : { key: "obj", label: "Campaign Objective", earned: 0, max: 10, note: `Wrong objective — ${scen.profile.optimalObjective} was the right pick.` };
 
 const formatScore = (scen: Scenario, c: CampaignChoices): ScoreLine => {
-  if (c.adFormat === scen.profile.optimalAdFormat) {
-    return { key: "fmt", label: "Ad Format", earned: 15, max: 15, note: "Optimal ad format for this brand." };
+  const goal = scen.profile.goalType;
+  const fmt = c.adFormat;
+  const bucket = requiredBuckets(goal);
+
+  // Perfect match: correct bucket AND matches the brand's optimal format.
+  if (fmt === scen.profile.optimalAdFormat) {
+    return { key: "fmt", label: "Ad Format", earned: 15, max: 15, note: `${fmt} is the optimal format for a ${goal} brand.` };
   }
-  const acceptable: Record<string, string[]> = {
-    product_booster: ["recommendation_ads"],
-    recommendation_ads: ["product_booster"],
-    listing_spotlight: ["brand_booster"],
-    brand_booster: ["listing_spotlight"],
-  };
-  if (c.adFormat && acceptable[scen.profile.optimalAdFormat]?.includes(c.adFormat)) {
-    return { key: "fmt", label: "Ad Format", earned: 8, max: 15, note: "Acceptable alternative, but not optimal." };
+
+  // Right bucket, not the exact optimal format — still directionally correct.
+  const inAwareness = isAwarenessFormat(fmt);
+  const inConversion = isConversionFormat(fmt);
+
+  if (bucket === "awareness" && inAwareness) {
+    return { key: "fmt", label: "Ad Format", earned: 10, max: 15, note: `${fmt} is an awareness format — right direction for ${goal}, but ${scen.profile.optimalAdFormat} would be stronger.` };
   }
-  return { key: "fmt", label: "Ad Format", earned: 5, max: 15, note: "Format mismatched for this scenario." };
+  if ((bucket === "conversion" || bucket === "both") && inConversion) {
+    return { key: "fmt", label: "Ad Format", earned: 10, max: 15, note: `${fmt} is a conversion format — right direction for ${goal}, but ${scen.profile.optimalAdFormat} would be stronger.` };
+  }
+  if (bucket === "both" && inAwareness) {
+    // Volume-First brand — awareness format is acceptable if paired with a conversion campaign.
+    return { key: "fmt", label: "Ad Format", earned: 8, max: 15, note: `Awareness format for a Volume-First brand — valid if paired with a conversion campaign to close sales.` };
+  }
+
+  // Wrong bucket entirely.
+  const wrongBucketNote = bucket === "awareness"
+    ? `${goal} brands need reach, not conversions. Swap to listing_spotlight, brand_booster, or stories.`
+    : `${goal} brands need conversions, not awareness. Swap to product_booster or recommendation_ads.`;
+  return { key: "fmt", label: "Ad Format", earned: 2, max: 15, note: wrongBucketNote };
 };
 
 const geographyScore = (scen: Scenario, c: CampaignChoices): ScoreLine => {
