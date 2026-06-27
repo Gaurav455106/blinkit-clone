@@ -344,7 +344,14 @@ export function computeAllDays(input: EngineInput): EngineDayResult[] {
 
     // Stop early once past all campaign launch days AND nothing spent.
     // Guard: must be past maxLaunchDay + 1 to avoid killing campaigns that haven't started.
-    if (daySpend === 0 && d > maxLaunchDay + 1) break;
+    // Guard: don't stop if any campaign is in an active pause window (paused but not yet resumed)
+    // — the student may resume it and keep spending (e.g. after a crisis auto-pause).
+    const hasActivePause = campaigns.some((c) => {
+      if (c.isDraft) return false;
+      const opt = optimizations[c.id];
+      return (opt?.pausedAtDay ?? null) !== null && (opt?.resumedAtDay ?? null) === null;
+    });
+    if (daySpend === 0 && d > maxLaunchDay + 1 && !hasActivePause) break;
   }
 
   return results;
