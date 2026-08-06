@@ -57,20 +57,79 @@ export const BLINKIT_STATES = [
 ] as const;
 export type StateName = typeof BLINKIT_STATES[number];
 
-// State → cities with dark-store counts (internal drilldown only)
+// State → cities with dark-store counts (internal drilldown only).
+// Covers tier-1 and tier-2 cities for every operational state so the
+// campaign builder's city picker has real options everywhere.
 export const STATE_TO_CITIES: Partial<Record<StateName, { name: string; stores: number }[]>> = {
-  Karnataka: [{ name: "Bangalore", stores: 40 }, { name: "Mysore", stores: 8 }],
-  Maharashtra: [{ name: "Mumbai", stores: 48 }, { name: "Pune", stores: 15 }, { name: "Nashik", stores: 6 }],
-  Delhi: [{ name: "Delhi NCR", stores: 55 }],
-  Telangana: [{ name: "Hyderabad", stores: 28 }],
-  "Tamil Nadu": [{ name: "Chennai", stores: 25 }, { name: "Coimbatore", stores: 10 }],
-  "Uttar Pradesh": [{ name: "Noida", stores: 18 }, { name: "Lucknow", stores: 14 }],
-  "West Bengal": [{ name: "Kolkata", stores: 20 }],
-  Gujarat: [{ name: "Ahmedabad", stores: 18 }, { name: "Surat", stores: 12 }],
-  Haryana: [{ name: "Gurgaon", stores: 15 }, { name: "Faridabad", stores: 9 }],
-  Rajasthan: [{ name: "Jaipur", stores: 15 }],
-  Punjab: [{ name: "Ludhiana", stores: 8 }, { name: "Amritsar", stores: 6 }],
-  Kerala: [{ name: "Kochi", stores: 10 }, { name: "Thiruvananthapuram", stores: 7 }],
+  "Andhra Pradesh": [
+    { name: "Visakhapatnam", stores: 18 }, { name: "Vijayawada", stores: 12 }, { name: "Guntur", stores: 6 },
+  ],
+  Assam: [
+    { name: "Guwahati", stores: 14 }, { name: "Dibrugarh", stores: 4 },
+  ],
+  Bihar: [
+    { name: "Patna", stores: 16 }, { name: "Gaya", stores: 5 }, { name: "Muzaffarpur", stores: 4 },
+  ],
+  Chhattisgarh: [
+    { name: "Raipur", stores: 10 }, { name: "Bhilai", stores: 5 },
+  ],
+  Delhi: [
+    { name: "Delhi NCR", stores: 55 },
+  ],
+  Goa: [
+    { name: "Panaji", stores: 6 }, { name: "Margao", stores: 4 },
+  ],
+  Gujarat: [
+    { name: "Ahmedabad", stores: 18 }, { name: "Surat", stores: 12 }, { name: "Vadodara", stores: 8 }, { name: "Rajkot", stores: 6 },
+  ],
+  Haryana: [
+    { name: "Gurgaon", stores: 15 }, { name: "Faridabad", stores: 9 }, { name: "Panipat", stores: 4 },
+  ],
+  "Himachal Pradesh": [
+    { name: "Shimla", stores: 5 }, { name: "Dharamshala", stores: 3 },
+  ],
+  "Jammu & Kashmir": [
+    { name: "Srinagar", stores: 6 }, { name: "Jammu", stores: 5 },
+  ],
+  Jharkhand: [
+    { name: "Ranchi", stores: 8 }, { name: "Jamshedpur", stores: 6 },
+  ],
+  Karnataka: [
+    { name: "Bangalore", stores: 40 }, { name: "Mysore", stores: 8 }, { name: "Hubballi", stores: 5 },
+  ],
+  Kerala: [
+    { name: "Kochi", stores: 10 }, { name: "Thiruvananthapuram", stores: 7 }, { name: "Kozhikode", stores: 5 },
+  ],
+  "Madhya Pradesh": [
+    { name: "Indore", stores: 14 }, { name: "Bhopal", stores: 10 }, { name: "Jabalpur", stores: 6 },
+  ],
+  Maharashtra: [
+    { name: "Mumbai", stores: 48 }, { name: "Pune", stores: 15 }, { name: "Nagpur", stores: 7 }, { name: "Nashik", stores: 6 },
+  ],
+  Odisha: [
+    { name: "Bhubaneswar", stores: 9 }, { name: "Cuttack", stores: 5 },
+  ],
+  Punjab: [
+    { name: "Ludhiana", stores: 8 }, { name: "Amritsar", stores: 6 }, { name: "Jalandhar", stores: 4 },
+  ],
+  Rajasthan: [
+    { name: "Jaipur", stores: 15 }, { name: "Jodhpur", stores: 6 }, { name: "Udaipur", stores: 4 },
+  ],
+  "Tamil Nadu": [
+    { name: "Chennai", stores: 25 }, { name: "Coimbatore", stores: 10 }, { name: "Madurai", stores: 6 },
+  ],
+  Telangana: [
+    { name: "Hyderabad", stores: 28 }, { name: "Warangal", stores: 5 },
+  ],
+  "Uttar Pradesh": [
+    { name: "Noida", stores: 18 }, { name: "Lucknow", stores: 14 }, { name: "Kanpur", stores: 8 }, { name: "Varanasi", stores: 6 }, { name: "Agra", stores: 5 },
+  ],
+  Uttarakhand: [
+    { name: "Dehradun", stores: 6 }, { name: "Haridwar", stores: 3 },
+  ],
+  "West Bengal": [
+    { name: "Kolkata", stores: 20 }, { name: "Siliguri", stores: 5 }, { name: "Durgapur", stores: 3 },
+  ],
 };
 
 // Back-compat alias: CityName is now a state name everywhere in the codebase.

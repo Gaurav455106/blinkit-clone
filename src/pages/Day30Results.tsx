@@ -259,7 +259,18 @@ export default function Day30Results() {
            : finalScore.results.achievementPct >= 50 ? "bronze"
            : null,
       snapshot: snapshotForCloud,
-    }).then(({ error }) => { if (error) console.error("attempt save failed", error); });
+    }).then(({ error }) => {
+      if (error) {
+        console.error("attempt save failed", error);
+        return;
+      }
+      // Only clear the live-run row once the permanent record is confirmed
+      // saved — if the insert above failed, the row stays so the run isn't lost.
+      supabase.from("run_sessions").delete().eq("email", student.email)
+        .then(({ error: sessionError }) => {
+          if (sessionError) console.warn("[sim] run_sessions delete failed", sessionError);
+        });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

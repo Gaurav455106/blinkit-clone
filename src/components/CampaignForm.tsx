@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSim } from "@/context/SimContext";
@@ -27,7 +27,7 @@ type AdAsset = "product_booster" | "recommendation_ads" | "listing_spotlight" | 
 // All wizard localStorage keys — used for clear-on-mount and snapshot capture
 const WIZARD_KEYS = [
   "campaign_step", "campaign_name", "campaign_objective", "campaign_adAsset",
-  "sim_geography", "sim_selected_cities", "sim_schedule_type", "sim_selected_days",
+  "sim_geography", "sim_selected_cities", "sim_selected_city_leaves", "sim_schedule_type", "sim_selected_days",
   "sim_timeslot_enabled", "sim_dayparting", "sim_daypart_preset",
   "sim_selected_skus", "sim_added_skus", "sim_sku_strategy",
   "sim_selected_keywords", "sim_keyword_exact_bids", "sim_keyword_smart_bids", "sim_keyword_smart_enabled",
@@ -73,6 +73,11 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
 
   // Stable draft ID for this form session
   const [draftId] = useState<string>(() => editCampaign?.draftId ?? `draft-${Date.now()}-${Math.random().toString(36).slice(2,7)}`);
+
+  // This form always renders inside a Radix Dialog/Sheet. Popovers opened from
+  // within it (e.g. the city picker) must portal inside this container rather
+  // than document.body, or the Dialog's scroll lock blocks wheel-scrolling them.
+  const wizardRootRef = useRef<HTMLDivElement>(null);
 
   // On mount: restore snapshot if editing a draft, else clear wizard state for a fresh form
   useEffect(() => {
@@ -277,7 +282,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
   ];
 
   return (
-    <div className={`flex w-full ${asSheet ? "h-full" : "h-screen"} bg-background overflow-hidden`}>
+    <div ref={wizardRootRef} className={`flex w-full ${asSheet ? "h-full" : "h-screen"} bg-background overflow-hidden`}>
       {/* ── Platform sidebar ── */}
       <div className={`flex flex-col border-r border-border bg-card h-full transition-all duration-200 ${sidebarCollapsed ? "w-14" : "w-52"} shrink-0`}>
         <div className="flex items-center gap-2 px-3 py-4 border-b border-border">
@@ -617,7 +622,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
         )}
 
         {currentStep === 1 && (adAsset === "product_booster" || adAsset === "recommendation_ads" || adAsset === "listing_spotlight" || adAsset === "brand_booster" || adAsset === "stories") && (
-          <ProductBoosterSettings onRegionValid={setRegionValid} showAdSchedule={adAsset === "stories"} />
+          <ProductBoosterSettings onRegionValid={setRegionValid} showAdSchedule={adAsset === "stories"} portalContainer={wizardRootRef.current} />
         )}
 
         {currentStep === 1 && adAsset !== "product_booster" && adAsset !== "recommendation_ads" && adAsset !== "listing_spotlight" && adAsset !== "brand_booster" && adAsset !== "stories" && (

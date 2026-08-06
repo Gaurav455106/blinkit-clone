@@ -9,9 +9,16 @@ const PopoverTrigger = PopoverPrimitive.Trigger;
 
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+    // Mount the portal inside a specific DOM node (e.g. the enclosing Dialog's
+    // content element) instead of document.body. Needed when this popover opens
+    // inside a modal Dialog — Radix Dialog's scroll lock only permits wheel
+    // scrolling on elements it recognizes as descendants of its own content,
+    // and a document.body-portaled popover is a sibling, not a descendant.
+    portalContainer?: HTMLElement | null;
+  }
+>(({ className, align = "center", sideOffset = 4, portalContainer, ...props }, ref) => (
+  <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}

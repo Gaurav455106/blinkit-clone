@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Info, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Info, Search, ChevronDown } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useSim } from "@/context/SimContext";
-import { BLINKIT_STATES } from "@/data/scenarios";
+import { BLINKIT_STATES, STATE_TO_CITIES } from "@/data/scenarios";
 
 interface ProductBoosterSettingsProps {
   onRegionValid?: (valid: boolean) => void;
   showAdSchedule?: boolean;
+  // DOM node to portal the city-picker dropdown into (see popover.tsx) —
+  // needed so it stays scrollable inside the enclosing Dialog/Sheet.
+  portalContainer?: HTMLElement | null;
 }
 
 const TIME_SLOTS = [
@@ -30,27 +34,46 @@ const PRESETS = {
   "24_7": [0, 1, 2, 3, 4, 5, 6, 7],
 } as const;
 
-export function ProductBoosterSettings({ onRegionValid, showAdSchedule = false }: ProductBoosterSettingsProps) {
+export function ProductBoosterSettings({ onRegionValid, showAdSchedule = false, portalContainer }: ProductBoosterSettingsProps) {
   const { scenario, cmPitch } = useSim();
   const [startDate, setStartDate] = useLocalStorage("sim_campaign_start_date", "2026-02-09");
   const [noEndDate, setNoEndDate] = useState(true);
   const [endDate, setEndDate] = useLocalStorage("sim_campaign_end_date", "");
   const [regionType, setRegionType] = useLocalStorage<"pan_india" | "select_cities" | null>("sim_geography", null);
+  // Engine-facing: STATE names only — this is what stock/OSA/scoring actually key on.
   const [selectedCities, setSelectedCities] = useLocalStorage<string[]>("sim_selected_cities", []);
+  // UI-facing: the individual cities the user actually checked. Selecting any city
+  // under a state marks that whole state as targeted (the sim has no city-level
+  // stock model), so selectedCities above is always derived from this.
+  const [selectedCityLeaves, setSelectedCityLeaves] = useLocalStorage<string[]>("sim_selected_city_leaves", []);
   const [dayparting, setDayparting] = useLocalStorage<number[]>("sim_dayparting", [0, 1, 2, 3, 4, 5, 6, 7]);
   const [preset, setPreset] = useLocalStorage<string>("sim_daypart_preset", "24_7");
   const [scheduleType, setScheduleType] = useLocalStorage<"all_days" | "days_of_week">("sim_schedule_type", "all_days");
   const [selectedDays, setSelectedDays] = useLocalStorage<number[]>("sim_selected_days", [0, 1, 2, 3, 4, 5, 6]);
   const [timeSlotEnabled, setTimeSlotEnabled] = useLocalStorage<boolean>("sim_timeslot_enabled", false);
   const [stateSearch, setStateSearch] = useState("");
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false);
 
   useEffect(() => {
-    const valid = regionType === "pan_india" || (regionType === "select_cities" && selectedCities.length > 0);
+    const valid = regionType === "pan_india" || (regionType === "select_cities" && selectedCityLeaves.length > 0);
     onRegionValid?.(valid);
-  }, [regionType, selectedCities, onRegionValid]);
+  }, [regionType, selectedCityLeaves, onRegionValid]);
 
-  const toggleState = (state: string) =>
-    setSelectedCities((prev) => prev.includes(state) ? prev.filter((x) => x !== state) : [...prev, state]);
+  // Keep the engine-facing state list in sync with whichever cities are checked.
+  useEffect(() => {
+    const states = Array.from(new Set(selectedCityLeaves.map((leaf) => leaf.split("::")[0])));
+    const same = states.length === selectedCities.length && states.every((s) => selectedCities.includes(s));
+    if (!same) setSelectedCities(states);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCityLeaves]);
+
+  const cityKey = (state: string, city: string) => `${state}::${city}`;
+  const isCitySelected = (state: string, city: string) => selectedCityLeaves.includes(cityKey(state, city));
+  const toggleCity = (state: string, city: string) => {
+    const key = cityKey(state, city);
+    setSelectedCityLeaves((prev) => prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]);
+  };
+  const selectedCityCount = selectedCityLeaves.length;
 
   const applyPreset = (key: keyof typeof PRESETS) => {
     setPreset(key);
@@ -137,61 +160,84 @@ export function ProductBoosterSettings({ onRegionValid, showAdSchedule = false }
               }`}>
                 {regionType === "select_cities" && <div className="h-2 w-2 rounded-full bg-white" />}
               </div>
-              <span className="text-sm font-medium text-foreground">Select States</span>
+              <span className="text-sm font-medium text-foreground">Select Cities</span>
             </div>
 
             {regionType === "select_cities" && (
               <div className="ml-8 mt-3">
-                {/* Search */}
-                <div className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5 max-w-xs mb-3 bg-background">
-                  <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <input
-                    value={stateSearch}
-                    onChange={(e) => setStateSearch(e.target.value)}
-                    placeholder="Search states…"
-                    className="flex-1 text-sm outline-none bg-transparent placeholder:text-muted-foreground"
-                  />
-                </div>
+                <Popover open={regionPickerOpen} onOpenChange={setRegionPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center justify-between gap-2 w-full max-w-xs border border-border rounded-md px-3 py-2 text-sm bg-background hover:border-primary/50 transition-colors"
+                    >
+                      <span className={selectedCityCount ? "text-foreground" : "text-muted-foreground"}>
+                        {selectedCityCount === 0 ? "Select cities…" : `${selectedCityCount} cit${selectedCityCount === 1 ? "y" : "ies"} selected`}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-80 p-0" portalContainer={portalContainer}>
+                    {/* Search */}
+                    <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <input
+                        value={stateSearch}
+                        onChange={(e) => setStateSearch(e.target.value)}
+                        placeholder="Search state or city…"
+                        className="flex-1 text-sm outline-none bg-transparent placeholder:text-muted-foreground"
+                        autoFocus
+                      />
+                    </div>
 
-                {/* State chip grid */}
-                <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto pr-1">
-                  {BLINKIT_STATES
-                    .filter((s) => !stateSearch.trim() || s.toLowerCase().includes(stateSearch.toLowerCase()))
-                    .map((s) => {
-                      const osa = scenario?.cityStockMap[s] ?? 0;
-                      const isApproved = cmPitch?.approvedCities.includes(s) ?? false;
-                      const hasBoost = (cmPitch?.osaBoost ?? false) && isApproved;
-                      const isSelected = selectedCities.includes(s);
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => toggleState(s)}
-                          className={`flex flex-col items-start gap-0.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                            isSelected
-                              ? "ring-2 ring-primary border-primary bg-primary/5 text-foreground"
-                              : "border-border bg-background text-foreground hover:border-primary/50"
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            {isApproved && (
-                              <span className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 leading-tight">CM ✓</span>
-                            )}
-                            <span>{s}</span>
-                          </div>
-                          <div className={`text-[10px] font-normal ${
-                            osa >= 70 ? "text-green-600" : osa > 0 ? "text-amber-600" : "text-red-500"
-                          }`}>
-                            {osa > 0 ? `${osa}% OSA${hasBoost ? " +10%↑" : ""}` : "⚠ No stock"}
-                          </div>
-                        </button>
-                      );
-                    })}
-                </div>
+                    {/* State → city list — cities are the selectable unit */}
+                    <div className="max-h-72 overflow-y-auto py-1">
+                      {BLINKIT_STATES
+                        .map((s) => ({ state: s, cities: STATE_TO_CITIES[s] ?? [] }))
+                        .filter(({ state, cities }) => {
+                          const q = stateSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return state.toLowerCase().includes(q) || cities.some((c) => c.name.toLowerCase().includes(q));
+                        })
+                        .map(({ state, cities }) => {
+                          const isApproved = cmPitch?.approvedCities.includes(state) ?? false;
+                          const q = stateSearch.trim().toLowerCase();
+                          const visibleCities = q && !state.toLowerCase().includes(q)
+                            ? cities.filter((c) => c.name.toLowerCase().includes(q))
+                            : cities;
+                          return (
+                            <div key={state}>
+                              <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1">
+                                {isApproved && (
+                                  <span className="text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded px-1 leading-tight shrink-0">CM ✓</span>
+                                )}
+                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">{state}</span>
+                              </div>
+                              <div>
+                                {visibleCities.map((c) => (
+                                  <label
+                                    key={c.name}
+                                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 cursor-pointer"
+                                  >
+                                    <Checkbox
+                                      checked={isCitySelected(state, c.name)}
+                                      onCheckedChange={() => toggleCity(state, c.name)}
+                                      className="shrink-0"
+                                    />
+                                    <span className="text-sm text-foreground truncate">{c.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
 
                 {selectedCities.length > 0 && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    {selectedCities.length} state{selectedCities.length === 1 ? "" : "s"} selected
+                    {selectedCityCount} cit{selectedCityCount === 1 ? "y" : "ies"} across {selectedCities.length} state{selectedCities.length === 1 ? "" : "s"} selected
                   </p>
                 )}
               </div>

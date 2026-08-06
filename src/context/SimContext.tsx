@@ -526,6 +526,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
     [
       "campaign_step", "campaign_name", "campaign_objective", "campaign_adAsset",
       "sim_selected_skus", "sim_selected_keywords", "sim_geography", "sim_budget_type", "sim_sku_strategy",
+      // Region/city picker — must not carry over into the next scenario's campaigns
+      "sim_selected_cities", "sim_selected_city_leaves",
       // Brief acknowledgement — must re-pass quiz for each new scenario
       "sim_brief_ack", "sim_budget_intent_conversion", "sim_budget_intent_reach", "sim_budget_intent_conv_pct",
     ].forEach((k) => localStorage.removeItem(k));
@@ -769,12 +771,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
           : r,
       ),
     );
-    // Clear the live-run row in the backend (the completed attempt itself is
-    // saved separately by Day30Results via supabase.from('attempts').insert).
-    if (student) {
-      supabase.from("run_sessions").delete().eq("email", student.email)
-        .then(({ error }) => { if (error) console.warn("[sim] run_sessions delete failed", error); });
-    }
+    // The live-run row is cleared by Day30Results only after the permanent
+    // attempt has been saved successfully — never unconditionally here, so a
+    // failed save can't wipe both the live row and the permanent record.
     // Keep activeRunId set so /results stays viewable until the student leaves.
     // It is cleared when they land on /dashboard or start a new scenario.
   };

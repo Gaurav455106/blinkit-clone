@@ -6,7 +6,7 @@ import { TrainerHeader } from "@/components/TrainerHeader";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Users, GraduationCap, TrendingUp, Search,
-  ChevronDown, ChevronUp, Trash2, Download, AlertTriangle,
+  ChevronDown, ChevronUp, Trash2, Download, AlertTriangle, Clock,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -249,6 +249,17 @@ export default function Admin() {
   const [deleteTarget, setDeleteTarget] = useState<Attempt | null>(null);
   const [deleting,    setDeleting]    = useState(false);
 
+  // Batch-level delete (typed confirmation — higher blast radius than a single student)
+  const [batchDeleteTarget,  setBatchDeleteTarget]  = useState<string | null>(null);
+  const [batchDeleteConfirm, setBatchDeleteConfirm] = useState("");
+  const [batchDeleting,      setBatchDeleting]      = useState(false);
+
+  // Manual "clear stale live sessions" (replaces the old nightly auto-cleanup)
+  const [staleSessionsOpen,  setStaleSessionsOpen]  = useState(false);
+  const [staleSessionCount,  setStaleSessionCount]  = useState<number | null>(null);
+  const [staleSessionsBusy,  setStaleSessionsBusy]  = useState(false);
+  const STALE_SESSION_DAYS = 7;
+
   const fetchData = () => {
     setLoading(true);
     supabase.from("attempts").select("*").order("created_at", { ascending: false }).limit(5000)
@@ -320,6 +331,53 @@ export default function Admin() {
     setDeleteTarget(null);
   };
 
+  // ── Batch delete handler ────────────────────────────────────────────────────
+  const confirmBatchDelete = async () => {
+    if (!batchDeleteTarget) return;
+    setBatchDeleting(true);
+    const { error } = await supabase.from("attempts").delete().eq("batch_code", batchDeleteTarget);
+    if (!error) {
+      // Best-effort — stale live-session rows for this batch aren't worth blocking on.
+      await supabase.from("run_sessions").delete().eq("batch_code", batchDeleteTarget);
+    }
+    setBatchDeleting(false);
+    if (error) {
+      toast.error(`Batch delete failed: ${error.message}`);
+    } else {
+      toast.success(`Deleted all attempts for batch ${batchDeleteTarget}`);
+      setRows((prev) => prev.filter((r) => r.batch_code !== batchDeleteTarget));
+      if (activeBatch === batchDeleteTarget) setActiveBatch("All");
+    }
+    setBatchDeleteTarget(null);
+    setBatchDeleteConfirm("");
+  };
+
+  // ── Stale live-session cleanup (manual — replaces the old nightly cron) ─────
+  const openStaleSessions = async () => {
+    const cutoff = new Date(Date.now() - STALE_SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { count, error } = await supabase
+      .from("run_sessions")
+      .select("*", { count: "exact", head: true })
+      .lt("last_seen_at", cutoff);
+    if (error) { toast.error(`Couldn't check stale sessions: ${error.message}`); return; }
+    setStaleSessionCount(count ?? 0);
+    setStaleSessionsOpen(true);
+  };
+
+  const confirmClearStaleSessions = async () => {
+    setStaleSessionsBusy(true);
+    const cutoff = new Date(Date.now() - STALE_SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from("run_sessions").delete().lt("last_seen_at", cutoff);
+    setStaleSessionsBusy(false);
+    if (error) {
+      toast.error(`Clear failed: ${error.message}`);
+    } else {
+      toast.success(`Cleared ${staleSessionCount ?? 0} stale live session(s). Saved scores are untouched.`);
+    }
+    setStaleSessionsOpen(false);
+    setStaleSessionCount(null);
+  };
+
   // ── CSV exports ─────────────────────────────────────────────────────────────
   const exportBatch = () => {
     const list = activeBatch === "All" ? bestByEmail : bestByEmail.filter((r) => r.batch_code === activeBatch);
@@ -350,6 +408,9 @@ export default function Admin() {
             <p className="text-xs text-muted-foreground">Full data access · delete records · export CSVs</p>
           </div>
           <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={openStaleSessions}>
+              <Clock className="h-3.5 w-3.5" /> Clear Stale Sessions
+            </Button>
             <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={exportBatch}>
               <Download className="h-3.5 w-3.5" />
               Export {activeBatch === "All" ? "All" : activeBatch} CSV
@@ -402,19 +463,30 @@ export default function Admin() {
                   <td className="p-3 text-sm">{top?.name} ({top?.score_total})</td>
                   <td className="p-3 text-sm text-muted-foreground">{mistake}</td>
                   <td className="p-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-[11px] text-muted-foreground gap-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const list = bestByEmail.filter((r) => r.batch_code === batch);
-                        downloadCSV(toCSV(list), `blinkit-sim-${batch}-${Date.now()}.csv`);
-                        toast.success(`Exported ${list.length} records for ${batch}`);
-                      }}
-                    >
-                      <Download className="h-3 w-3" /> CSV
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-[11px] text-muted-foreground gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const list = bestByEmail.filter((r) => r.batch_code === batch);
+                          downloadCSV(toCSV(list), `blinkit-sim-${batch}-${Date.now()}.csv`);
+                          toast.success(`Exported ${list.length} records for ${batch}`);
+                        }}
+                      >
+                        <Download className="h-3 w-3" /> CSV
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-[11px] text-destructive hover:bg-destructive/10 gap-1"
+                        onClick={(e) => { e.stopPropagation(); setBatchDeleteTarget(batch); }}
+                        title="Delete entire batch"
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete batch
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -500,6 +572,81 @@ export default function Admin() {
               disabled={deleting}
             >
               {deleting ? "Deleting…" : "Yes, delete permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch delete confirmation dialog — typed confirmation, higher blast radius */}
+      <Dialog
+        open={!!batchDeleteTarget}
+        onOpenChange={(o) => { if (!o) { setBatchDeleteTarget(null); setBatchDeleteConfirm(""); } }}
+      >
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-4 w-4" /> Delete entire batch?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete <span className="font-semibold text-foreground">
+              {bestByEmail.filter((r) => r.batch_code === batchDeleteTarget).length}
+            </span> students' attempts in batch{" "}
+            <span className="font-semibold text-foreground">{batchDeleteTarget}</span>. This cannot be undone.
+            Consider exporting a CSV first.
+          </p>
+          <div>
+            <label className="text-xs font-semibold text-foreground">
+              Type <span className="font-mono">{batchDeleteTarget}</span> to confirm
+            </label>
+            <Input
+              value={batchDeleteConfirm}
+              onChange={(e) => setBatchDeleteConfirm(e.target.value)}
+              placeholder={batchDeleteTarget ?? ""}
+              className="mt-1"
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setBatchDeleteTarget(null); setBatchDeleteConfirm(""); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmBatchDelete}
+              disabled={batchDeleting || batchDeleteConfirm !== batchDeleteTarget}
+            >
+              {batchDeleting ? "Deleting…" : "Yes, delete batch permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stale live-session cleanup dialog — manual, replaces the old nightly cron */}
+      <Dialog open={staleSessionsOpen} onOpenChange={(o) => { if (!o) { setStaleSessionsOpen(false); setStaleSessionCount(null); } }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-600" /> Clear stale live sessions?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {staleSessionCount === 0
+              ? "No live sessions have been inactive for more than 7 days — nothing to clear."
+              : <>This will remove <span className="font-semibold text-foreground">{staleSessionCount}</span> "in progress"
+                  session marker{staleSessionCount === 1 ? "" : "s"} inactive for over {STALE_SESSION_DAYS} days.
+                  This only clears in-progress trackers — it does <span className="font-semibold">not</span> touch
+                  any saved scores or attempts.</>}
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setStaleSessionsOpen(false); setStaleSessionCount(null); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmClearStaleSessions}
+              disabled={staleSessionsBusy || !staleSessionCount}
+            >
+              {staleSessionsBusy ? "Clearing…" : "Clear stale sessions"}
             </Button>
           </DialogFooter>
         </DialogContent>
