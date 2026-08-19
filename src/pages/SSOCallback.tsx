@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { useSim } from "@/context/SimContext";
 
-const HUB_URL  = "https://simulationmixer-dv360-more.vercel.app";
+const HUB_URL  = "https://ksstudentshub.vercel.app";
 const SIM_SLUG = "blinkit-sim";
 
 // Fetches and caches the hub's public key — no credentials needed
@@ -77,7 +77,7 @@ export default function SSOCallback() {
           <h1 className="text-lg font-bold text-foreground">Login Failed</h1>
           <p className="text-sm text-muted-foreground">{error}</p>
           <a
-            href="https://simulationmixer-dv360-more.vercel.app"
+            href={HUB_URL}
             className="inline-block mt-4 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
           >
             Back to Kraftshala Hub
