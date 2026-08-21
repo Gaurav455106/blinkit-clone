@@ -260,10 +260,23 @@ export default function Admin() {
   const [staleSessionsBusy,  setStaleSessionsBusy]  = useState(false);
   const STALE_SESSION_DAYS = 7;
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const fetchData = () => {
     setLoading(true);
+    setLoadError(null);
     supabase.from("attempts").select("*").order("created_at", { ascending: false }).limit(5000)
-      .then(({ data }) => { setRows((data as any) ?? []); setLoading(false); });
+      .then(({ data, error }) => {
+        // Previously `error` was ignored, so a failed read rendered an empty table
+        // and looked identical to "no scores recorded". Always surface it.
+        if (error) {
+          console.error("[admin] attempts load failed", error);
+          setLoadError(error.message);
+          toast.error(`Couldn't load attempts: ${error.message}`);
+        }
+        setRows((data as any) ?? []);
+        setLoading(false);
+      });
   };
   useEffect(fetchData, []);
 
@@ -540,7 +553,16 @@ export default function Admin() {
               {loading && (
                 <tr><td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">Loading…</td></tr>
               )}
-              {!loading && filtered.length === 0 && (
+              {/* Distinguish "the query failed" from "there is genuinely no data" —
+                  conflating the two is what made missing scores hard to diagnose. */}
+              {!loading && loadError && (
+                <tr><td colSpan={6} className="p-6 text-center text-sm">
+                  <span className="text-destructive font-medium">Couldn't load attempts.</span>
+                  <span className="text-muted-foreground"> {loadError}</span>
+                  <button onClick={fetchData} className="ml-2 underline text-primary">Retry</button>
+                </td></tr>
+              )}
+              {!loading && !loadError && filtered.length === 0 && (
                 <tr><td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">No students match your search</td></tr>
               )}
               {filtered.map((row) => (

@@ -4,6 +4,11 @@
 > **For all logic, scoring formulas, brand profiles, and module interconnections — read `DEPENDENCIES.md` first.**  
 > CLAUDE.md covers project structure; DEPENDENCIES.md covers how everything calculates and connects.
 
+> ⚠️ **Never use bare `npx tsc --noEmit`.** The root `tsconfig.json` is a solution
+> file (`"files": []` + project references), so that command checks **zero files**
+> and always exits 0 — it silently reports success no matter what is broken.
+> Use `npm run typecheck` (= `tsc -p tsconfig.app.json --noEmit`).
+
 ---
 
 ## Purpose
@@ -11,9 +16,9 @@ A training simulation of the Blinkit advertising platform for student marketers.
 
 ## Commands
 ```bash
-npm run dev       # start dev server (localhost:5173)
-npx tsc --noEmit  # type-check — run after every code change
-npm run build     # production build
+npm run dev        # start dev server (localhost:5173)
+npm run typecheck  # type-check — run after every code change
+npm run build      # production build
 ```
 
 ---

@@ -23,6 +23,14 @@ const BASE_CTR         = 0.015; // 1.5% click-through rate
 const BASE_CVR         = 0.18;  // 18% add-to-cart rate (real Blinkit range: 15–25%)
 const ATC_TO_UNITS     = 0.85;  // 85% of ATCs become completed purchases
 
+/**
+ * Consecutive zero-spend days required before the engine gives up on a run.
+ * Kept at a full week so weekly ad schedules (Stories "days_of_week") and
+ * crisis pause windows can't truncate the simulation. Budget exhaustion is
+ * handled separately at the top of the day loop.
+ */
+const ZERO_SPEND_BREAK_STREAK = 7;
+
 // Time-slot CPM multipliers (indices 0–7, matching 3-hour blocks from 12 AM)
 // Slot 0: 12–3 AM, 1: 3–6 AM, 2: 6–9 AM, 3: 9–12 PM,
 // 4: 12–3 PM,  5: 3–6 PM,  6: 6–9 PM (peak), 7: 9–12 AM
@@ -196,6 +204,10 @@ export function computeAllDays(input: EngineInput): EngineDayResult[] {
   const results: EngineDayResult[] = [];
   let cumulativeSpend = 0;
 
+  // Consecutive zero-spend days seen so far — reset by any day with spend.
+  // Used by the early-exit guard at the bottom of the day loop.
+  let zeroSpendStreak = 0;
+
   // Latest launchDay across all active campaigns — used for the early-exit guard.
   // Without this, campaigns with launchDay > 3 would never run because the engine
   // exits after 1 consecutive zero-spend day past day 3.
@@ -342,16 +354,40 @@ export function computeAllDays(input: EngineInput): EngineDayResult[] {
       byCampaign,
     });
 
-    // Stop early once past all campaign launch days AND nothing spent.
-    // Guard: must be past maxLaunchDay + 1 to avoid killing campaigns that haven't started.
-    // Guard: don't stop if any campaign is in an active pause window (paused but not yet resumed)
-    // — the student may resume it and keep spending (e.g. after a crisis auto-pause).
-    const hasActivePause = campaigns.some((c) => {
+    // ── Early exit ────────────────────────────────────────────────────────────
+    // Stop once the run is genuinely over — but be very conservative, because
+    // results.length drives simLength in LiveDashboard. Truncating here shortens
+    // the whole simulation and can fire the auto-end redirect to /results.
+    //
+    // Was: "is any campaign paused RIGHT NOW (paused && never resumed)?"
+    // That question is timeless, so the moment a student hit Resume it answered
+    // "no" — retroactively unprotecting the pause window the run had already
+    // lived through. The engine then broke on the first zero-spend day inside
+    // that window, collapsing simLength and ending the run abruptly.
+    //
+    // Now: "was any campaign paused ON THIS DAY d?" — a per-day question whose
+    // answer never changes when a later resume happens. Mirrors the inPauseWindow
+    // test used above to skip campaigns, so the two cannot disagree.
+    const pausedOnThisDay = campaigns.some((c) => {
       if (c.isDraft) return false;
-      const opt = optimizations[c.id];
-      return (opt?.pausedAtDay ?? null) !== null && (opt?.resumedAtDay ?? null) === null;
+      const opt       = optimizations[c.id];
+      const pausedAt  = opt?.pausedAtDay  ?? null;
+      const resumedAt = opt?.resumedAtDay ?? null;
+      if (pausedAt === null) return false;
+      return d >= pausedAt && (resumedAt === null || d < resumedAt);
     });
-    if (daySpend === 0 && d > maxLaunchDay + 1 && !hasActivePause) break;
+
+    // Require a sustained run of dead days before quitting. A single quiet day is
+    // normal — e.g. a Stories campaign with scheduleType "days_of_week" is dark on
+    // every unselected weekday, which previously truncated the run on day one of
+    // the gap. A full week covers any weekly schedule pattern.
+    zeroSpendStreak = daySpend === 0 ? zeroSpendStreak + 1 : 0;
+
+    if (
+      zeroSpendStreak >= ZERO_SPEND_BREAK_STREAK &&
+      d > maxLaunchDay + 1 &&
+      !pausedOnThisDay
+    ) break;
   }
 
   return results;

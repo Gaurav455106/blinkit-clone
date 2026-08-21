@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { simulateRun } from "@/lib/simResults";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { RefreshCw, Trophy, BarChart3, Home, Copy, Check } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -216,8 +217,15 @@ export default function Day30Results() {
   useEffect(() => {
     if (savedRef.current) return;
     if (mode === "review") return;
-    if (!activeRunId) return;
-    if (!finalScore) return;
+
+    // These two can legitimately be unready on the first render (context hydrating
+    // from localStorage, finalScore still memoising). With an empty dep array this
+    // effect bailed here and never ran again, so the attempt was silently never
+    // saved. Deps below now include them so the save retries once they land.
+    if (!activeRunId) { console.warn("[sim] attempt save deferred — no activeRunId yet"); return; }
+    if (!finalScore)  { console.warn("[sim] attempt save deferred — finalScore not ready"); return; }
+
+    // Set synchronously before the async insert so a re-run can't double-insert.
     savedRef.current = true;
     completeRun({ score: finalScore.grandTotal, achievementPct: finalScore.results.achievementPct });
     const firstCrisis = Object.values(crisisResponses)[0];
@@ -262,6 +270,11 @@ export default function Day30Results() {
     }).then(({ error }) => {
       if (error) {
         console.error("attempt save failed", error);
+        // Surface it — a silently-lost score is worse than an ugly toast, and the
+        // trainer needs to know before the student walks away from the machine.
+        toast.error("Your score could not be saved. Please tell your trainer before closing this page.", { duration: 15000 });
+        // Allow a retry on the next render rather than locking the save out.
+        savedRef.current = false;
         return;
       }
       // Only clear the live-run row once the permanent record is confirmed
@@ -271,8 +284,9 @@ export default function Day30Results() {
           if (sessionError) console.warn("[sim] run_sessions delete failed", sessionError);
         });
     });
+    // Re-run when the save inputs become available. savedRef makes this idempotent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeRunId, finalScore, mode]);
 
   // ── Promotion dialog state (hook must be before early return) ───────────
   const [promotionOpen, setPromotionOpen] = useState(false);

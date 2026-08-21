@@ -29,12 +29,20 @@ export default function Leaderboard() {
 
   useEffect(() => {
     supabase.from("attempts").select("*").order("score_total", { ascending: false }).limit(1000)
-      .then(({ data }) => setRows((data as any) ?? []));
+      .then(({ data, error }) => {
+        if (error) console.error("[leaderboard] attempts load failed", error);
+        setRows((data as any) ?? []);
+      });
     supabase.from("batch_scores").select("batch_code,score_total").limit(5000)
-      .then(({ data }) => setBatchRows((data as any) ?? []));
+      .then(({ data, error }) => {
+        if (error) console.error("[leaderboard] batch_scores load failed", error);
+        setBatchRows((data as any) ?? []);
+      });
   }, []);
 
-  // Best-per-student (last 7 days enforced by backend cleanup)
+  // Best-per-student. NOTE: the old nightly cleanup_idle_students() cron job that
+  // capped this to 7 days was removed in migration 20260806095647 — attempts are
+  // now retained until an admin deletes them explicitly.
   const bestByEmail = new Map<string, Attempt>();
   for (const r of rows) {
     const prev = bestByEmail.get(r.email);

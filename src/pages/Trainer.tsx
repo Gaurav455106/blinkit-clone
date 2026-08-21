@@ -206,7 +206,13 @@ export default function Trainer() {
 
   useEffect(() => {
     supabase.from("attempts").select("*").order("created_at", { ascending: false }).limit(2000)
-      .then(({ data }) => { setRows((data as any) ?? []); setLoading(false); });
+      .then(({ data, error }) => {
+        // Don't swallow the error — an empty table used to be indistinguishable
+        // from a rejected query.
+        if (error) console.error("[trainer] attempts load failed", error);
+        setRows((data as any) ?? []);
+        setLoading(false);
+      });
   }, []);
 
   // Best attempt per student

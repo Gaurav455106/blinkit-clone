@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { useSim } from "@/context/SimContext";
+import { HUB_URL } from "@/lib/masterAccess";
 
-const HUB_URL  = "https://ksstudentshub.vercel.app";
 const SIM_SLUG = "blinkit-sim";
 
 /**

@@ -2,169 +2,124 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { useSim } from "@/context/SimContext";
-import { Zap, GraduationCap, ShieldCheck } from "lucide-react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { HUB_URL, syncMasterFlag } from "@/lib/masterAccess";
 
-// ── Role credentials (frontend-gated training tool) ───────────────────────────
-const TRAINER_EMAIL = "trainer@kraftshala.com";
-const TRAINER_PASS  = "kraft2024";
-const ADMIN_EMAIL   = "admin@kraftshala.com";
-const ADMIN_PASS    = "admin2024";
-
-type RoleHint = "student" | "trainer" | "admin";
-
-function detectRole(email: string): RoleHint {
-  const e = email.trim().toLowerCase();
-  if (e === ADMIN_EMAIL)   return "admin";
-  if (e === TRAINER_EMAIL) return "trainer";
-  return "student";
-}
-
+/**
+ * Login is now a router, not a form.
+ *
+ * Students arrive via hub SSO (/sso), which sets sim_role and the student, then
+ * redirects onward. Anyone landing here directly is sent to the hub — except a
+ * browser with sticky master access, which gets the internal role picker.
+ *
+ * Unlock master once with ?master=<key>; it persists (see lib/masterAccess.ts),
+ * so there's nothing to remember or re-enter on subsequent visits.
+ */
 export default function Login() {
   const nav = useNavigate();
-  const { student, setStudent, reset } = useSim();
+  const { student, setStudent } = useSim();
 
-  const [name,     setName]     = useState("");
-  const [email,    setEmail]    = useState("");
-  const [batch,    setBatch]    = useState("");
-  const [password, setPassword] = useState("");
-  const [err,      setErr]      = useState("");
+  const [master,  setMaster]  = useState(false);
+  const [checked, setChecked] = useState(false);
 
-  const role = detectRole(email);
+  // Remembered across visits so testing as a given student is one click.
+  const [testName,  setTestName]  = useLocalStorage("sim_master_test_name",  "Prerna");
+  const [testEmail, setTestEmail] = useLocalStorage("sim_master_test_email", "alumni@kraftshala.com");
+  const [testBatch, setTestBatch] = useLocalStorage("sim_master_test_batch", "MASTER");
+  const [custom,    setCustom]    = useState(false);
 
   useEffect(() => {
+    // Already signed in → straight to the right place
     const simRole = localStorage.getItem("sim_role");
-    if (simRole === "admin")   { nav("/admin",   { replace: true }); return; }
-    if (simRole === "trainer") { nav("/trainer", { replace: true }); return; }
-    if (student)               { nav("/dashboard", { replace: true }); }
-  }, [student, nav]);
+    if (simRole === "admin")   { nav("/admin",     { replace: true }); return; }
+    if (simRole === "trainer") { nav("/trainer",   { replace: true }); return; }
+    if (student)               { nav("/dashboard", { replace: true }); return; }
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr("");
+    // Handles ?master=<key> (unlock), ?master=off (clear), or the sticky flag
+    if (syncMasterFlag()) { setMaster(true); setChecked(true); return; }
 
-    if (role === "admin") {
-      if (password !== ADMIN_PASS) { setErr("Incorrect admin password"); return; }
-      localStorage.setItem("sim_role", "admin");
-      nav("/admin");
-      return;
-    }
+    setChecked(true);
+    window.location.replace(HUB_URL);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (role === "trainer") {
-      if (password !== TRAINER_PASS) { setErr("Incorrect trainer password"); return; }
-      localStorage.setItem("sim_role", "trainer");
-      nav("/trainer");
-      return;
-    }
+  // Spinner while deciding, and while the hub redirect is in flight
+  if (!checked || !master) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-muted-foreground">Redirecting to Kraftshala Hub…</p>
+        </div>
+      </div>
+    );
+  }
 
-    // Student
-    if (!name.trim() || !email.trim() || !batch.trim()) {
-      setErr("Please fill in your name, email, and batch code");
-      return;
-    }
+  const enterAsStudent = () => {
+    const email = testEmail.trim().toLowerCase();
+    if (!testName.trim() || !email) return;
     localStorage.setItem("sim_role", "student");
-    setStudent({ name: name.trim(), email: email.trim().toLowerCase(), batch: batch.trim() });
+    // setStudent isolates this email's session from whoever used the browser last
+    setStudent({ name: testName.trim(), email, batch: testBatch.trim() || "MASTER" });
     nav("/dashboard");
   };
 
-  // ── Role badge shown above card ────────────────────────────────────────────
-  const roleMeta = {
-    student: { icon: <Zap className="h-5 w-5 text-primary-foreground" />,         bg: "bg-primary",      label: "Student",        hint: "Enter Simulator" },
-    trainer: { icon: <GraduationCap className="h-5 w-5 text-white" />,            bg: "bg-emerald-600",  label: "Trainer",        hint: "Open Trainer Dashboard" },
-    admin:   { icon: <ShieldCheck className="h-5 w-5 text-white" />,              bg: "bg-amber-500",    label: "Administrator",  hint: "Open Admin Panel" },
-  }[role];
-
+  // ── Master role picker (internal only) ────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <Card className="w-full max-w-md p-8">
-
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className={`h-9 w-9 rounded-lg ${roleMeta.bg} flex items-center justify-center transition-colors`}>
-            {roleMeta.icon}
+      <div className="w-full max-w-xs space-y-3">
+        <div className="text-center mb-5">
+          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center mx-auto mb-2">
+            <span className="text-white text-lg font-bold">⚡</span>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground">Blinkit Brand Central</h1>
-            <p className="text-xs text-muted-foreground">QCommerce Campaign Simulator</p>
-          </div>
-          {role !== "student" && (
-            <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full text-white ${roleMeta.bg}`}>
-              {roleMeta.label}
-            </span>
-          )}
+          <p className="text-sm font-semibold text-foreground">Master Access</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Internal use only · this browser is remembered
+          </p>
         </div>
 
-        <form onSubmit={submit} className="space-y-4">
-          {/* Student-only fields */}
-          {role === "student" && (
-            <>
-              <div>
-                <label className="text-xs font-semibold text-foreground">Full Name</label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Riya Sharma" className="mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-foreground">Batch Code</label>
-                <Input value={batch} onChange={(e) => setBatch(e.target.value)} placeholder="MKT-24" className="mt-1" />
-              </div>
-            </>
-          )}
+        <Button className="w-full" onClick={enterAsStudent}>
+          Enter as Student
+        </Button>
 
-          {/* Email — always shown */}
-          <div>
-            <label className="text-xs font-semibold text-foreground">Email ID</label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setErr(""); }}
-              placeholder="you@kraftshala.com"
-              className="mt-1"
-            />
+        <Button
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+          onClick={() => { localStorage.setItem("sim_role", "trainer"); nav("/trainer"); }}
+        >
+          Enter as Trainer
+        </Button>
+
+        <Button
+          className="w-full bg-amber-500 hover:bg-amber-600 text-white border-0"
+          onClick={() => { localStorage.setItem("sim_role", "admin"); nav("/admin"); }}
+        >
+          Enter as Admin
+        </Button>
+
+        {/* Custom identity — handy for checking that per-student isolation works:
+            enter as one email, build a campaign, then switch to another. */}
+        {custom ? (
+          <div className="space-y-2 pt-2 border-t border-border mt-3">
+            <Input value={testName}  onChange={(e) => setTestName(e.target.value)}  placeholder="Name"  className="h-8 text-xs" />
+            <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Email" className="h-8 text-xs" />
+            <Input value={testBatch} onChange={(e) => setTestBatch(e.target.value)} placeholder="Batch" className="h-8 text-xs" />
+            <p className="text-[10px] text-muted-foreground">
+              Entering as a different email wipes the previous student's local session.
+            </p>
           </div>
+        ) : (
+          <button
+            onClick={() => setCustom(true)}
+            className="w-full text-[11px] text-muted-foreground hover:text-foreground pt-1"
+          >
+            Student identity: {testEmail} · change
+          </button>
+        )}
 
-          {/* Password — trainer & admin only */}
-          {role !== "student" && (
-            <div>
-              <label className="text-xs font-semibold text-foreground">Password</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="mt-1"
-                autoComplete="current-password"
-              />
-            </div>
-          )}
-
-          {err && <p className="text-xs text-destructive">{err}</p>}
-
-          <Button type="submit" className={`w-full text-white ${role !== "student" ? roleMeta.bg + " hover:opacity-90 border-0" : ""}`}>
-            {roleMeta.hint}
-          </Button>
-
-          {/* Quick-access divider */}
-          <div className="relative my-1">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-            <div className="relative flex justify-center text-[11px]">
-              <span className="bg-card px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
-
-          <Button type="button" variant="outline" className="w-full" onClick={() => {
-            localStorage.setItem("sim_role", "student");
-            setStudent({ name: "Prerna", email: "alumni@kraftshala.com", batch: "MASTER" });
-            nav("/dashboard");
-          }}>
-            ⚡ Master Access
-          </Button>
-
-          <p className="text-[11px] text-muted-foreground text-center">
-            Trainer? <span className="font-mono">{TRAINER_EMAIL}</span>
-            {" · "}Admin? <span className="font-mono">{ADMIN_EMAIL}</span>
-          </p>
-        </form>
-      </Card>
+        <p className="text-[10px] text-muted-foreground/70 text-center pt-3">
+          Add <span className="font-mono">?master=off</span> to remove access from this browser.
+        </p>
+      </div>
     </div>
   );
 }

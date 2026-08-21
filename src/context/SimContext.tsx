@@ -7,6 +7,7 @@ import type { DayResult, ActiveCrisisEffect } from "@/lib/engine";
 import type { SetupScore } from "@/lib/newScoring";
 import type { EngineDayResult } from "@/lib/dayEngine";
 import { type DailyNoise, generateDailyNoise } from "@/lib/noise";
+import { ACTIVE_EMAIL_KEY } from "@/lib/masterAccess";
 
 export interface Student {
   name: string;
@@ -404,9 +405,39 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_dailyNoise", JSON.stringify(dailyNoise)); }, [dailyNoise]);
   useEffect(() => { localStorage.setItem("sim_savedRunResults", JSON.stringify(savedRunResults)); }, [savedRunResults]);
 
+  /**
+   * Sets the logged-in student, isolating their work from anyone who used this
+   * browser before them.
+   *
+   * localStorage is per-browser, not per-user, so without this a second student
+   * logging in on the same machine inherited the first one's campaigns, scenario
+   * and in-progress run. We track who owns the session in `sim_active_email`; if
+   * a different email logs in we wipe the previous session outright so they land
+   * on a clean dashboard.
+   *
+   * Nothing scored is lost — completed runs live in Supabase `attempts` and are
+   * pulled back by hydrateFromCloud. In-progress runs are local-only, so a switch
+   * does discard an unfinished run belonging to the previous student.
+   */
   const setStudent = (s: Student) => {
+    const incoming = s.email.trim().toLowerCase();
+    let previous: string | null = null;
+    try { previous = localStorage.getItem(ACTIVE_EMAIL_KEY); } catch { /* ignore */ }
+
+    const isDifferentStudent = !!previous && previous !== incoming;
+
+    // Full wipe of the prior student's session. reset() also nulls student and
+    // scenario, which we immediately override below.
+    if (isDifferentStudent) reset();
+
+    try { localStorage.setItem(ACTIVE_EMAIL_KEY, incoming); } catch { /* ignore */ }
+
     setStudentState(s);
-    if (!scenario) setScenario(generateScenario());
+
+    // On a switch the `scenario` closure value is stale (React state updates are
+    // async), so generate unconditionally rather than relying on !scenario.
+    if (isDifferentStudent || !scenario) setScenario(generateScenario());
+
     // Hydrate from cloud (best-effort, non-blocking).
     void hydrateFromCloud(s);
   };
@@ -897,6 +928,10 @@ export function SimProvider({ children }: { children: ReactNode }) {
      "sim_mode", "sim_pace", "sim_startedAt", "sim_crisisRevealedAt", "sim_missedCrises",
      "sim_dailyNoise", "sim_savedRunResults"]
       .forEach((k) => localStorage.removeItem(k));
+    // NOTE: deliberately NOT cleared here —
+    //   sim_master       → sticky internal access, must survive logout
+    //   sim_active_email → session ownership marker, managed by setStudent
+    //   sim_role         → the incoming login sets this itself
     clearCampaignWizard();
     setStudentState(null);
     setScenario(null);
