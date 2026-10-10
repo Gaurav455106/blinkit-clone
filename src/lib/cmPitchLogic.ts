@@ -531,6 +531,30 @@ const OFFLINE_EXPANSION_REASONS = [
   "Strategic loss leader for customer acquisition",
 ];
 
+/** Reasons a student can give (stored values) and how the screen words them. */
+export const PITCH_REASONS: readonly string[] = [
+  "Proven high velocity offline",
+  "Strategic loss leader for customer acquisition",
+  "Premium SKU for brand image",
+  "Cross-sell driver with hero SKU",
+  "Inventory clearance priority",
+  "New market expansion",
+];
+
+export const REASON_LABELS: Readonly<Record<string, string>> = {
+  "Proven high velocity offline": "Sells fast in shops",
+  "Strategic loss leader for customer acquisition": "Cheap starter product to win new shoppers",
+  "Premium SKU for brand image": "Premium product that builds the brand",
+  "Cross-sell driver with hero SKU": "Helps sell our best product",
+  "Inventory clearance priority": "We have extra stock to clear",
+  "New market expansion": "Entering a new market",
+};
+
+/** Reasons that mean "new market on purpose" (no shop-sales pushback). */
+export function isExpansionReason(reasoning: string): boolean {
+  return OFFLINE_EXPANSION_REASONS.includes(reasoning);
+}
+
 function buildOfflinePresencePushback(pitched: PitchedSKU[], scenario: Scenario): Pushback | null {
   const { profile } = scenario;
 
@@ -574,7 +598,8 @@ function buildOfflinePresencePushback(pitched: PitchedSKU[], scenario: Scenario)
     }))
   )).slice(0, 3);
 
-  const reasoning = pitched.find((p) => badHits.some((b) => b.skuId === p.skuId))?.reasoning ?? "this reason";
+  const storedReason = pitched.find((p) => badHits.some((b) => b.skuId === p.skuId))?.reasoning;
+  const reasoning = storedReason ? (REASON_LABELS[storedReason] ?? storedReason) : "this reason";
   const shopLine = worstPresence === "none" ? "isn't sold in shops at all" : "barely sells in shops";
 
   const messages = [
