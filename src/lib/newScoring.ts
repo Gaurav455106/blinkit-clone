@@ -24,6 +24,10 @@ import type { RunTotals } from "@/lib/engine";
 import { computeGeoQuality, computeKwQuality, computeDaypartMult, getPeakBlocks } from "@/lib/engine";
 import { requiredBuckets, isAwarenessFormat, isConversionFormat } from "@/lib/scoring";
 
+// ─── Category maxes — single source for every score display ──────────────────
+
+export const SCORE_MAX = { setup: 35, liveOpt: 25, crisis: 25, results: 15 } as const;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ScoreLine {
@@ -378,7 +382,30 @@ export function buildLiveOptScore(
 
 // ─── 3. CRISIS RESPONSE SCORE (25 pts: 8 + 9 + 8) ───────────────────────────
 
-const CRISIS_MAX: Record<1 | 2 | 3, number> = { 1: 8, 2: 9, 3: 8 };
+export const CRISIS_MAX: Record<1 | 2 | 3, number> = { 1: 8, 2: 9, 3: 8 };
+
+// Default option max when a stored response predates maxScore being saved.
+const DEFAULT_OPTION_MAX = 15;
+
+/**
+ * Points a stored crisis response contributed to the final score, for display
+ * on trainer/admin cards. Falls back to the raw option score when the crisis
+ * number is missing (legacy rows), since it can't be scaled.
+ */
+export function crisisCardScore(cr: {
+  crisisNum?: number;
+  score?: number;
+  maxScore?: number;
+}): { earned: number; max: number } {
+  const score    = cr.score ?? 0;
+  const maxScore = cr.maxScore ?? DEFAULT_OPTION_MAX;
+  const num      = cr.crisisNum;
+  if (num !== 1 && num !== 2 && num !== 3) {
+    return { earned: score, max: maxScore };
+  }
+  const line = scoreCrisisResponse(num, "", score, maxScore);
+  return { earned: line.earned, max: line.max };
+}
 
 export function scoreCrisisResponse(
   crisisNum: 1 | 2 | 3,

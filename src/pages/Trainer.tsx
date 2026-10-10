@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TrainerHeader } from "@/components/TrainerHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { SCORE_MAX, crisisCardScore } from "@/lib/newScoring";
 import { Users, GraduationCap, TrendingUp, Search, ChevronDown, ChevronUp } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -57,10 +58,10 @@ function StudentRow({ row }: { row: Attempt }) {
     if (Array.isArray(bd)) return bd;
     if (typeof bd === "object") {
       return [
-        { label: "Setup",    earned: bd.setup   ?? 0, max: 30 },
-        { label: "Live Opt", earned: bd.liveOpt ?? 0, max: 25 },
-        { label: "Crisis",   earned: bd.crisis  ?? 0, max: 20 },
-        { label: "Results",  earned: bd.results ?? 0, max: 25 },
+        { label: "Setup",    earned: bd.setup   ?? 0, max: SCORE_MAX.setup },
+        { label: "Live Opt", earned: bd.liveOpt ?? 0, max: SCORE_MAX.liveOpt },
+        { label: "Crisis",   earned: bd.crisis  ?? 0, max: SCORE_MAX.crisis },
+        { label: "Results",  earned: bd.results ?? 0, max: SCORE_MAX.results },
       ];
     }
     return [];
@@ -167,8 +168,7 @@ function StudentRow({ row }: { row: Attempt }) {
                 )}
                 <div className="space-y-2">
                   {Object.values(crisisResponses).map((cr: any) => {
-                    const pts = cr.score ?? 0;
-                    const max = cr.maxScore ?? 20;
+                    const { earned: pts, max } = crisisCardScore(cr);
                     const pct = max > 0 ? pts / max : 0;
                     const color = pct >= 0.8 ? "text-emerald-600" : pct >= 0.5 ? "text-amber-600" : "text-red-500";
                     return (
