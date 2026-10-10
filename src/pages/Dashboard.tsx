@@ -1,14 +1,19 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowRight, ChevronRight, FileText, RefreshCw } from "lucide-react";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
-import { Card } from "@/components/ui/card";
+import { SimPage, PageHeader, StatTile, Section, Tag, EmptyState } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Rocket, Plus, RefreshCw, FileText, ChevronRight, Trophy } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/** Goal achievement at or above this counts as "goal met". */
+const GOAL_MET_PCT = 90;
+
+const STEPS = ["Read the brief", "Pitch the category manager", "Build campaigns", "Run 30 days"] as const;
 
 function fmtDate(s?: string) {
-  if (!s) return "—";
+  if (!s) return "None yet";
   const d = new Date(s);
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) + ", " +
     d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -16,7 +21,7 @@ function fmtDate(s?: string) {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, cmPitch, newScenario, enterReview, exitReview, clearActiveRun, clearCampaigns, resumeRun } = useSim();
+  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, newScenario, enterReview, exitReview, clearActiveRun, clearCampaigns, resumeRun } = useSim();
 
   // Landing on dashboard exits any active review session (mount only).
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -35,12 +40,11 @@ export default function Dashboard() {
   // On mount: clear stranded campaigns that have no active run backing them.
   // This handles the case where a previous run completed but campaigns weren't
   // cleared yet (e.g. clearCampaigns was added after the run already cleared activeRunId).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (activeRunId) return; // active run owns the campaigns — don't touch
+    if (activeRunId) return; // active run owns the campaigns, don't touch
     const hasInProgressRun = runHistory.some((r) => r.status === "in_progress");
     if (!hasInProgressRun && campaigns.length > 0) clearCampaigns();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!student) { nav("/", { replace: true }); return null; }
   if (!scenario) { newScenario(); return null; }
@@ -67,179 +71,149 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden w-full">
+    <div className="flex h-screen w-full overflow-hidden">
       <BlinkitSidebar />
-      <div className="flex-1 bg-background overflow-y-auto">
-        <div className="px-8 pt-6 pb-2">
-          <div className="text-xs text-muted-foreground">Brand Central › Dashboard</div>
-          <div className="flex items-end justify-between gap-4 mt-1">
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">Welcome back, {student.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="border-primary text-primary">QCommerce Executive</Badge>
-                <span className="text-xs text-muted-foreground">
-                  {scenario.profile.emoji} Current brief: {scenario.profile.name}
-                </span>
-              </div>
-            </div>
-            {activeInProgress && (
+      <div className="flex-1 overflow-y-auto">
+        <SimPage>
+          <PageHeader
+            eyebrow="Dashboard"
+            title={`Welcome back, ${student.name}`}
+            description={<>You run Blinkit ads for a brand. Your brand right now: <span className="font-medium text-foreground">{scenario.profile.name}</span> ({scenario.profile.category}).</>}
+            actions={activeInProgress ? (
               <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
-                <FileText className="h-4 w-4" /> Re-read Brief
+                <FileText className="h-4 w-4" /> Re-read brief
               </Button>
+            ) : undefined}
+          />
+
+          <div className="space-y-6">
+            {/* Next step */}
+            <section aria-labelledby="next-step" className="rounded-2xl bg-primary px-6 py-6 text-primary-foreground md:px-8">
+              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div className="max-w-[60ch]">
+                  <p className="text-sm text-primary-foreground/75">{activeInProgress ? "Run in progress" : "Your next step"}</p>
+                  <h2 id="next-step" className="mt-1 text-2xl font-semibold">
+                    {activeInProgress ? `Carry on with ${activeInProgress.brandName}` : `Read the ${scenario.profile.name} brief`}
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-primary-foreground/80">
+                    {activeInProgress
+                      ? `Started ${fmtDate(activeInProgress.startedAt)}. ${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"} running. Pick up where you left off.`
+                      : "Learn the brand, its numbers and its rivals. Then pitch the category manager, build your campaigns and run 30 days."}
+                  </p>
+                </div>
+                <Button size="lg" onClick={startNew} className="shrink-0 gap-2 bg-primary-foreground text-primary hover:bg-primary-foreground/90">
+                  {activeInProgress ? "Resume run" : "Open the brief"} <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+              {!activeInProgress && (
+                <ol className="mt-6 grid gap-2 text-sm sm:grid-cols-4">
+                  {STEPS.map((s, i) => (
+                    <li key={s} className={cn("rounded-lg px-3 py-2", i === 0 ? "bg-primary-foreground/15 font-medium" : "text-primary-foreground/70")}>
+                      <span className="sim-num mr-2 text-primary-foreground/60">{i + 1}</span>{s}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+
+            {activeInProgress && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => nav("/campaign")} className="gap-1">
+                  Campaigns <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => nav("/simulation")} className="gap-1">
+                  Simulation <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             )}
-          </div>
-        </div>
 
-        <div className="px-8 py-6 max-w-5xl space-y-5">
-          {/* Stats */}
-          <div className="grid grid-cols-4 gap-3">
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Total attempts</div>
-              <div className="text-lg font-semibold">{runHistory.length}</div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Best score</div>
-              <div className="text-lg font-semibold">{bestScore ? `${bestScore}/100` : "—"}</div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Average score</div>
-              <div className="text-lg font-semibold">{avgScore ? `${avgScore}/100` : "—"}</div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground">Last attempt</div>
-              <div className="text-xs font-semibold mt-1">{fmtDate(lastAttempt)}</div>
-            </Card>
-          </div>
-
-          {/* Action band */}
-          <Card className="p-5 border-primary/30 bg-primary/5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-primary font-bold">
-                  {activeInProgress ? "Continue your run" : "Ready for a new scenario"}
-                </div>
-                <h3 className="text-lg font-semibold mt-1">
-                  {activeInProgress
-                    ? `Run in progress · ${activeInProgress.brandName}`
-                    : "Read the brief, pitch the CM, build campaigns, launch."}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {activeInProgress
-                    ? "Pick up where you left off."
-                    : "Scripted mid-campaign crisis included. Make smart calls."}
-                </p>
-              </div>
-              <Button size="lg" onClick={startNew} className="gap-2 shrink-0">
-                {activeInProgress
-                  ? <><Rocket className="h-4 w-4" /> Resume</>
-                  : <><Plus className="h-4 w-4" /> Start New Scenario</>}
-              </Button>
+            {/* Attempts summary */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatTile label="Attempts" value={runHistory.length} hint={`${completed.length} finished`} />
+              <StatTile label="Best score" value={bestScore ? `${bestScore}/100` : "None yet"} />
+              <StatTile label="Average score" value={avgScore ? `${avgScore}/100` : "None yet"} />
+              <StatTile label="Last finished" value={<span className="text-base">{fmtDate(lastAttempt)}</span>} />
             </div>
-          </Card>
 
-          {/* Active run summary */}
-          {activeInProgress && (
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-muted-foreground">Active Run</div>
-                  <div className="text-sm font-semibold mt-0.5">
-                    {activeInProgress.brandEmoji} {activeInProgress.brandName} · Started {fmtDate(activeInProgress.startedAt)}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} created
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => nav("/campaign")}>
-                    Campaigns <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => nav("/simulation")}>
-                    Simulation <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Past attempts */}
-          <Card className="overflow-hidden">
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold">Past Attempts</div>
-                <div className="text-[11px] text-muted-foreground">Every run you've shipped</div>
-              </div>
-              <Badge variant="outline">{past.length} run{past.length === 1 ? "" : "s"}</Badge>
-            </div>
+            {/* Past attempts */}
             {past.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-muted-foreground">No attempts yet. Hit "Start New Scenario" above.</p>
-              </div>
+              <EmptyState
+                title="No attempts yet"
+                description="Your finished runs show up here with their score. Open one to see what went well and what cost you money."
+              />
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="text-left px-4 py-2">Date</th>
-                    <th className="text-left px-4 py-2">Brand</th>
-                    <th className="text-left px-4 py-2">Status</th>
-                    <th className="text-right px-4 py-2">Final Score</th>
-                    <th className="text-right px-4 py-2">Goal Met?</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {past.map((r) => {
-                    const canReview  = r.status === "completed" && !!r.snapshot;
-                    // In-progress run with a snapshot = was interrupted but state was saved → resumable.
-                    // In-progress run without snapshot = truly lost (old behaviour pre-snapshot).
-                    const canResume  = r.status === "in_progress" && !!r.snapshot && !activeRunId;
-                    const isClickable = canReview || canResume;
-                    const handleClick = canReview
-                      ? () => openPast(r.id)
-                      : canResume
-                      ? () => { const ok = resumeRun(r.id); if (ok) nav("/simulation"); }
-                      : undefined;
-                    return (
-                      <tr
-                        key={r.id}
-                        onClick={handleClick}
-                        className={`border-t border-border transition-colors ${isClickable ? "cursor-pointer hover:bg-muted/40" : "opacity-60"}`}
-                        title={
-                          canReview  ? "Review this completed run" :
-                          canResume  ? `Resume from Day ${r.snapshot?.currentDay ?? 1}` :
-                          r.status === "in_progress" && activeRunId ? "Finish your current run before resuming this one" :
-                          "Run interrupted with no saved state — cannot be resumed"
-                        }
-                      >
-                        <td className="px-4 py-3 text-xs">{fmtDate(r.completedAt ?? r.startedAt)}</td>
-                        <td className="px-4 py-3 font-medium">{r.brandEmoji} {r.brandName}</td>
-                        <td className="px-4 py-3">
-                          {r.status === "completed" ? (
-                            <Badge className="bg-primary text-primary-foreground gap-1"><Trophy className="h-3 w-3" /> Completed</Badge>
-                          ) : canResume ? (
-                            <Badge variant="outline" className="text-amber-600 border-amber-400 gap-1">In Progress · Resume →</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-muted-foreground">Interrupted</Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold">{r.score != null ? `${r.score}/100` : "—"}</td>
-                        <td className="px-4 py-3 text-right">{r.achievementPct != null ? (r.achievementPct >= 90 ? "✅" : "—") : "—"}</td>
+              <Section
+                title="Past attempts"
+                description="Click a finished run to review it. A run that was stopped part-way can be resumed if it was saved."
+                actions={<Tag>{past.length} run{past.length === 1 ? "" : "s"}</Tag>}
+              >
+                <div className="-mx-6 overflow-x-auto px-6">
+                  <table className="w-full min-w-[560px] text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                        <th scope="col" className="py-2 pr-4 font-medium">Date</th>
+                        <th scope="col" className="py-2 pr-4 font-medium">Brand</th>
+                        <th scope="col" className="py-2 pr-4 font-medium">Status</th>
+                        <th scope="col" className="py-2 pr-4 text-right font-medium">Score</th>
+                        <th scope="col" className="py-2 text-right font-medium">Goal met</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {past.map((r) => {
+                        const canReview = r.status === "completed" && !!r.snapshot;
+                        // In-progress run with a snapshot = was interrupted but state was saved → resumable.
+                        // In-progress run without snapshot = truly lost (old behaviour pre-snapshot).
+                        const canResume = r.status === "in_progress" && !!r.snapshot && !activeRunId;
+                        const isClickable = canReview || canResume;
+                        const handleClick = canReview
+                          ? () => openPast(r.id)
+                          : canResume
+                          ? () => { const ok = resumeRun(r.id); if (ok) nav("/simulation"); }
+                          : undefined;
+                        const title =
+                          canReview ? "Review this run" :
+                          canResume ? `Resume from day ${r.snapshot?.currentDay ?? 1}` :
+                          r.status === "in_progress" && activeRunId ? "Finish your current run before resuming this one" :
+                          "This run stopped without saving, so it can't be resumed";
+                        return (
+                          <tr
+                            key={r.id}
+                            onClick={handleClick}
+                            onKeyDown={(e) => { if (handleClick && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); handleClick(); } }}
+                            tabIndex={isClickable ? 0 : undefined}
+                            title={title}
+                            className={cn("border-b border-border/60 last:border-0", isClickable ? "cursor-pointer hover:bg-secondary/50 focus-visible:bg-secondary/50" : "text-muted-foreground")}
+                          >
+                            <td className="py-3 pr-4 text-xs">{fmtDate(r.completedAt ?? r.startedAt)}</td>
+                            <td className="py-3 pr-4 font-medium text-foreground">{r.brandName}</td>
+                            <td className="py-3 pr-4">
+                              {r.status === "completed" ? <Tag tone="good">Finished</Tag>
+                                : canResume ? <Tag tone="warn">Paused, can resume</Tag>
+                                : <Tag>Stopped</Tag>}
+                            </td>
+                            <td className="sim-num py-3 pr-4 text-right font-semibold text-foreground">{r.score != null ? `${r.score}/100` : "None"}</td>
+                            <td className="py-3 text-right">
+                              {r.achievementPct != null && r.achievementPct >= GOAL_MET_PCT ? <Tag tone="good">Yes</Tag> : <span className="text-muted-foreground">No</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
             )}
-          </Card>
 
-          <div className="flex justify-between items-center">
-            <Button variant="link" onClick={() => nav("/leaderboard")} className="px-0">
-              View Full Leaderboard →
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); nav("/brief"); }}>
-              <RefreshCw className="h-3.5 w-3.5" /> New Brand Scenario
-            </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button variant="link" onClick={() => nav("/leaderboard")} className="px-0">
+                See the full leaderboard <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => { newScenario(); nav("/brief"); }}>
+                <RefreshCw className="h-3.5 w-3.5" /> Try a different brand
+              </Button>
+            </div>
           </div>
-        </div>
+        </SimPage>
       </div>
     </div>
   );
