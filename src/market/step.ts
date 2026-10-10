@@ -11,19 +11,21 @@
 
 import { BLINKIT_STATES, CITY_STORE_COUNT } from "@/data/scenarios";
 import type { CampaignConfig, CellRow, DayResult, MarketContext, MarketState, RivalDayRow, StockRow } from "@/market/engineTypes";
-import type { KeywordData } from "@/market/types";
+import type { InventoryKind } from "@/market/types";
 import { SLOT_COUNT } from "@/market/types";
+import { VIEW_RATES_BY_KIND, CREATIVE_KINDS } from "@/market/placements";
 import { activeSlots } from "@/market/slots";
 import { searches, stateShares, DOW_MULT, type DemandContext } from "@/market/demand";
 import { runAuction, backgroundBidders, type Bidder, type SlotResult } from "@/market/auction";
 import { streamFor } from "@/market/rng";
-import { studentEntries, type StudentEntry } from "@/market/entries";
+import { studentEntries, placementEntries, type StudentEntry } from "@/market/entries";
 import { rivalBid, rivalPrice, updateRival } from "@/market/rivals";
-import { shopperOutcome, priceEffect, affinity } from "@/market/shoppers";
+import { shopperOutcome, priceEffect, affinity, fatigueMult } from "@/market/shoppers";
 import { osa, organicDemand, sellFrom, isRestockDay, restockAmount } from "@/market/stock";
 
 const QUARTERS_PER_SLOT = 4;
-const SHOPPERS_PER_STORE = 2500;
+/** Active shoppers per dark store (reach and frequency, SPEC §14 F7, F10). */
+const SHOPPERS_PER_STORE = 1500;
 const CTR_WINDOW_DAYS = 3;
 const SALES_WINDOW_DAYS = 7;
 const RIVAL_WINDOW_DAYS = 3;
@@ -59,12 +61,32 @@ const pushWindow = (xs: readonly number[] | undefined, x: number, size: number) 
 const sum = (xs: readonly number[]) => xs.reduce((s, x) => s + x, 0);
 const studentBidderId = (e: StudentEntry) => `${STUDENT_OWNER}:${e.campaignId}:${e.matchType}`;
 
+/** A keyword or a placement: something with pages to win. */
+interface InventoryUnit {
+  id: string;
+  kind: InventoryKind;
+  dailyVolume: number;
+  isBrandTerm: boolean;
+  ctrMult: number;
+  cvrMult: number;
+}
+
 interface Page {
-  keyword: KeywordData;
+  unit: InventoryUnit;
   state: string;
   searches: number;
+  viewRates: readonly number[];
   others: Bidder[];
   entries: StudentEntry[];
+}
+
+/** Share of a state's shoppers the student has reached, and how often each has seen the ads. */
+function reachAndFrequency(cumulativeViewable: number, stateName: string): { reachShare: number; frequency: number } {
+  const stores = CITY_STORE_COUNT[stateName as keyof typeof CITY_STORE_COUNT] ?? 0;
+  const shoppers = stores * SHOPPERS_PER_STORE;
+  if (shoppers <= 0 || cumulativeViewable <= 0) return { reachShare: 0, frequency: 0 };
+  const reachShare = 1 - Math.exp(-cumulativeViewable / shoppers);
+  return { reachShare, frequency: cumulativeViewable / (shoppers * reachShare) };
 }
 
 type MutableCell = { -readonly [K in keyof CellRow]: CellRow[K] };
@@ -76,7 +98,7 @@ function resolve(pages: readonly Page[], active: ReadonlySet<string>): SlotResul
     ...p.entries
       .filter((e) => active.has(e.campaignId))
       .map((e) => ({ id: studentBidderId(e), ownerId: STUDENT_OWNER, bid: e.bid, relevance: e.relevance })),
-  ]));
+  ], p.viewRates));
 }
 
 export function stepDay(
@@ -94,6 +116,13 @@ export function stepDay(
   const served = servedStates(ctx, prev);
   const skuById = new Map(scenario.profile.skus.map((s) => [s.id, s]));
   const rivalById = new Map(market.rivals.map((r) => [r.id, r]));
+  const campaignById = new Map(live.map((c) => [c.id, c]));
+  const units: InventoryUnit[] = [
+    ...market.keywords.map((k) => ({ id: k.term, kind: "keyword" as const, dailyVolume: k.dailyVolume, isBrandTerm: k.isBrandTerm === true, ctrMult: 1, cvrMult: 1 })),
+    ...market.placements.map((p) => ({ id: p.id, kind: p.kind, dailyVolume: p.dailyVolume, isBrandTerm: false, ctrMult: p.ctrMult, cvrMult: p.cvrMult })),
+  ];
+  const keywordById = new Map(market.keywords.map((k) => [k.term, k]));
+  const placementById = new Map(market.placements.map((p) => [p.id, p]));
 
   // Daily caps, scaled down if they'd pass the scenario budget
   const caps = live.map((c) => [c.id, dailyCap(c, prev, day, ctx.totalDays)] as const);
@@ -111,17 +140,19 @@ export function stepDay(
   for (let slot = 0; slot < SLOT_COUNT; slot++) {
     const scheduled = live.filter((c) => activeSlots(c.schedule).includes(slot));
     const pages: Page[] = [];
-    for (const keyword of market.keywords) {
+    for (const unit of units) {
       for (const st of BLINKIT_STATES) {
-        const n = searches(market, keyword, st, slot, dctx);
+        const n = searches(market, { term: unit.id, dailyVolume: unit.dailyVolume }, st, slot, dctx);
         if (n === 0) continue;
         const rivals = market.rivals.flatMap((r) => {
-          const bid = rivalBid(r, prev.rivals[r.id], keyword.term, day, cat.rivalPressure[slot]);
+          const bid = rivalBid(r, prev.rivals[r.id], unit.id, day, cat.rivalPressure[slot]);
           return bid === null ? [] : [{ id: `rival:${r.id}`, ownerId: r.id, bid, relevance: r.relevance }];
         });
-        const bg = backgroundBidders(cat, cat.rivalPressure[slot], streamFor(ctx.seed, "bg", keyword.term, st, slot, day));
-        const entries = served.has(st) ? studentEntries(scheduled, keyword, st, market, scenario, prev) : [];
-        pages.push({ keyword, state: st, searches: n, others: [...rivals, ...bg], entries });
+        const bg = backgroundBidders(cat, cat.rivalPressure[slot], streamFor(ctx.seed, "bg", unit.id, st, slot, day));
+        const entries = !served.has(st) ? []
+          : unit.kind === "keyword" ? studentEntries(scheduled, keywordById.get(unit.id)!, st, market, scenario, prev)
+          : placementEntries(scheduled, placementById.get(unit.id)!, st, market, scenario, prev);
+        pages.push({ unit, state: st, searches: n, viewRates: VIEW_RATES_BY_KIND[unit.kind], others: [...rivals, ...bg], entries });
       }
     }
 
@@ -150,7 +181,7 @@ export function stepDay(
         const sq = p.searches / QUARTERS_PER_SLOT;
         const winners = outcomes[i];
         const pageVI = winners.reduce((s, w) => s + sq * w.viewRate, 0);
-        termTotalVI.set(p.keyword.term, (termTotalVI.get(p.keyword.term) ?? 0) + pageVI);
+        termTotalVI.set(p.unit.id, (termTotalVI.get(p.unit.id) ?? 0) + pageVI);
         stateTotalVI.set(p.state, (stateTotalVI.get(p.state) ?? 0) + pageVI);
         const rivalPricesOnPage = winners
           .filter((w) => rivalById.has(w.ownerId))
@@ -161,12 +192,12 @@ export function stepDay(
           if (!r) continue;
           const vi = sq * w.viewRate;
           const out = shopperOutcome({
-            viewableImpressions: vi, baseCTR: cat.baseCTR, creativeMult: 1, affinity: 1, fatigueMult: 1,
-            baseCVR: cat.baseCVR, fit: 1, intent: cat.intent[slot], stateCVR: 1, priceEffect: 1,
+            viewableImpressions: vi, baseCTR: cat.baseCTR * p.unit.ctrMult, creativeMult: 1, affinity: 1, fatigueMult: 1,
+            baseCVR: cat.baseCVR * p.unit.cvrMult, fit: 1, intent: cat.intent[slot], stateCVR: 1, priceEffect: 1,
             sellingPrice: rivalPrice(r, day), contributionPerUnit: r.contributionPerUnit,
           });
-          const key = `${r.id}|${p.keyword.term}`;
-          const row = rivalRows.get(key) ?? { rivalId: r.id, term: p.keyword.term, viewableImpressions: 0, totalAdViewable: 0, topSlotWins: 0, appearances: 0, spend: 0, revenue: 0 };
+          const key = `${r.id}|${p.unit.id}`;
+          const row = rivalRows.get(key) ?? { rivalId: r.id, inventory: p.unit.kind, term: p.unit.id, viewableImpressions: 0, totalAdViewable: 0, topSlotWins: 0, appearances: 0, spend: 0, revenue: 0 };
           row.viewableImpressions += vi;
           row.totalAdViewable += pageVI;
           row.topSlotWins += w.slot === 0 ? sq : 0;
@@ -177,9 +208,9 @@ export function stepDay(
         }
 
         for (const e of p.entries) {
-          const key = `${e.campaignId}|${p.keyword.term}|${e.matchType}|${p.state}|${slot}`;
+          const key = `${e.campaignId}|${p.unit.id}|${e.matchType}|${p.state}|${slot}`;
           const cell = cells.get(key) ?? {
-            campaignId: e.campaignId, term: p.keyword.term, matchType: e.matchType, skuId: e.skuId, state: p.state, slot,
+            campaignId: e.campaignId, inventory: p.unit.kind, term: p.unit.id, matchType: e.matchType, skuId: e.skuId, state: p.state, slot,
             searches: 0, lostToStock: 0, lostToBudget: 0, lostToRank: 0, won: 0, position: null,
             viewableImpressions: 0, totalAdViewable: 0, spend: 0, clicks: 0, atcs: 0, units: 0,
             directRevenue: 0, indirectRevenue: 0, contribution: 0,
@@ -197,14 +228,16 @@ export function stepDay(
           } else if (entered > 0) {
             const sku = skuById.get(e.skuId)!;
             const vi = entered * win.viewRate;
-            const stores = CITY_STORE_COUNT[p.state as keyof typeof CITY_STORE_COUNT] ?? 0;
-            const shoppers = stores * SHOPPERS_PER_STORE;
-            const reachShare = shoppers > 0 ? 1 - Math.exp(-(prev.studentViewable[p.state] ?? 0) / shoppers) : 0;
+            const { reachShare, frequency } = reachAndFrequency(prev.studentViewable[p.state] ?? 0, p.state);
             const cheapest = rivalPricesOnPage.length ? Math.min(...rivalPricesOnPage) : null;
+            // Creative-led formats build reach and tire; search-led formats benefit from that reach.
+            const creativeLed = CREATIVE_KINDS.has(p.unit.kind);
             const out = shopperOutcome({
-              viewableImpressions: vi, baseCTR: cat.baseCTR, creativeMult: 1,
-              affinity: affinity(p.keyword.isBrandTerm === true, reachShare), fatigueMult: 1,
-              baseCVR: cat.baseCVR, fit: e.fit, intent: cat.intent[slot],
+              viewableImpressions: vi, baseCTR: cat.baseCTR * p.unit.ctrMult,
+              creativeMult: creativeLed ? campaignById.get(e.campaignId)?.creativeMult ?? 1 : 1,
+              affinity: creativeLed ? 1 : affinity(p.unit.isBrandTerm, reachShare),
+              fatigueMult: creativeLed ? fatigueMult(frequency) : 1,
+              baseCVR: cat.baseCVR * p.unit.cvrMult, fit: e.fit, intent: cat.intent[slot],
               stateCVR: market.stateCVR[p.state as keyof typeof market.stateCVR] ?? 1,
               priceEffect: priceEffect(sku.mrp, cheapest),
               sellingPrice: sku.mrp, contributionPerUnit: sku.margin,
@@ -328,20 +361,28 @@ function nextState(
   const studentViewable: Record<string, number> = { ...prev.studentViewable };
   for (const c of cells) studentViewable[c.state] = (studentViewable[c.state] ?? 0) + c.viewableImpressions;
 
-  // Rivals react to what they saw today
+  // Rivals react to what they saw today on their keywords (SPEC §4.1): placement
+  // spend (Stories, Spotlight...) is brand spend that counts against their budget,
+  // but doesn't drive their ROAS-floor or SOV reactions.
   const rivals: Record<string, MarketState["rivals"][string]> = {};
   const rivalWindow: Record<string, { spend: readonly number[]; revenue: readonly number[] }> = {};
   for (const r of ctx.market.rivals) {
     const rows = rivalRows.filter((x) => x.rivalId === r.id);
-    const spend = sum(rows.map((x) => x.spend));
-    const revenue = sum(rows.map((x) => x.revenue));
+    const keywordRows = rows.filter((x) => x.inventory === "keyword");
     const w = prev.rivalWindow[r.id];
-    const next = { spend: pushWindow(w?.spend, spend, RIVAL_WINDOW_DAYS), revenue: pushWindow(w?.revenue, revenue, RIVAL_WINDOW_DAYS) };
+    const next = {
+      spend: pushWindow(w?.spend, sum(keywordRows.map((x) => x.spend)), RIVAL_WINDOW_DAYS),
+      revenue: pushWindow(w?.revenue, sum(keywordRows.map((x) => x.revenue)), RIVAL_WINDOW_DAYS),
+    };
     rivalWindow[r.id] = next;
     const spend3 = sum(next.spend);
     const sovDenominator = sum(Object.keys(r.bids).map((t) => termTotalVI.get(t) ?? 0));
-    const sov = sovDenominator > 0 ? sum(rows.map((x) => x.viewableImpressions)) / sovDenominator : 0;
-    rivals[r.id] = updateRival(r, prev.rivals[r.id], { sov, roas3d: spend3 > 0 ? sum(next.revenue) / spend3 : null, spend });
+    const sov = sovDenominator > 0 ? sum(keywordRows.map((x) => x.viewableImpressions)) / sovDenominator : 0;
+    rivals[r.id] = updateRival(r, prev.rivals[r.id], {
+      sov,
+      roas3d: spend3 > 0 ? sum(next.revenue) / spend3 : null,
+      spend: sum(rows.map((x) => x.spend)),
+    });
   }
 
   const campaignSpend: Record<string, number> = { ...prev.campaignSpend };

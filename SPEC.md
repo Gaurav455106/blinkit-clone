@@ -1076,7 +1076,7 @@ Each slice is test-first, keeps v1 playable, and touches no UI until 1h.
 | 1d | `demand.ts` (F1) and `auction.ts` (F2a–F2g) | Spec tests: higher bid never lowers IS; price ≤ bid; floor; dedupe; slot-3 not at floor with background bidders |
 | 1e | `shoppers.ts` (F7), `stock.ts` (F6), `rivals.ts` (F11) | Unit tests per formula |
 | 1f | `step.ts` `stepDay` with pacing (F5), metrics (F8), **keyword inventory** (Product Booster, keyword Rec Ads) | Spend ≤ cap; partition = 100%; same seed + actions → identical day. **Done:** Day 1 in 27 ms |
-| 1f-b | Category, Spotlight, Stories and recommendation inventory (§3.2.2) on the same `stepDay` | Each format can lose SOV and regain it with a higher bid |
+| 1f-b | Category, Spotlight, Stories and recommendation inventory (§3.2.2) on the same `stepDay` | Each format can lose SOV and regain it with a higher bid. **Done:** rivals react on keywords only; Stories/Spotlight fatigue; reach from awareness formats lifts search CTR |
 | 1g | `suggest.ts` (F3) and headless 30-day runner + calibration report for all 7 brands | Calibration targets in §3.3.4, §3.7.2, §3.11 met or listed as tuning work |
 | 1h | `worker.ts` + `useMarket.ts`; bids saved from the wizard; suggested ranges sourced from `suggest.ts` | Day 1 < 50 ms headless; platform screenshots unchanged |
 
@@ -1116,7 +1116,13 @@ Each slice is test-first, keeps v1 playable, and touches no UI until 1h.
 
 ### Still open
 
-None. **Phase 0 spec is complete and ready for Gaurav's approval.** Next step on approval:
+27. **Listing Spotlight has no bid in the wizard** (and no placement choice, despite CLAUDE.md
+    describing one). The engine needs a bid. *Recommendation: the platform bids automatically
+    at the suggested range's p50 (§3.2.1) for all three Spotlight placements; the student's
+    levers are budget, schedule and the creative (whose CTR raises relevance and lowers price).*
+    Is that how real Blinkit Spotlight is priced?
+
+Everything else is decided. **Phase 0 spec is complete and ready for Gaurav's approval.** Next step on approval:
 the v1 hotfix (#14), then Phase 1.
 
 ---
@@ -1271,6 +1277,12 @@ affinity     = 1.5 on own brand term; else 1 + 0.15 × min(1, reach[state] ÷ sh
 The draft's price rule ("≥ 10% cheaper → up to −30%") had no curve; this one starts at a 5% gap
 and reaches −30% at a 25% gap. Position is handled by viewability (F2b), not repeated here.
 
+**Built in slice 1f-b:** awareness formats (Spotlight, Stories) get the creative multiplier and
+frequency fatigue but no reach affinity; search-led formats (keywords, category pages, Rec Ads)
+get the reach affinity those awareness formats build. So Stories pays off partly through later
+search CTR, not only its own clicks. Rivals react (ROAS floor, SOV) on their **keywords only**;
+their placement spend still counts against their budget.
+
 **Built in slice 1e:** outcomes are expected values, not random draws (noise comes from Poisson
 demand, F1), so every number can be explained. **Indirect revenue** (decision #20) = 15% of
 direct revenue (`INDIRECT_REVENUE_RATE`), with contribution at the same margin, so break-even
@@ -1312,7 +1324,7 @@ creativeMult = 1.10 clean
 price callout, T&Cs, non-English → rejected (guideline says not allowed; Q16)
 pixel-only detections (own uploads) capped at × 0.92 combined
 category CTR benchmark = creativeMult 1.0
-fatigueMult = 1 ÷ (1 + 0.04 × max(0, frequency − 3))
+fatigueMult = 1 ÷ (1 + 0.08 × max(0, frequency − 2))      (built 1f-b; 0.04/3 was too weak to notice)
 frequency   = viewable impressions ÷ unique shoppers reached in the state   (new creative resets it)
 ```
 

@@ -53,12 +53,13 @@ function dedupeByOwner(ranked: readonly Ranked[]): Ranked[] {
   return [...best.values()];
 }
 
-export function runAuction(bidders: readonly Bidder[]): SlotResult[] {
+/** One results page. `viewRates` sets how many slots there are and how often each is seen. */
+export function runAuction(bidders: readonly Bidder[], viewRates: readonly number[] = VIEW_RATES): SlotResult[] {
   const eligible = bidders
     .filter((b) => b.bid >= MIN_BID && b.relevance > 0)
     .map((b) => ({ ...b, adRank: b.bid * b.relevance }));
   const ordered = dedupeByOwner(eligible).sort(byRankThenId);
-  const winners = ordered.slice(0, VIEW_RATES.length);
+  const winners = ordered.slice(0, viewRates.length);
 
   return winners.map((w, slot) => {
     const next = ordered[slot + 1];
@@ -71,7 +72,7 @@ export function runAuction(bidders: readonly Bidder[]): SlotResult[] {
       relevance: w.relevance,
       adRank: w.adRank,
       price: Math.max(MIN_BID, Math.min(w.bid, secondPrice)),
-      viewRate: VIEW_RATES[slot],
+      viewRate: viewRates[slot],
     };
   });
 }

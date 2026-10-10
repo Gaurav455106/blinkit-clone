@@ -2,6 +2,9 @@
 
 import { BLINKIT_STATES, CITY_STORE_COUNT } from "@/data/scenarios";
 import type { BrandMarket, KeywordData } from "@/market/types";
+
+/** Anything with a daily volume: a keyword, or a placement (its id as the term). */
+export type DemandUnit = Pick<KeywordData, "term" | "dailyVolume">;
 import { poisson, streamFor } from "@/market/rng";
 
 /** Weekday multipliers, 0 = Sunday … 6 = Saturday; they average to 1. */
@@ -41,7 +44,7 @@ function eventMultiplier(mults: readonly number[]): number {
 /** Expected (mean) searches before noise. */
 export function expectedSearches(
   market: BrandMarket,
-  keyword: KeywordData,
+  keyword: DemandUnit,
   state: string,
   slot: number,
   ctx: DemandContext,
@@ -58,7 +61,7 @@ export function expectedSearches(
 /** Actual searches: a Poisson draw from its own seeded stream. */
 export function searches(
   market: BrandMarket,
-  keyword: KeywordData,
+  keyword: DemandUnit,
   state: string,
   slot: number,
   ctx: DemandContext,

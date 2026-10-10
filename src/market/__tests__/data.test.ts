@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { MARKET_DATA } from "@/market/data";
 import { SLOT_COUNT } from "@/market/types";
 import { SLOT_LABELS } from "@/market/slots";
+import { expectedPlacementIds, VIEW_RATES_BY_KIND } from "@/market/placements";
 import { BRAND_PROFILES, BLINKIT_STATES } from "@/data/scenarios";
 
 const sum = (xs: readonly number[]) => xs.reduce((s, x) => s + x, 0);
@@ -11,6 +12,16 @@ describe("slots", () => {
     expect(SLOT_LABELS).toHaveLength(SLOT_COUNT);
     expect(SLOT_LABELS[0]).toBe("12–3 AM");
     expect(SLOT_LABELS[6]).toBe("6–9 PM");
+  });
+});
+
+describe("placement view rates", () => {
+  it("keyword pages show 3 ads, category and recommendation 2, Spotlight and Stories 1", () => {
+    expect(VIEW_RATES_BY_KIND.keyword).toHaveLength(3);
+    expect(VIEW_RATES_BY_KIND.category).toHaveLength(2);
+    expect(VIEW_RATES_BY_KIND.recommendation).toHaveLength(2);
+    expect(VIEW_RATES_BY_KIND.spotlight).toEqual([1]);
+    expect(VIEW_RATES_BY_KIND.stories).toEqual([1]);
   });
 });
 
@@ -98,6 +109,30 @@ describe("MARKET_DATA", () => {
       it("state multipliers name real states", () => {
         for (const s of [...Object.keys(m.stateCVR), ...Object.keys(m.stateAffinity)]) {
           expect((BLINKIT_STATES as readonly string[]).includes(s)).toBe(true);
+        }
+      });
+
+      it("has exactly the placements the wizard offers (categories, Spotlight, Stories feeds, Rec Ads slots)", () => {
+        expect(m.placements.map((p) => p.id).sort()).toEqual([...expectedPlacementIds(profile)].sort());
+      });
+
+      it("gives every placement volume, sane multipliers and a fit for each SKU", () => {
+        for (const p of m.placements) {
+          expect(p.dailyVolume).toBeGreaterThan(0);
+          expect(p.ctrMult).toBeGreaterThan(0);
+          expect(p.cvrMult).toBeGreaterThan(0);
+          expect(Object.keys(p.fit).sort()).toEqual([...skuIds].sort());
+          expect(Math.max(...Object.values(p.fit))).toBeGreaterThan(0);
+        }
+      });
+
+      it("rival placement bids name real placements", () => {
+        const ids = m.placements.map((p) => p.id);
+        for (const r of m.rivals) {
+          for (const [id, bid] of Object.entries(r.placementBids ?? {})) {
+            expect(ids).toContain(id);
+            expect(bid).toBeGreaterThanOrEqual(200);
+          }
         }
       });
 

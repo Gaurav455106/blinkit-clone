@@ -16,8 +16,8 @@ const PRICE_GAP_START = 0.05;
 const PRICE_GAP_SPAN = 0.2;
 const MAX_PRICE_PENALTY = 0.3;
 
-const FATIGUE_FREE_FREQUENCY = 3;
-const FATIGUE_RATE = 0.04;
+const FATIGUE_FREE_FREQUENCY = 2;
+const FATIGUE_RATE = 0.08;
 
 export interface ShopperInputs {
   viewableImpressions: number;

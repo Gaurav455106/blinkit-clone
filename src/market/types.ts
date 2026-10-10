@@ -12,6 +12,24 @@ export type PerSlot = readonly [number, number, number, number, number, number, 
 
 export type KeywordTier = "head" | "mid" | "long";
 
+/** The five kinds of ad inventory (SPEC §3.2.2). */
+export type InventoryKind = "keyword" | "category" | "spotlight" | "stories" | "recommendation";
+
+/** A non-keyword placement: category page, Spotlight banner, Stories feed or Rec Ads slot. */
+export interface PlacementData {
+  /** e.g. "category:Sports Nutrition", "spotlight:home", "stories:main-feed", "rec:cart". */
+  id: string;
+  kind: Exclude<InventoryKind, "keyword">;
+  label: string;
+  /** National page views / feed opens per day, before state, slot and weekday shares. */
+  dailyVolume: number;
+  /** Fit of each SKU for this placement. */
+  fit: Readonly<Record<string, number>>;
+  /** CTR and CVR relative to the category's search baseline (browsing converts less). */
+  ctrMult: number;
+  cvrMult: number;
+}
+
 /** One keyword the brand can bid on (SPEC §3.7.2, §14 F2e, F16). */
 export interface KeywordData {
   term: string;
@@ -56,6 +74,8 @@ export interface RivalData {
   monthlyBudget: number;
   /** Starting bid per keyword term; terms not listed aren't bid on. */
   bids: Readonly<Record<string, number>>;
+  /** Starting bid per placement id; placements not listed aren't bid on. */
+  placementBids?: Readonly<Record<string, number>>;
   /** Highest bid it will go to, as a multiple of its starting bid. */
   maxBidMult: number;
   /** Position-weighted SOV it tries to hold (0–1, max ≈ 0.54). */
@@ -82,6 +102,7 @@ export interface BrandMarket {
   brandId: string;
   category: CategoryProfile;
   keywords: readonly KeywordData[];
+  placements: readonly PlacementData[];
   /** CVR multiplier per state; states not listed = 1.0 (SPEC §3.7.1). */
   stateCVR: Readonly<Partial<Record<StateName, number>>>;
   /** Demand multiplier per state on top of dark-store share; default 1.0. */

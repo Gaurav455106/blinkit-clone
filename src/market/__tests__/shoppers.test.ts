@@ -65,10 +65,11 @@ describe("affinity", () => {
 });
 
 describe("fatigueMult (F10)", () => {
-  it("is 1 up to a frequency of 3, then decays", () => {
+  it("is 1 up to a frequency of 2, then decays (−~13% at 4, −~32% at 8)", () => {
     expect(fatigueMult(0)).toBe(1);
-    expect(fatigueMult(3)).toBe(1);
-    expect(fatigueMult(8)).toBeCloseTo(1 / 1.2, 6);
+    expect(fatigueMult(2)).toBe(1);
+    expect(fatigueMult(4)).toBeCloseTo(1 / 1.16, 6);
+    expect(fatigueMult(8)).toBeCloseTo(1 / 1.48, 6);
   });
 });
 

@@ -24,10 +24,11 @@ export interface RivalState {
 
 /** What the rival saw yesterday. */
 export interface RivalDayStats {
-  /** Its position-weighted SOV across its keywords. */
+  /** Its position-weighted SOV across its keywords (placements don't count). */
   sov: number;
-  /** Its ROAS over the last 3 days; null if it had no spend. */
+  /** Its keyword ROAS over the last 3 days; null if it had no keyword spend. */
   roas3d: number | null;
+  /** All spend today, keywords and placements (counts against its budget). */
   spend: number;
 }
 
@@ -53,7 +54,7 @@ export function updateRival(rival: RivalData, state: RivalState, yesterday: Riva
   return { ...state, spent, lowSovStreak: 0 };
 }
 
-/** The rival's effective bid for a keyword in a slot, or null if it isn't in this auction. */
+/** The rival's effective bid for a keyword or placement in a slot, or null if it isn't in this auction. */
 export function rivalBid(
   rival: RivalData,
   state: RivalState,
@@ -61,7 +62,7 @@ export function rivalBid(
   day: number,
   slotPressure: number,
 ): number | null {
-  const start = rival.bids[term];
+  const start = rival.bids[term] ?? rival.placementBids?.[term];
   if (start === undefined) return null;
   if (day < (rival.activeFromDay ?? 1)) return null;
   if (state.spent >= rival.monthlyBudget) return null;

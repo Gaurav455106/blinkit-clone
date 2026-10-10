@@ -3,7 +3,7 @@
 // SavedCampaign onto it.
 
 import type { Scenario } from "@/data/scenarios";
-import type { BrandMarket } from "@/market/types";
+import type { BrandMarket, InventoryKind } from "@/market/types";
 import type { RivalState } from "@/market/rivals";
 
 export interface KeywordBid {
@@ -14,10 +14,21 @@ export interface KeywordBid {
   smartBid?: number;
 }
 
+/** A bid on a non-keyword placement (category page, Spotlight, Stories feed, Rec Ads slot). */
+export interface PlacementBid {
+  /** Placement id, see placements.ts. */
+  id: string;
+  /** ₹ CPM. */
+  bid: number;
+}
+
 export interface CampaignConfig {
   id: string;
   skuIds: readonly string[];
   keywords: readonly KeywordBid[];
+  placements?: readonly PlacementBid[];
+  /** CTR multiplier from the creative on Spotlight and Stories (SPEC §14 F10); default 1. */
+  creativeMult?: number;
   /** "Boost my bid up to X%" as a fraction (0.2 = 20%); always applied (decision #23). */
   boostPct?: number;
   geography: "pan_india" | "select_cities" | null;
@@ -50,7 +61,7 @@ export interface MarketState {
   /** Units per SKU per state. */
   stock: Readonly<Record<string, Readonly<Record<string, number>>>>;
   rivals: Readonly<Record<string, RivalState>>;
-  /** Rival spend and revenue for the last 3 days (for ROAS floor). */
+  /** Rival keyword spend and revenue for the last 3 days (for the ROAS floor). */
   rivalWindow: Readonly<Record<string, { spend: readonly number[]; revenue: readonly number[] }>>;
   /** CTR history per "term|sku", last 3 days. */
   ctrWindow: Readonly<Record<string, { clicks: readonly number[]; viewable: readonly number[] }>>;
@@ -63,11 +74,13 @@ export interface MarketState {
   totalSpend: number;
 }
 
-/** One campaign × keyword × match type × state × slot for one day. */
+/** One campaign × keyword-or-placement × match type × state × slot for one day. */
 export interface CellRow {
   campaignId: string;
+  inventory: InventoryKind;
+  /** Keyword term, or placement id for non-keyword inventory. */
   term: string;
-  matchType: "exact" | "smart";
+  matchType: "exact" | "smart" | "placement";
   skuId: string;
   state: string;
   slot: number;
@@ -93,6 +106,8 @@ export interface CellRow {
 
 export interface RivalDayRow {
   rivalId: string;
+  inventory: InventoryKind;
+  /** Keyword term or placement id. */
   term: string;
   viewableImpressions: number;
   totalAdViewable: number;
