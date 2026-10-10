@@ -148,6 +148,6 @@ describe("keyword and placement campaigns together", () => {
     };
     const r = day1(ctx, [c]);
     expect(new Set(r.cells.map((x) => x.inventory))).toEqual(new Set(["keyword", "category"]));
-    expect(total(r.cells, "spend")).toBeLessThanOrEqual(800 + 1e-6);
+    expect(total(r.cells, "spend")).toBeLessThanOrEqual(800 * 1.5 + 1e-6);
   });
 });

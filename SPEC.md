@@ -270,6 +270,29 @@ If either is missing, a schedule change can't change the outcome, and the lesson
 - Overall budgets: the per-day amount is `remaining ÷ days left`, then paced within the day
   as above.
 
+**Across days: budgets follow traffic, normalised weekly (Gaurav, 2026-10-11).** A daily budget
+isn't a flat daily limit:
+- Busy days (weekends, sale days) may spend up to **1.5×** the daily budget; quiet days spend
+  less. Today's limit = `budget × min(1.5, today's traffic ÷ the week's average traffic)`.
+- **Each week is normalised:** days 1–7, 8–14, 15–21, 22–28 never spend more than
+  `budget × live days in that week`; the last two days likewise. So the run never passes
+  `budget × days`. A quiet or stock-limited day leaves room that later days of the same week
+  can use, but a week's unspent money doesn't roll into the next.
+- Overall budgets flex the same way: `remaining ÷ days left × traffic index`, never more than
+  what's left.
+
+**Too-high budgets (e.g. a ₹2 lakh daily budget on a new account): what stops a blow-up**
+1. **The ₹2,00,000 scenario budget is a hard stop** across all campaigns (built, §14 F5).
+2. **The market limits delivery:** a campaign can only buy the auctions it wins. FuelUp's
+   whole keyword set absorbs ~₹12K/day, so a ₹2 lakh daily budget burns the account in about
+   two weeks rather than in a day, and the campaign then sits dark for the rest of the run.
+3. **Pacing alert (Phase 2):** when projected spend finishes the money before day 30, an alert
+   pauses the clock ("At this rate your budget runs out on day 16"). It's a decision moment:
+   the right levers are lowering daily budgets or bids, or switching to an overall budget.
+4. **New-account spend limit (Q28, needs confirmation):** whether Blinkit caps a new
+   advertiser's daily spend and raises it with history. If it does, the engine applies it as
+   an account-level daily cap.
+
 *Open question Q10: does Blinkit pace evenly within a day, or spend as auctions arrive? If it
 paces evenly, we model that instead and get the consequence from §3.3.3 alone, which is weaker.*
 
@@ -593,7 +616,7 @@ written into the sections above or below**; the rest need a decision (§13).
 |---|---|---|---|---|---|---|
 | Henlo | KA, MH, TS | — | **Yes** ("dog treats" head vs "chicken jerky" long-tail) | **Yes** (Jerky vs low-margin biscuits) | — | Thin margin: head terms and cheap SKUs lose money fast |
 | Glow Republic | MH, DL, KA | **Yes** (MH big, DL converts better) | — | — | **Yes** (Spotlight) | Premium, image-led |
-| VitaBoost | MH, KA, TS | — | — | — | **Yes** (Spotlight) | New category; creative and placement SOV carry it |
+| VitaBoost | MH, KA, TS | — | **Yes** (generic "vitamins" vs specific needs like pregnancy iron) | — | **Yes** (Spotlight) | New category; creative and placement SOV carry it. Head/long added in 1g so it has 2 traps |
 | TinyBuddy | DL, HR, UP | **Yes** (DL dominant, HR better ROAS) | — | **Yes** (Wipes volume vs Rash Cream margin) | — | Hyperlocal demand |
 | MunchBox | MH, GJ, KA | — | **Yes** ("healthy chips" head vs "peri peri makhana") | **Yes** (₹49 chips eat budget; makhana is hero) | — | Low price, volume-led |
 | PawLife | TS, KA, MH | **Yes** | — | — | **Yes** (Rec Ads / Stories) | Low velocity, discovery-led |
@@ -1077,7 +1100,22 @@ Each slice is test-first, keeps v1 playable, and touches no UI until 1h.
 | 1e | `shoppers.ts` (F7), `stock.ts` (F6), `rivals.ts` (F11) | Unit tests per formula |
 | 1f | `step.ts` `stepDay` with pacing (F5), metrics (F8), **keyword inventory** (Product Booster, keyword Rec Ads) | Spend ≤ cap; partition = 100%; same seed + actions → identical day. **Done:** Day 1 in 27 ms |
 | 1f-b | Category, Spotlight, Stories and recommendation inventory (§3.2.2) on the same `stepDay` | Each format can lose SOV and regain it with a higher bid. **Done:** rivals react on keywords only; Stories/Spotlight fatigue; reach from awareness formats lifts search CTR |
-| 1g | `suggest.ts` (F3) and headless 30-day runner + calibration report for all 7 brands | Calibration targets in §3.3.4, §3.7.2, §3.11 met or listed as tuning work |
+| 1g | `suggest.ts` (F3) and headless 30-day runner + calibration report for all 7 brands | **Done:** `npm run calibrate`, 64/64 checks pass for all 7 brands (below) |
+
+**Calibration checks (`npm run calibrate`), per brand:** 30 days under 1.5 s; naive search play
+at 0.9–1.5× break-even for ROAS-first brands (Henlo 0.6–1.2×: thin margin is its lesson;
+volume-first 0.8–1.4×; awareness 0.5–1.15×; category creation 0.4–1.0×); ₹2 lakh budget tight
+(naive spends ≥ 95%); trap keywords exist (suggested range above max profitable CPM); the best
+schedule beats 24/7 by ≥ 15% / ₹10K profit and includes the category's peak; each of the brand's
+traps (head/long split, hero SKU, state split, creative) improves profit (or revenue for
+creative) by ≥ 15% / ₹10K; the challenger runs out of budget between days 12 and 28.
+
+What calibration changed: FuelUp keyword volumes ×2.2 and long-tail raised (the budget wasn't
+tight and long-tail was 3.5% of volume); tier-based background competition; category CTR/CVR
+for the six new brands; challenger budgets; the "peak loses ≥ 20%" target replaced by "best
+schedule includes the peak" because profit comparisons break when naive play is loss-making by
+design (awareness brands spend less → lose less). Gains are ₹ differences, not ratios, for
+the same reason.
 | 1h | `worker.ts` + `useMarket.ts`; bids saved from the wizard; suggested ranges sourced from `suggest.ts` | Day 1 < 50 ms headless; platform screenshots unchanged |
 
 ---
@@ -1121,6 +1159,11 @@ Each slice is test-first, keeps v1 playable, and touches no UI until 1h.
     at the suggested range's p50 (§3.2.1) for all three Spotlight placements; the student's
     levers are budget, schedule and the creative (whose CTR raises relevance and lowers price).*
     Is that how real Blinkit Spotlight is priced?
+
+28. **New-account spend limit:** does Blinkit cap a new advertiser's total daily spend (and
+    lift it as spend history builds)? If yes, what are the starting limit and the steps? The
+    engine will apply it as an account-level daily cap. Without it, a too-high budget is
+    still stopped by market supply and the ₹2 lakh total (§3.3.2).
 
 Everything else is decided. **Phase 0 spec is complete and ready for Gaurav's approval.** Next step on approval:
 the v1 hotfix (#14), then Phase 1.

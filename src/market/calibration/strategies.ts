@@ -7,7 +7,7 @@ import type { Strategy } from "@/market/headless";
 
 export type { Strategy };
 import type { KeywordData } from "@/market/types";
-import { suggestKeywordRange } from "@/market/suggest";
+import { suggestKeywordRange, suggestPlacementRange } from "@/market/suggest";
 import { maxProfitableCPM } from "@/market/shoppers";
 import { SLOT_COUNT } from "@/market/types";
 
@@ -126,4 +126,10 @@ export function stateSplit(ctx: MarketContext, bestShare = 0.4): Strategy {
     base(ctx, { id: "best-state", geography: "select_cities", cities: [best], keywords: kws, budget: daily * bestShare }),
     base(ctx, { id: "other-states", geography: "select_cities", cities: stocked.filter((s) => s !== best), keywords: kws, budget: daily * (1 - bestShare) }),
   ]);
+}
+
+/** Spotlight on all three placements at the top of their ranges, with a given creative. */
+export function spotlightCampaign(ctx: MarketContext, creativeMult: number): Strategy {
+  const placements = ctx.market.placements.filter((p) => p.kind === "spotlight").map((p) => ({ id: p.id, bid: suggestPlacementRange(ctx, p.id).hi }));
+  return fixed([base(ctx, { placements, creativeMult })]);
 }

@@ -24,6 +24,7 @@ export function initialMarketState(ctx: MarketContext): MarketState {
     studentViewable: {},
     salesWindow: {},
     campaignSpend: {},
+    campaignWeekSpend: {},
     totalSpend: 0,
   };
 }

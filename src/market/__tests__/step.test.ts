@@ -6,6 +6,7 @@ import { FUELUP } from "@/market/data/fuelup";
 import { BRAND_PROFILES, BLINKIT_STATES, SEASONS, MARKET_CONDITIONS } from "@/data/scenarios";
 import type { Scenario, CityStockMap } from "@/data/scenarios";
 import { RESTOCK_INTERVAL_DAYS } from "@/market/stock";
+import { MAX_DAILY_FLEX, trafficIndex } from "@/market/step";
 
 const STOCK = { Karnataka: 80, Maharashtra: 70, Delhi: 60 };
 
@@ -75,16 +76,16 @@ describe("stepDay basics", () => {
 });
 
 describe("budget (F5)", () => {
-  it("never spends more than the daily budget", () => {
+  it("never spends more than the daily budget × the traffic flex", () => {
     const ctx = makeCtx();
     const { results } = runDays(ctx, [camp({ budget: 1500 })], 5);
-    for (const r of results) expect(total(r.cells, "spend")).toBeLessThanOrEqual(1500 + 1e-6);
+    for (const r of results) expect(total(r.cells, "spend")).toBeLessThanOrEqual(1500 * MAX_DAILY_FLEX + 1e-6);
   });
 
   it("paces an overall budget as remaining ÷ days left", () => {
     const ctx = makeCtx();
     const { results } = runDays(ctx, [camp({ budgetType: "overall", budget: 30000, endDay: 30 })], 3);
-    for (const r of results) expect(total(r.cells, "spend")).toBeLessThanOrEqual(30000 / 28 + 1e-6);
+    for (const r of results) expect(total(r.cells, "spend")).toBeLessThanOrEqual((30000 / 28) * MAX_DAILY_FLEX + 1e-6);
   });
 
   it("never lets total spend pass the scenario budget", () => {
@@ -99,12 +100,52 @@ describe("budget (F5)", () => {
     const kws = [{ term: "protein powder", exactBid: 600 }, { term: "whey protein", exactBid: 600 }, { term: "protein supplement", exactBid: 600 }];
     // Budget = just under what 24/7 would spend before 6 PM, so 24/7 runs dry right before the peak
     const uncapped = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget: 1e9 })]).result;
-    const budget = total(uncapped.cells.filter((c) => c.slot < 6), "spend") * 0.97;
+    // (today's cap is the budget × today's traffic index)
+    const budget = total(uncapped.cells.filter((c) => c.slot < 6), "spend") * 0.97 / Math.min(MAX_DAILY_FLEX, trafficIndex(ctx, 1));
     const allDay = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget })]).result;
     const deadOff = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget, schedule: [2, 3, 4, 5, 6, 7] })]).result;
     const peakSpend = (r: DayResult) => total(r.cells.filter((c) => c.slot === 6), "spend");
     expect(peakSpend(allDay)).toBeLessThan(peakSpend(deadOff));
     expect(total(deadOff.cells.filter((c) => c.slot < 2), "spend")).toBe(0);
+  });
+});
+
+describe("daily budgets flex with traffic, normalised weekly (SPEC §3.3.2)", () => {
+  // Day 1 is a Monday (startWeekday 1); day 7 is Sunday, the busiest weekday.
+  const hungry = () => camp({ keywords: [{ term: "protein powder", exactBid: 900 }, { term: "whey protein", exactBid: 900 }, { term: "protein bar", exactBid: 900 }], budget: 1500 });
+  const daySpend = (r: DayResult) => total(r.cells, "spend");
+
+  it("spends more than the daily budget on a busy day, but never more than 1.5×", () => {
+    const ctx = makeCtx();
+    const { results } = runDays(ctx, [hungry()], 7);
+    const sunday = results[6];
+    expect(daySpend(sunday)).toBeGreaterThan(1500);
+    for (const r of results) expect(daySpend(r)).toBeLessThanOrEqual(1500 * MAX_DAILY_FLEX + 1e-6);
+  });
+
+  it("spends less than the daily budget on a quiet day", () => {
+    const ctx = makeCtx();
+    const { results } = runDays(ctx, [hungry()], 2);
+    expect(daySpend(results[1])).toBeLessThan(1500);
+  });
+
+  it("never spends more than 7 × the daily budget in a week, or days × budget over the run", () => {
+    const ctx = makeCtx();
+    const { results, state } = runDays(ctx, [hungry()], 30);
+    for (let w = 0; w < 5; w++) {
+      const week = results.slice(w * 7, w * 7 + 7);
+      expect(week.reduce((s, r) => s + daySpend(r), 0)).toBeLessThanOrEqual(1500 * week.length + 1e-6);
+    }
+    expect(state.campaignSpend.c1).toBeLessThanOrEqual(1500 * 30 + 1e-6);
+  });
+
+  it("a ₹2 lakh daily budget on a new account is held back by what the market can deliver and the ₹2 lakh total", () => {
+    const ctx = makeCtx();
+    const { results, state } = runDays(ctx, [camp({ keywords: ctx.market.keywords.map((k) => ({ term: k.term, exactBid: 2000 })), budget: 200000 })], 30);
+    expect(daySpend(results[0])).toBeLessThan(200000);
+    expect(state.totalSpend).toBeLessThanOrEqual(200000 + 1e-6);
+    const darkDays = results.filter((r) => daySpend(r) === 0).length;
+    expect(darkDays).toBeGreaterThan(0);
   });
 });
 

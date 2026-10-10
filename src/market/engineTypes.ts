@@ -71,6 +71,8 @@ export interface MarketState {
   salesWindow: Readonly<Record<string, readonly number[]>>;
   /** ₹ spent so far per campaign. */
   campaignSpend: Readonly<Record<string, number>>;
+  /** ₹ spent per campaign in the current week (days 1–7, 8–14…), for weekly normalisation. */
+  campaignWeekSpend: Readonly<Record<string, { week: number; spent: number }>>;
   totalSpend: number;
 }
 

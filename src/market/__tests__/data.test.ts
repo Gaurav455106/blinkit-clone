@@ -32,7 +32,9 @@ describe("MARKET_DATA", () => {
     }
   });
 
-  it.todo("covers all 7 brands (FuelUp first, others in slice 1c follow-ups)");
+  it("covers all 7 brands", () => {
+    expect(Object.keys(MARKET_DATA).sort()).toEqual(BRAND_PROFILES.map((b) => b.id).sort());
+  });
 
   for (const [brandId, m] of Object.entries(MARKET_DATA)) {
     const profile = BRAND_PROFILES.find((b) => b.id === brandId)!;

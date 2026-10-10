@@ -36,10 +36,40 @@ function isLive(c: CampaignConfig, day: number, totalDays: number): boolean {
   return !c.paused && day >= c.launchDay && day <= (c.endDay ?? totalDays);
 }
 
-function dailyCap(c: CampaignConfig, prev: MarketState, day: number, totalDays: number): number {
-  if (c.budgetType === "daily") return c.budget;
-  const daysLeft = Math.max(1, (c.endDay ?? totalDays) - day + 1);
-  return Math.max(0, (c.budget - (prev.campaignSpend[c.id] ?? 0)) / daysLeft);
+/** A busy day may spend up to this multiple of the daily budget (SPEC §3.3.2). */
+export const MAX_DAILY_FLEX = 1.5;
+const WEEK_DAYS = 7;
+
+const weekOf = (day: number) => Math.floor((day - 1) / WEEK_DAYS);
+
+/** Today's expected traffic relative to the average day of its week (1 = average). */
+export function trafficIndex(ctx: MarketContext, day: number): number {
+  const dow = (d: number) => DOW_MULT[(ctx.startWeekday + d - 1) % WEEK_DAYS];
+  const start = weekOf(day) * WEEK_DAYS + 1;
+  const days = Array.from({ length: WEEK_DAYS }, (_, i) => start + i).filter((d) => d <= ctx.totalDays);
+  return dow(day) / (days.reduce((s, d) => s + dow(d), 0) / days.length);
+}
+
+/**
+ * Today's spend limit. Budgets flex with traffic: busy days may spend up to
+ * 1.5× the daily amount and quiet days less. Daily budgets are normalised per
+ * week (never more than budget × live days in the week), so the run never
+ * passes budget × days. Overall budgets flex the same way within what's left.
+ */
+function dailyCap(c: CampaignConfig, prev: MarketState, day: number, ctx: MarketContext): number {
+  const flex = Math.min(MAX_DAILY_FLEX, trafficIndex(ctx, day));
+  const endDay = c.endDay ?? ctx.totalDays;
+  if (c.budgetType === "daily") {
+    const weekStart = weekOf(day) * WEEK_DAYS + 1;
+    const weekEnd = Math.min(weekStart + WEEK_DAYS - 1, endDay);
+    const liveDays = Math.max(0, weekEnd - Math.max(weekStart, c.launchDay) + 1);
+    const tracked = prev.campaignWeekSpend[c.id];
+    const spentThisWeek = tracked && tracked.week === weekOf(day) ? tracked.spent : 0;
+    return Math.max(0, Math.min(c.budget * flex, c.budget * liveDays - spentThisWeek));
+  }
+  const remaining = Math.max(0, c.budget - (prev.campaignSpend[c.id] ?? 0));
+  const daysLeft = Math.max(1, endDay - day + 1);
+  return Math.min(remaining, (remaining / daysLeft) * flex);
 }
 
 /** States the brand serves: stocked at the start of the run, or stocked now. */
@@ -125,7 +155,7 @@ export function stepDay(
   const placementById = new Map(market.placements.map((p) => [p.id, p]));
 
   // Daily caps, scaled down if they'd pass the scenario budget
-  const caps = live.map((c) => [c.id, dailyCap(c, prev, day, ctx.totalDays)] as const);
+  const caps = live.map((c) => [c.id, dailyCap(c, prev, day, ctx)] as const);
   const allowed = Math.max(0, scenario.budget - prev.totalSpend);
   const capTotal = caps.reduce((s, [, v]) => s + v, 0);
   const capScale = capTotal > allowed ? allowed / capTotal : 1;
@@ -386,11 +416,16 @@ function nextState(
   }
 
   const campaignSpend: Record<string, number> = { ...prev.campaignSpend };
+  const week = Math.floor((day - 1) / 7);
+  const campaignWeekSpend: Record<string, { week: number; spent: number }> = {};
+  for (const [id, w] of Object.entries(prev.campaignWeekSpend)) if (w.week === week) campaignWeekSpend[id] = w;
   let daySpend = 0;
   for (const c of cells) {
     campaignSpend[c.campaignId] = (campaignSpend[c.campaignId] ?? 0) + c.spend;
+    const w = campaignWeekSpend[c.campaignId];
+    campaignWeekSpend[c.campaignId] = { week, spent: (w?.spent ?? 0) + c.spend };
     daySpend += c.spend;
   }
 
-  return { day, stock, rivals, rivalWindow, ctrWindow, studentViewable, salesWindow, campaignSpend, totalSpend: prev.totalSpend + daySpend };
+  return { day, stock, rivals, rivalWindow, ctrWindow, studentViewable, salesWindow, campaignSpend, campaignWeekSpend, totalSpend: prev.totalSpend + daySpend };
 }
