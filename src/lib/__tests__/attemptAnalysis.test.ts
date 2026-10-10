@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   attemptLines, attemptTotals, brandOf, filterAttempts, bestPerStudent, latestFirst,
   categoryStats, lineStats, crisisStats, strengthsAndGaps, lineDetailSince, buildSavedBreakdown,
-  attemptCrisisResponses, type AttemptRow,
+  attemptCrisisResponses, biggestLoss, mostFrequent, attemptCampaigns, summariseBatches, type AttemptRow,
 } from "@/lib/attemptAnalysis";
 import { RUBRICS, type LineResult } from "@/lib/rubrics";
 import {
@@ -189,6 +189,38 @@ describe("strengthsAndGaps", () => {
 
   it("returns empty lists when no attempt has lines", () => {
     expect(strengthsAndGaps([row({ lines: null })])).toEqual({ strengths: [], gaps: [] });
+  });
+});
+
+describe("staff table helpers", () => {
+  it("finds the biggest loss from lines, else from part totals", () => {
+    expect(biggestLoss(row({ lines: fullLines({ dayparting: [0, "x"], keywords: [3, "y"] }) }))).toBe("Ad schedule (dayparting)");
+    expect(biggestLoss(row())).toBeNull();
+    expect(biggestLoss(row({ lines: null }))).toBe("Live optimisation");
+  });
+
+  it("summarises batches", () => {
+    const rows = [
+      row({ email: "a", batch_code: "B2", lines: fullLines({ dayparting: [0, "x"] }) }),
+      row({ email: "b", batch_code: "B2", lines: fullLines({ dayparting: [6, "y"] }) }),
+      row({ email: "c", batch_code: "A1" }),
+    ];
+    const s = summariseBatches(rows);
+    expect(s.map((b) => b.batch)).toEqual(["A1", "B2"]);
+    expect(s[1]).toMatchObject({ count: 2, commonLoss: "Ad schedule (dayparting)" });
+    expect(s[1].top.email).toBe("b");
+    expect(s[0].commonLoss).toBeNull();
+  });
+
+  it("picks the most frequent value", () => {
+    expect(mostFrequent(["a", null, "b", "b"])).toBe("b");
+    expect(mostFrequent([null])).toBeNull();
+  });
+
+  it("reads launched campaigns from the snapshot", () => {
+    const r = row({ snapshot: { campaigns: [{ id: "1", name: "Push", adFormat: "stories", budget: 900, cities: ["Goa", 4], keywords: [] }, { id: "2", isDraft: true }] } });
+    expect(attemptCampaigns(r)).toEqual([{ id: "1", name: "Push", adFormat: "stories", objective: "", budget: 900, geography: "", states: ["Goa"], keywords: [] }]);
+    expect(attemptCampaigns(row({ snapshot: null }))).toEqual([]);
   });
 });
 

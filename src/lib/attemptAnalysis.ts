@@ -479,6 +479,82 @@ export function strengthsAndGaps(rows: readonly AttemptRow[]): { strengths: Stre
   return { strengths, gaps };
 }
 
+// ── Small per-attempt helpers for staff tables ────────────────────────────────
+
+/** Where the attempt lost the most: the line with most points lost, else the part with the lowest share. */
+export function biggestLoss(row: AttemptRow): string | null {
+  const lines = attemptLines(row);
+  if (lines) {
+    const worst = lines.reduce<LineResult | null>((w, l) => (l.max - l.earned > (w ? w.max - w.earned : 0) ? l : w), null);
+    return worst ? worst.label : null;
+  }
+  const t = attemptTotals(row);
+  if (!t) return null;
+  const cats = SCORE_SCHEMES[attemptVersion(row)];
+  const worst = cats.reduce((w, c) => ((t[c.key] ?? 0) / c.max < (t[w.key] ?? 0) / w.max ? c : w), cats[0]);
+  return (t[worst.key] ?? 0) >= worst.max ? null : worst.label;
+}
+
+/** The most frequent value (ties: first seen), or null. */
+export function mostFrequent(values: readonly (string | null)[]): string | null {
+  return mostCommon(values.filter((v): v is string => !!v));
+}
+
+export interface CampaignLite {
+  id: string;
+  name: string;
+  adFormat: string;
+  objective: string;
+  budget: number;
+  geography: string;
+  states: string[];
+  keywords: string[];
+}
+
+const strings = (x: unknown): string[] => (Array.isArray(x) ? x.filter((s): s is string => typeof s === "string") : []);
+
+/** Launched campaigns from the saved snapshot, read defensively. */
+export function attemptCampaigns(row: AttemptRow): CampaignLite[] {
+  const raw = asRecord(row.snapshot)?.campaigns;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((v): CampaignLite[] => {
+    const o = asRecord(v);
+    if (!o || o.isDraft === true) return [];
+    return [{
+      id: str(o.id) ?? "",
+      name: str(o.name) ?? "Campaign",
+      adFormat: str(o.adFormat) ?? "",
+      objective: str(o.objective) ?? "",
+      budget: num(o.budget) ?? 0,
+      geography: str(o.geography) ?? "",
+      states: strings(o.cities),
+      keywords: strings(o.keywords),
+    }];
+  });
+}
+
+export interface BatchSummary {
+  batch: string;
+  count: number;
+  avg: number;
+  top: AttemptRow;
+  /** The line (or part) where the most students lost the most points. */
+  commonLoss: string | null;
+}
+
+/** One row per batch over best-per-student rows, sorted by batch name. */
+export function summariseBatches(best: readonly AttemptRow[]): BatchSummary[] {
+  const groups = new Map<string, AttemptRow[]>();
+  for (const r of best) groups.set(r.batch_code, [...(groups.get(r.batch_code) ?? []), r]);
+  return Array.from(groups.entries()).map(([batch, members]) => ({
+    batch,
+    count: members.length,
+    avg: Math.round(mean(members.map((m) => m.score_total))),
+    top: members.reduce((a, b) => (b.score_total > a.score_total ? b : a)),
+    commonLoss: mostFrequent(members.map(biggestLoss)),
+  })).sort((a, b) => a.batch.localeCompare(b.batch));
+}
+
 /** created_at of the earliest attempt that has line detail, or null if none do. */
 export function lineDetailSince(rows: readonly AttemptRow[]): string | null {
   const withLines = oldestFirst(rows).find((r) => attemptLines(r) !== null);
