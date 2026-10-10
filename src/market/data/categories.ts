@@ -10,7 +10,7 @@ export const PROTEIN: CategoryProfile = {
   intent:        [0.20, 0.20, 1.10, 0.80, 0.80, 0.90, 1.30, 1.00],
   rivalPressure: [0.70, 0.60, 1.00, 0.95, 0.95, 1.00, 1.25, 1.05],
   baseCTR: 0.02,
-  baseCVR: 0.10,
+  baseCVR: 0.09,
   backgroundBidMedian: 340,
   backgroundBidSigma: 0.35,
   backgroundBidderCount: [4, 7],

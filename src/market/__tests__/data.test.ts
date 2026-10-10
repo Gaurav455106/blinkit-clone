@@ -136,6 +136,12 @@ describe("MARKET_DATA", () => {
         }
       });
 
+      it("teaches 2–3 traps (SPEC §3.10)", () => {
+        expect(m.traps.length).toBeGreaterThanOrEqual(2);
+        expect(m.traps.length).toBeLessThanOrEqual(3);
+        expect(new Set(m.traps).size).toBe(m.traps.length);
+      });
+
       it("has organic daily units for every SKU", () => {
         expect(Object.keys(m.organicDailyUnits).sort()).toEqual([...skuIds].sort());
       });

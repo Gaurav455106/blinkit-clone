@@ -63,6 +63,9 @@ export interface CategoryProfile {
   backgroundBidderCount: readonly [min: number, max: number];
 }
 
+/** Structural lessons built into a brand's data (SPEC §3.10). */
+export type TrapId = "stateSplit" | "headLong" | "hero" | "creative";
+
 export type RivalArchetype = "leader" | "challenger" | "price_warrior" | "newcomer";
 
 /** A named competitor (SPEC §4, §14 F11). Bids are ₹ CPM. */
@@ -110,4 +113,6 @@ export interface BrandMarket {
   rivals: readonly RivalData[];
   /** Organic units per day per SKU, nationally, at full OSA (SPEC §14 F6). */
   organicDailyUnits: Readonly<Record<string, number>>;
+  /** The 2–3 traps this brand's data is built to teach (checked by calibration). */
+  traps: readonly TrapId[];
 }

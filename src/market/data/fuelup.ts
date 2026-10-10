@@ -6,7 +6,8 @@
 // - Hero SKU: "protein bar" is a high-volume head term that serves the ₹99 bar,
 //   which can't be profitable at the ₹200 minimum CPM; whey is the hero.
 // - Head vs long-tail: head terms carry most volume and the strongest rivals;
-//   long-tail whey terms convert better and clear cheaper.
+//   long-tail whey terms (~25% of profitable volume) convert better and clear
+//   cheaper, but a shared budget rations them like everything else.
 // - State split: Maharashtra has the most searches but converts worst and is
 //   IronWhey's stronghold; Karnataka converts best.
 
@@ -17,19 +18,20 @@ export const FUELUP: BrandMarket = {
   brandId: "fuelup",
   category: PROTEIN,
   keywords: [
-    { term: "protein powder",              tier: "head", dailyVolume: 18000, cluster: "protein-powder", fit: { "fuel-1": 1.00, "fuel-2": 0.80, "fuel-3": 0.10 } },
-    { term: "protein bar",                 tier: "head", dailyVolume: 15000, cluster: "bar",            fit: { "fuel-1": 0.10, "fuel-2": 0.10, "fuel-3": 1.20 } },
-    { term: "whey protein",                tier: "head", dailyVolume: 12000, cluster: "whey",           fit: { "fuel-1": 1.15, "fuel-2": 0.30, "fuel-3": 0.10 } },
-    { term: "protein supplement",          tier: "head", dailyVolume: 9000,  cluster: "protein-powder", fit: { "fuel-1": 0.90, "fuel-2": 0.80, "fuel-3": 0.20 } },
-    { term: "fitness supplement",          tier: "head", dailyVolume: 6000,  cluster: "generic",        fit: { "fuel-1": 0.60, "fuel-2": 0.50, "fuel-3": 0.20 } },
-    { term: "gym protein",                 tier: "mid",  dailyVolume: 4000,  cluster: "protein-powder", fit: { "fuel-1": 0.70, "fuel-2": 0.50, "fuel-3": 0.40 } },
-    { term: "plant protein",               tier: "mid",  dailyVolume: 3500,  cluster: "plant",          fit: { "fuel-1": 0.20, "fuel-2": 1.15, "fuel-3": 0.10 } },
-    { term: "whey protein chocolate",      tier: "mid",  dailyVolume: 2200,  cluster: "whey",           fit: { "fuel-1": 1.25, "fuel-2": 0.10, "fuel-3": 0.20 } },
-    { term: "fuelup",                      tier: "mid",  dailyVolume: 900,   cluster: "brand",          fit: { "fuel-1": 1.30, "fuel-2": 1.10, "fuel-3": 1.00 }, isBrandTerm: true },
-    { term: "high protein snack bar",      tier: "long", dailyVolume: 800,   cluster: "bar",            fit: { "fuel-1": 0.05, "fuel-2": 0.05, "fuel-3": 1.25 } },
-    { term: "whey protein chocolate 500g", tier: "long", dailyVolume: 600,   cluster: "whey",           fit: { "fuel-1": 1.30, "fuel-2": 0.10, "fuel-3": 0.10 } },
-    { term: "vegan protein powder vanilla",tier: "long", dailyVolume: 450,   cluster: "plant",          fit: { "fuel-1": 0.10, "fuel-2": 1.30, "fuel-3": 0.05 } },
-    { term: "fuelup whey",                 tier: "long", dailyVolume: 250,   cluster: "brand",          fit: { "fuel-1": 1.30, "fuel-2": 0.30, "fuel-3": 0.20 }, isBrandTerm: true },
+    { term: "protein powder",              tier: "head", dailyVolume: 39600, cluster: "protein-powder", fit: { "fuel-1": 1.00, "fuel-2": 0.80, "fuel-3": 0.10 } },
+    { term: "protein bar",                 tier: "head", dailyVolume: 33000, cluster: "bar",            fit: { "fuel-1": 0.10, "fuel-2": 0.10, "fuel-3": 1.20 } },
+    { term: "whey protein",                tier: "head", dailyVolume: 26400, cluster: "whey",           fit: { "fuel-1": 1.15, "fuel-2": 0.30, "fuel-3": 0.10 } },
+    { term: "protein supplement",          tier: "head", dailyVolume: 19800,  cluster: "protein-powder", fit: { "fuel-1": 0.90, "fuel-2": 0.80, "fuel-3": 0.20 } },
+    { term: "fitness supplement",          tier: "head", dailyVolume: 13200,  cluster: "generic",        fit: { "fuel-1": 0.60, "fuel-2": 0.50, "fuel-3": 0.20 } },
+    { term: "gym protein",                 tier: "mid",  dailyVolume: 8800,  cluster: "protein-powder", fit: { "fuel-1": 0.70, "fuel-2": 0.50, "fuel-3": 0.40 } },
+    { term: "plant protein",               tier: "mid",  dailyVolume: 7700,  cluster: "plant",          fit: { "fuel-1": 0.20, "fuel-2": 1.15, "fuel-3": 0.10 } },
+    { term: "whey protein chocolate",      tier: "mid",  dailyVolume: 4800,  cluster: "whey",           fit: { "fuel-1": 1.25, "fuel-2": 0.10, "fuel-3": 0.20 } },
+    { term: "fuelup",                      tier: "mid",  dailyVolume: 2000,   cluster: "brand",          fit: { "fuel-1": 1.30, "fuel-2": 1.10, "fuel-3": 1.00 }, isBrandTerm: true },
+    { term: "high protein snack bar",      tier: "long", dailyVolume: 5500,   cluster: "bar",            fit: { "fuel-1": 0.05, "fuel-2": 0.05, "fuel-3": 1.25 } },
+    { term: "whey protein chocolate 500g", tier: "long", dailyVolume: 8800,   cluster: "whey",           fit: { "fuel-1": 1.30, "fuel-2": 0.10, "fuel-3": 0.10 } },
+    { term: "vegan protein powder vanilla",tier: "long", dailyVolume: 6600,   cluster: "plant",          fit: { "fuel-1": 0.10, "fuel-2": 1.30, "fuel-3": 0.05 } },
+    { term: "whey isolate unflavoured 1kg",tier: "long", dailyVolume: 7700,  cluster: "whey",           fit: { "fuel-1": 1.20, "fuel-2": 0.10, "fuel-3": 0.05 } },
+    { term: "fuelup whey",                 tier: "long", dailyVolume: 1800,   cluster: "brand",          fit: { "fuel-1": 1.30, "fuel-2": 0.30, "fuel-3": 0.20 }, isBrandTerm: true },
   ],
   // Browsing converts below search: category pages ~0.6–0.8×, Spotlight banners and Stories
   // feeds lower still; Rec Ads in cart/next-product sit near search (high intent).
@@ -61,7 +63,7 @@ export const FUELUP: BrandMarket = {
     },
     {
       id: "wheynation", name: "WheyNation", archetype: "challenger",
-      monthlyBudget: 450000,
+      monthlyBudget: 850000,
       bids: { "whey protein": 380, "protein powder": 400, "fuelup": 420, "fuelup whey": 380, "plant protein": 300 },
       placementBids: { "stories:feed-cat-1": 380, "rec:similar": 350 },
       maxBidMult: 1.6, targetSov: 0.30, roasFloor: 2.2, lagDays: 1, relevance: 0.95,
@@ -79,4 +81,5 @@ export const FUELUP: BrandMarket = {
     },
   ],
   organicDailyUnits: { "fuel-1": 40, "fuel-2": 12, "fuel-3": 120 },
+  traps: ["stateSplit", "headLong", "hero"],
 };

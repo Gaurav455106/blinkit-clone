@@ -97,8 +97,11 @@ describe("budget (F5)", () => {
   it("a tight 24/7 budget runs dry before the 6–9 PM peak; switching dead hours off moves money into it", () => {
     const ctx = makeCtx();
     const kws = [{ term: "protein powder", exactBid: 600 }, { term: "whey protein", exactBid: 600 }, { term: "protein supplement", exactBid: 600 }];
-    const allDay = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget: 1600 })]).result;
-    const deadOff = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget: 1600, schedule: [2, 3, 4, 5, 6, 7] })]).result;
+    // Budget = just under what 24/7 would spend before 6 PM, so 24/7 runs dry right before the peak
+    const uncapped = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget: 1e9 })]).result;
+    const budget = total(uncapped.cells.filter((c) => c.slot < 6), "spend") * 0.97;
+    const allDay = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget })]).result;
+    const deadOff = stepDay(ctx, initialMarketState(ctx), [camp({ keywords: kws, budget, schedule: [2, 3, 4, 5, 6, 7] })]).result;
     const peakSpend = (r: DayResult) => total(r.cells.filter((c) => c.slot === 6), "spend");
     expect(peakSpend(allDay)).toBeLessThan(peakSpend(deadOff));
     expect(total(deadOff.cells.filter((c) => c.slot < 2), "spend")).toBe(0);
