@@ -15,6 +15,7 @@ import Day30Results from "./pages/Day30Results";
 import Leaderboard from "./pages/Leaderboard";
 import Trainer from "./pages/Trainer";
 import Admin from "./pages/Admin";
+import MyProfilePage, { StaffStudentProfilePage } from "./pages/StudentProfile";
 
 import SSOCallback from "./pages/SSOCallback";
 import NotFound from "./pages/NotFound.tsx";
@@ -93,12 +94,15 @@ const App = () => (
 
             {/* Utility */}
             <Route path="/leaderboard" element={<AuthGuard><Leaderboard /></AuthGuard>} />
+            <Route path="/profile"     element={<AuthGuard><MyProfilePage /></AuthGuard>} />
 
             {/* Trainer — accessible by trainers and admins */}
             <Route path="/trainer" element={<AuthGuard><TrainerGuard><Trainer /></TrainerGuard></AuthGuard>} />
+            <Route path="/trainer/student/:email" element={<AuthGuard><TrainerGuard><StaffStudentProfilePage /></TrainerGuard></AuthGuard>} />
 
             {/* Admin — accessible by admins only */}
             <Route path="/admin" element={<AuthGuard><AdminGuard><Admin /></AdminGuard></AuthGuard>} />
+            <Route path="/admin/student/:email" element={<AuthGuard><AdminGuard><StaffStudentProfilePage /></AdminGuard></AuthGuard>} />
 
             {/* Legacy redirects */}
             <Route path="/brand-central"        element={<Navigate to="/dashboard" replace />} />
