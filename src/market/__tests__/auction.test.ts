@@ -93,6 +93,15 @@ describe("backgroundBidders (F2c)", () => {
     expect(atFloor / N).toBeLessThan(0.1);
   });
 
+  it("scales bids with the unit's competition level", () => {
+    const mean = (competition: number) => {
+      let total = 0, n = 0;
+      for (let i = 0; i < 200; i++) for (const b of backgroundBidders(PROTEIN, 1, mulberry32(i), competition)) { total += b.bid; n++; }
+      return total / n;
+    };
+    expect(mean(0.55)).toBeLessThan(mean(1));
+  });
+
   it("scales bids with the slot's rival pressure", () => {
     const mean = (pressure: number) => {
       let total = 0, n = 0;

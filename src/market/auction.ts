@@ -81,14 +81,15 @@ export function runAuction(bidders: readonly Bidder[], viewRates: readonly numbe
 const BACKGROUND_RELEVANCE_MIN = 0.8;
 const BACKGROUND_RELEVANCE_SPAN = 0.2;
 
-/** Seeded "other brands" so every slot has someone below it (F2c). */
-export function backgroundBidders(category: CategoryProfile, rivalPressure: number, rand: Rand): Bidder[] {
+/** Seeded "other brands" so every slot has someone below it (F2c).
+ *  `competition` scales their bids: head terms 1.0, long-tail lower (see competition.ts). */
+export function backgroundBidders(category: CategoryProfile, rivalPressure: number, rand: Rand, competition = 1): Bidder[] {
   const [min, max] = category.backgroundBidderCount;
   const count = min + Math.floor(rand() * (max - min + 1));
   return Array.from({ length: count }, (_, i) => ({
     id: `other-${i}`,
     ownerId: `other-${i}`,
-    bid: Math.max(MIN_BID, logNormal(category.backgroundBidMedian * rivalPressure, category.backgroundBidSigma, rand)),
+    bid: Math.max(MIN_BID, logNormal(category.backgroundBidMedian * rivalPressure * competition, category.backgroundBidSigma, rand)),
     relevance: BACKGROUND_RELEVANCE_MIN + rand() * BACKGROUND_RELEVANCE_SPAN,
   }));
 }

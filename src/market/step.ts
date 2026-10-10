@@ -14,8 +14,9 @@ import type { CampaignConfig, CellRow, DayResult, MarketContext, MarketState, Ri
 import type { InventoryKind } from "@/market/types";
 import { SLOT_COUNT } from "@/market/types";
 import { VIEW_RATES_BY_KIND, CREATIVE_KINDS } from "@/market/placements";
+import { keywordCompetition, PLACEMENT_COMPETITION } from "@/market/competition";
 import { activeSlots } from "@/market/slots";
-import { searches, stateShares, DOW_MULT, type DemandContext } from "@/market/demand";
+import { searches, stateShares, seasonDemandMult, DOW_MULT, type DemandContext } from "@/market/demand";
 import { runAuction, backgroundBidders, type Bidder, type SlotResult } from "@/market/auction";
 import { streamFor } from "@/market/rng";
 import { studentEntries, placementEntries, type StudentEntry } from "@/market/entries";
@@ -30,15 +31,6 @@ const CTR_WINDOW_DAYS = 3;
 const SALES_WINDOW_DAYS = 7;
 const RIVAL_WINDOW_DAYS = 3;
 const STUDENT_OWNER = "student";
-
-/** Season demand by category (SPEC §3.1 seasonMult). */
-function seasonDemandMult(season: string, categoryId: string): number {
-  if (season === "Festival Surge") return 1.4;
-  if (season === "Post-Festival Slowdown") return 0.6;
-  if (season === "Summer Season") return categoryId === "skincare" ? 1.25 : 1.0;
-  if (season === "New Year Health Spike") return categoryId === "protein" || categoryId === "supplements" ? 1.3 : 1.0;
-  return 1.0;
-}
 
 function isLive(c: CampaignConfig, day: number, totalDays: number): boolean {
   return !c.paused && day >= c.launchDay && day <= (c.endDay ?? totalDays);
@@ -69,6 +61,8 @@ interface InventoryUnit {
   isBrandTerm: boolean;
   ctrMult: number;
   cvrMult: number;
+  /** Scales background "other brands" bids. */
+  competition: number;
 }
 
 interface Page {
@@ -118,8 +112,14 @@ export function stepDay(
   const rivalById = new Map(market.rivals.map((r) => [r.id, r]));
   const campaignById = new Map(live.map((c) => [c.id, c]));
   const units: InventoryUnit[] = [
-    ...market.keywords.map((k) => ({ id: k.term, kind: "keyword" as const, dailyVolume: k.dailyVolume, isBrandTerm: k.isBrandTerm === true, ctrMult: 1, cvrMult: 1 })),
-    ...market.placements.map((p) => ({ id: p.id, kind: p.kind, dailyVolume: p.dailyVolume, isBrandTerm: false, ctrMult: p.ctrMult, cvrMult: p.cvrMult })),
+    ...market.keywords.map((k) => ({
+      id: k.term, kind: "keyword" as const, dailyVolume: k.dailyVolume, isBrandTerm: k.isBrandTerm === true,
+      ctrMult: 1, cvrMult: 1, competition: keywordCompetition(k.tier, k.isBrandTerm === true),
+    })),
+    ...market.placements.map((p) => ({
+      id: p.id, kind: p.kind, dailyVolume: p.dailyVolume, isBrandTerm: false,
+      ctrMult: p.ctrMult, cvrMult: p.cvrMult, competition: PLACEMENT_COMPETITION,
+    })),
   ];
   const keywordById = new Map(market.keywords.map((k) => [k.term, k]));
   const placementById = new Map(market.placements.map((p) => [p.id, p]));
@@ -148,7 +148,7 @@ export function stepDay(
           const bid = rivalBid(r, prev.rivals[r.id], unit.id, day, cat.rivalPressure[slot]);
           return bid === null ? [] : [{ id: `rival:${r.id}`, ownerId: r.id, bid, relevance: r.relevance }];
         });
-        const bg = backgroundBidders(cat, cat.rivalPressure[slot], streamFor(ctx.seed, "bg", unit.id, st, slot, day));
+        const bg = backgroundBidders(cat, cat.rivalPressure[slot], streamFor(ctx.seed, "bg", unit.id, st, slot, day), unit.competition);
         const entries = !served.has(st) ? []
           : unit.kind === "keyword" ? studentEntries(scheduled, keywordById.get(unit.id)!, st, market, scenario, prev)
           : placementEntries(scheduled, placementById.get(unit.id)!, st, market, scenario, prev);

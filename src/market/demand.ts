@@ -10,6 +10,15 @@ import { poisson, streamFor } from "@/market/rng";
 /** Weekday multipliers, 0 = Sunday … 6 = Saturday; they average to 1. */
 export const DOW_MULT = [1.15, 0.92, 0.92, 0.95, 0.95, 1.0, 1.11] as const;
 
+/** Season demand by category (SPEC §3.1 seasonMult). */
+export function seasonDemandMult(season: string, categoryId: string): number {
+  if (season === "Festival Surge") return 1.4;
+  if (season === "Post-Festival Slowdown") return 0.6;
+  if (season === "Summer Season") return categoryId === "skincare" ? 1.25 : 1.0;
+  if (season === "New Year Health Spike") return categoryId === "protein" || categoryId === "supplements" ? 1.3 : 1.0;
+  return 1.0;
+}
+
 /** Combined event multipliers (sale day × rain × IPL…) never exceed this. */
 export const EVENT_CAP = 2.0;
 
