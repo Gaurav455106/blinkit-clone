@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectMoments, scoreMoment, objectiveFor, type Moment } from "@/market/moments";
+import { detectMoments, scoreMoment, objectiveFor, MAX_MOMENTS, type Moment } from "@/market/moments";
 import { applyActions, recordAction, type LiveAction } from "@/market/actions";
 import { initialMarketState } from "@/market/state";
 import { stepDay } from "@/market/step";
@@ -43,12 +43,10 @@ describe("decision moments", () => {
     expect(moments.every((m) => m.levers.length > 0 && m.evidence.length > 10)).toBe(true);
   });
 
-  it("doesn't repeat the same moment within a week, and leaves room to respond", () => {
+  it("counts each moment once, keeps to at most 8, and leaves room to respond", () => {
     const keys = moments.map((m) => `${m.type}|${m.campaignId}|${m.subject}`);
-    for (const k of new Set(keys)) {
-      const days = moments.filter((m) => `${m.type}|${m.campaignId}|${m.subject}` === k).map((m) => m.day);
-      for (let i = 1; i < days.length; i++) expect(days[i] - days[i - 1]).toBeGreaterThanOrEqual(7);
-    }
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(moments.length).toBeLessThanOrEqual(MAX_MOMENTS);
     expect(moments.every((m) => m.day <= ctx.totalDays - m.window)).toBe(true);
   });
 });

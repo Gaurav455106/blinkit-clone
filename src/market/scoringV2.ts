@@ -1,0 +1,314 @@
+// ── Scoring v2 (SPEC §8, decision #5: Setup 25 · Live 35 · Events+Rohit 20 · Results 20) ──
+// Every line carries its rubric (what's judged, tiers) and the reason it got
+// its points, so the results page, profile, admin analysis and Excel exports
+// can explain each mark. Saved attempts carry score_version 2.
+
+import type { CampaignConfig, DayResult, MarketContext, MarketState } from "@/market/engineTypes";
+import type { LiveAction } from "@/market/actions";
+import { detectMoments, scoreMoment, type MomentScore } from "@/market/moments";
+import { sumMetrics, type Metrics } from "@/market/aggregate";
+import { suggestKeywordRange } from "@/market/suggest";
+import { maxProfitableCPM } from "@/market/shoppers";
+import { isAwarenessFormat, isConversionFormat, requiredBuckets } from "@/lib/scoring";
+
+export const SCORE_V2_MAX = { setup: 25, live: 35, eventsRohit: 20, results: 20 } as const;
+export type CategoryV2 = keyof typeof SCORE_V2_MAX;
+
+export interface RubricTier {
+  points: number;
+  rule: string;
+}
+
+export interface ScoreLineV2 {
+  key: string;
+  category: CategoryV2;
+  label: string;
+  earned: number;
+  max: number;
+  judgedOn: string;
+  tiers: readonly RubricTier[];
+  /** Why this student got these points, with their numbers. */
+  note: string;
+  howToImprove: string;
+}
+
+export interface ScoreV2 {
+  version: 2;
+  lines: readonly ScoreLineV2[];
+  totals: Readonly<Record<CategoryV2, number>>;
+  grandTotal: number;
+  moments: readonly MomentScore[];
+  /** Top 3 decisions by ₹ (or goal units) lost vs the best lever. */
+  costliestMistakes: readonly { title: string; lost: number; what: string }[];
+  run: Metrics;
+}
+
+export interface ScoreV2Input {
+  ctx: MarketContext;
+  /** Campaigns as launched from the wizard (adapter output). */
+  launched: readonly CampaignConfig[];
+  /** Ad formats / objectives per campaign id, from the wizard. */
+  formats: Readonly<Record<string, { adFormat: string | null; objective: string | null }>>;
+  actions: readonly LiveAction[];
+  results: readonly DayResult[];
+  configsByDay: readonly (readonly CampaignConfig[])[];
+  statesByDay: readonly MarketState[];
+  /** v1 CM pitch score and its max (Rohit), if the pitch was played. */
+  pitch: { score: number; max: number } | null;
+  describeAction: (a: LiveAction) => string;
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+function line(l: ScoreLineV2): ScoreLineV2 {
+  return { ...l, earned: round1(clamp(l.earned, 0, l.max)) };
+}
+
+// ── Setup (25) ────────────────────────────────────────────────────────────────
+
+function formatFit(input: ScoreV2Input): ScoreLineV2 {
+  const p = input.ctx.scenario.profile;
+  const fmts = Object.values(input.formats);
+  const objective = fmts.some((f) => f.objective === p.optimalObjective);
+  const format = fmts.some((f) => f.adFormat === p.optimalAdFormat);
+  const bucket = requiredBuckets(p.goalType);
+  const covered = bucket === "awareness" ? fmts.some((f) => isAwarenessFormat(f.adFormat))
+    : bucket === "conversion" ? fmts.some((f) => isConversionFormat(f.adFormat))
+    : fmts.some((f) => isAwarenessFormat(f.adFormat)) && fmts.some((f) => isConversionFormat(f.adFormat));
+  const earned = objective && format ? 8 : objective && covered ? 5 : format ? 3 : covered ? 2 : 0;
+  return line({
+    key: "v2_format", category: "setup", label: "Objective and format fit", earned, max: 8,
+    judgedOn: "Whether your campaigns use the objective and ad format that suit the brand's goal.",
+    tiers: [
+      { points: 8, rule: "Right objective and the brand's best format" },
+      { points: 5, rule: "Right objective, format from the right family" },
+      { points: 3, rule: "Best format, wrong objective" },
+      { points: 2, rule: "Format family right, objective wrong" },
+      { points: 0, rule: "Neither" },
+    ],
+    note: objective && format ? `${p.optimalObjective} objective with ${p.optimalAdFormat}: right for a ${p.goalType} brand.`
+      : `For a ${p.goalType} brand, ${p.optimalObjective} with ${p.optimalAdFormat} works best.`,
+    howToImprove: "Read the client goal first: ROAS-first brands need performance formats; awareness and category-creation brands need reach formats.",
+  });
+}
+
+function keywordMaxCpm(input: ScoreV2Input, term: string, skuIds: readonly string[]): number {
+  const k = input.ctx.market.keywords.find((x) => x.term === term);
+  if (!k) return 0;
+  const cat = input.ctx.market.category;
+  return Math.max(0, ...input.ctx.scenario.profile.skus.filter((s) => skuIds.includes(s.id)).map((sku) => maxProfitableCPM({
+    baseCTR: cat.baseCTR, creativeMult: 1, affinity: k.isBrandTerm ? 1.5 : 1, fatigueMult: 1,
+    baseCVR: cat.baseCVR, fit: k.fit[sku.id] ?? 0, intent: 1, stateCVR: 1, priceEffect: 1,
+    sellingPrice: sku.mrp, contributionPerUnit: sku.margin,
+  })));
+}
+
+function keywordChoice(input: ScoreV2Input): ScoreLineV2 {
+  const chosen = input.launched.flatMap((c) => c.keywords.map((k) => ({ term: k.term, skus: c.skuIds })));
+  const known = chosen.filter((k) => input.ctx.market.keywords.some((m) => m.term === k.term));
+  const canProfit = known.filter((k) => keywordMaxCpm(input, k.term, k.skus) > suggestKeywordRange(input.ctx, k.term).lo);
+  const share = known.length ? canProfit.length / known.length : 0;
+  const traps = known.filter((k) => !canProfit.includes(k)).map((k) => k.term);
+  return line({
+    key: "v2_keywords", category: "setup", label: "Keyword choice", earned: chosen.length ? 5 * share : 0, max: 5,
+    judgedOn: "Share of your keywords that can be profitable: their max profitable CPM is above the price needed to win them.",
+    tiers: [{ points: 5, rule: "Every keyword can be profitable" }, { points: 0, rule: "None can (or no keywords)" }],
+    note: chosen.length === 0 ? "No keyword campaigns." : traps.length ? `${canProfit.length} of ${known.length} keywords can pay; ${traps.slice(0, 3).join(", ")} cost more than they can earn.` : "Every keyword you picked can be profitable.",
+    howToImprove: "Compare each keyword's suggested range with what a click is worth to you (max profitable CPM) and drop the ones that can't pay.",
+  });
+}
+
+function bidDiscipline(input: ScoreV2Input): ScoreLineV2 {
+  const bids = input.launched.flatMap((c) => c.keywords.map((k) => ({ term: k.term, bid: k.exactBid * (1 + (c.boostPct ?? 0)), max: keywordMaxCpm(input, k.term, c.skuIds) })))
+    .filter((b) => b.max > 0);
+  const within = bids.filter((b) => b.bid <= b.max * 1.05);
+  const share = bids.length ? within.length / bids.length : 0;
+  const worst = bids.filter((b) => b.bid > b.max * 1.05).sort((a, b) => b.bid / b.max - a.bid / a.max)[0];
+  return line({
+    key: "v2_bids", category: "setup", label: "Bid discipline", earned: bids.length ? 6 * share : 0, max: 6,
+    judgedOn: "Whether your effective bids (bid × boost) stay at or below each keyword's max profitable CPM, so you can never pay more than a click is worth.",
+    tiers: [{ points: 6, rule: "All bids at or below max profitable CPM" }, { points: 0, rule: "None (or no keyword bids)" }],
+    note: !bids.length ? "No keyword bids to judge." : worst ? `${within.length} of ${bids.length} bids are safe; "${worst.term}" at ₹${Math.round(worst.bid)} is above its ₹${Math.round(worst.max)} max profitable CPM.` : "Every bid is at or below what a click is worth.",
+    howToImprove: "Set bid × (1 + boost) ≤ max profitable CPM. Under second price you never pay more than your bid, so this caps your risk.",
+  });
+}
+
+function structure(input: ScoreV2Input): ScoreLineV2 {
+  const traps = input.ctx.market.traps.filter((t) => t !== "creative");
+  const camps = input.launched;
+  const checks: Record<string, boolean> = {
+    headLong: camps.some((c) => c.keywords.length > 0 && c.keywords.every((k) => input.ctx.market.keywords.find((m) => m.term === k.term)?.tier === "long")),
+    hero: camps.some((c) => c.skuIds.length === 1) || camps.every((c) => c.skuIds.length < input.ctx.scenario.profile.skus.length),
+    stateSplit: camps.some((c) => c.geography === "select_cities" && c.cities.length === 1),
+  };
+  const addressed = traps.filter((t) => checks[t]);
+  const share = traps.length ? addressed.length / traps.length : 1;
+  const names: Record<string, string> = { headLong: "long-tail keywords in their own campaign", hero: "a focused hero-SKU campaign", stateSplit: "a campaign for the best state" };
+  return line({
+    key: "v2_structure", category: "setup", label: "Campaign structure", earned: 6 * share, max: 6,
+    judgedOn: "Whether your campaign structure anticipates this brand's traps (shared budgets ration everything equally).",
+    tiers: [{ points: 6, rule: "Every structural trap anticipated" }, { points: 0, rule: "None anticipated" }],
+    note: traps.length === 0 ? "No structural traps for this brand." : `Anticipated ${addressed.length} of ${traps.length}: ${traps.map((t) => `${names[t] ?? t} ${checks[t] ? "✓" : "✗"}`).join(", ")}.`,
+    howToImprove: "Give the parts that earn most their own campaign and budget: hero SKU, long-tail keywords, the best-converting state.",
+  });
+}
+
+// ── Live optimisation (35) ───────────────────────────────────────────────────
+
+function liveLines(input: ScoreV2Input): { lines: ScoreLineV2[]; moments: MomentScore[] } {
+  const detected = detectMoments({ ctx: input.ctx, results: input.results, configsByDay: input.configsByDay });
+  if (detected.length === 0) {
+    return {
+      moments: [],
+      lines: [line({
+        key: "v2_moments", category: "live", label: "Decision moments", earned: SCORE_V2_MAX.live, max: SCORE_V2_MAX.live,
+        judgedOn: "How well you responded each time the data called for action.",
+        tiers: [{ points: SCORE_V2_MAX.live, rule: "No moment needed action" }],
+        note: "The run never reached a point where a change would have helped.", howToImprove: "—",
+      })],
+    };
+  }
+  const each = SCORE_V2_MAX.live / detected.length;
+  const scored = detected.map((m) => scoreMoment({ ctx: input.ctx, launched: input.launched, actions: input.actions, statesByDay: input.statesByDay }, m, each, input.describeAction));
+  return {
+    moments: scored,
+    lines: scored.map((s, i) => line({
+      key: `v2_moment_${i + 1}`, category: "live", label: `Day ${s.moment.day}: ${s.moment.title}`, earned: s.points, max: each,
+      judgedOn: s.moment.evidence,
+      tiers: [
+        { points: each, rule: "Your change gained ≥ 60% of what the best lever would (or nothing was needed and you didn't make it worse)" },
+        { points: round1(each / 2), rule: "Partial gain, or acted late" },
+        { points: 0, rule: "Ignored, or your change lost money vs doing nothing" },
+      ],
+      note: s.verdict === "right" ? `Right call: ${s.studentAction}.`
+        : s.verdict === "partial" ? `Partly right: ${s.studentAction}. "${s.bestLever}" would have gained more.`
+        : s.verdict === "wrong" ? `This made it worse: ${s.studentAction ?? "your changes"}.`
+        : s.verdict === "nothingNeeded" ? "Holding steady was right here."
+        : `No response within ${s.moment.window} days. "${s.bestLever}" would have helped.`,
+      howToImprove: `Best lever here: ${s.bestLever}.`,
+    })),
+  };
+}
+
+// ── Events + Rohit (20) ──────────────────────────────────────────────────────
+
+function pacingLine(input: ScoreV2Input): ScoreLineV2 {
+  const totalDays = input.ctx.totalDays;
+  const daily = input.results.map((r) => sumMetrics(r.cells).spend);
+  const darkFrom = daily.findIndex((s, i) => s === 0 && daily.slice(i).every((x) => x === 0) && daily.slice(0, i).some((x) => x > 0));
+  const ranOutEarly = darkFrom >= 0 && darkFrom + 1 < totalDays - 1;
+  const earned = ranOutEarly ? (darkFrom + 1 >= totalDays - 5 ? 5 : 0) : 10;
+  return line({
+    key: "v2_pacing", category: "eventsRohit", label: "Budget pacing", earned, max: 10,
+    judgedOn: "Whether the money lasted the whole run (a too-high daily budget burns the account early).",
+    tiers: [{ points: 10, rule: "Ads ran to the end" }, { points: 5, rule: "Ran out in the last 5 days" }, { points: 0, rule: "Ran out earlier" }],
+    note: ranOutEarly ? `Spend stopped on day ${darkFrom + 1}; the last ${totalDays - darkFrom} days had no ads.` : "Ads ran through to the end of the run.",
+    howToImprove: "Watch the pacing alert: lower daily budgets or bids, or use an overall budget, so money lasts to day 30.",
+  });
+}
+
+function rohitLine(input: ScoreV2Input): ScoreLineV2 {
+  const share = input.pitch && input.pitch.max > 0 ? input.pitch.score / input.pitch.max : 0;
+  return line({
+    key: "v2_rohit", category: "eventsRohit", label: "Category manager (Rohit)", earned: 10 * share, max: 10,
+    judgedOn: "How well you negotiated with Rohit using data (OSA, sell-through, margin) rather than promises.",
+    tiers: [{ points: 10, rule: "Strong, data-backed pitch" }, { points: 0, rule: "Pitch not made or rejected" }],
+    note: input.pitch ? `Pitch score ${input.pitch.score} of ${input.pitch.max}.` : "No pitch recorded.",
+    howToImprove: "Lead with the numbers Rohit cares about and commit only to what your stock can deliver.",
+  });
+}
+
+// ── Results (20) ─────────────────────────────────────────────────────────────
+
+function goalActual(label: string, m: Metrics): number | null {
+  switch (label) {
+    case "ROAS": case "Minimum ROAS": return m.roas;
+    case "Units sold": case "Units": case "Reduce aging units": return m.units;
+    case "Impressions": return m.viewableImpressions;
+    case "Reach": return m.viewableImpressions * 0.6;
+    case "CTR": return m.ctr * 100;
+    case "CVR": return m.cvr * 100;
+    default: return null;
+  }
+}
+
+function goalsLine(input: ScoreV2Input, run: Metrics): ScoreLineV2 {
+  const rows = input.ctx.scenario.clientGoals.metrics
+    .map((g) => ({ g, actual: goalActual(g.label, run) }))
+    .filter((r): r is { g: typeof r.g; actual: number } => r.actual !== null && r.g.target > 0);
+  const achievement = rows.length ? rows.reduce((s, r) => s + Math.min(1.5, r.actual / r.g.target), 0) / rows.length : 0;
+  const earned = achievement >= 0.9 ? 10 : achievement >= 0.7 ? 7 : achievement >= 0.5 ? 4 : rows.length ? 1 : 0;
+  return line({
+    key: "v2_goals", category: "results", label: "Client goals", earned, max: 10,
+    judgedOn: "Average achievement across the client's measurable goals (capped at 150% per goal).",
+    tiers: [{ points: 10, rule: "≥ 90%" }, { points: 7, rule: "≥ 70%" }, { points: 4, rule: "≥ 50%" }, { points: 1, rule: "< 50%" }],
+    note: rows.length ? `${Math.round(achievement * 100)}% average: ${rows.map((r) => `${r.g.label} ${Math.round((r.actual / r.g.target) * 100)}%`).join(", ")}.` : "No measurable client goals.",
+    howToImprove: "Plan the run backwards from the client goals and check them at each weekly checkpoint.",
+  });
+}
+
+function profitLine(run: Metrics): ScoreLineV2 {
+  const ratio = run.breakEvenRoas > 0 ? run.roas / run.breakEvenRoas : 0;
+  const earned = ratio >= 1.1 ? 5 : ratio >= 1 ? 3 : ratio >= 0.8 ? 1 : 0;
+  return line({
+    key: "v2_profit", category: "results", label: "ROAS vs break-even", earned, max: 5,
+    judgedOn: "Whether the ads made money: ROAS compared with the break-even ROAS of what you sold.",
+    tiers: [{ points: 5, rule: "≥ 1.1× break-even" }, { points: 3, rule: "≥ break-even" }, { points: 1, rule: "≥ 0.8× break-even" }, { points: 0, rule: "Below" }],
+    note: `ROAS ${run.roas.toFixed(2)} vs break-even ${run.breakEvenRoas.toFixed(2)} (profit after ads ₹${Math.round(run.profit).toLocaleString("en-IN")}).`,
+    howToImprove: "Cut spend that sits below break-even and move it to what earns most per click.",
+  });
+}
+
+/** F14: spend in campaign × keyword × slot cells (whole run) whose ROAS was below break-even. */
+export function wastedSpendShare(results: readonly DayResult[]): number {
+  const cells = new Map<string, { spend: number; revenue: number; contribution: number }>();
+  let total = 0;
+  for (const r of results) {
+    for (const c of r.cells) {
+      const key = `${c.campaignId}|${c.term}|${c.slot}`;
+      const acc = cells.get(key) ?? { spend: 0, revenue: 0, contribution: 0 };
+      cells.set(key, { spend: acc.spend + c.spend, revenue: acc.revenue + c.directRevenue + c.indirectRevenue, contribution: acc.contribution + c.contribution });
+      total += c.spend;
+    }
+  }
+  let wasted = 0;
+  for (const c of cells.values()) if (c.contribution < c.spend) wasted += c.spend;
+  return total > 0 ? wasted / total : 0;
+}
+
+function wasteLine(results: readonly DayResult[]): ScoreLineV2 {
+  const share = wastedSpendShare(results);
+  const earned = share <= 0.1 ? 5 : share <= 0.25 ? 3 : share <= 0.4 ? 1 : 0;
+  return line({
+    key: "v2_waste", category: "results", label: "Wasted spend", earned, max: 5,
+    judgedOn: "Share of spend on keyword × hour combinations that lost money over the run (not raw budget use).",
+    tiers: [{ points: 5, rule: "≤ 10% wasted" }, { points: 3, rule: "≤ 25%" }, { points: 1, rule: "≤ 40%" }, { points: 0, rule: "More" }],
+    note: `${Math.round(share * 100)}% of spend went to keyword × hour combinations below break-even.`,
+    howToImprove: "Use the keyword and hour-of-day reports to find spend below break-even and cut it.",
+  });
+}
+
+export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
+  const run = sumMetrics(input.results.flatMap((r) => r.cells));
+  const live = liveLines(input);
+  const lines = [
+    formatFit(input), keywordChoice(input), bidDiscipline(input), structure(input),
+    ...live.lines,
+    pacingLine(input), rohitLine(input),
+    goalsLine(input, run), profitLine(run), wasteLine(input.results),
+  ];
+  const totals = (Object.keys(SCORE_V2_MAX) as CategoryV2[]).reduce((acc, k) => ({
+    ...acc, [k]: round1(lines.filter((l) => l.category === k).reduce((s, l) => s + l.earned, 0)),
+  }), {} as Record<CategoryV2, number>);
+  const costliestMistakes = live.moments
+    .filter((m) => m.verdict === "wrong" || m.verdict === "ignored" || m.verdict === "partial")
+    .map((m) => ({ title: `Day ${m.moment.day}: ${m.moment.title}`, lost: m.bestGainVsNothing - m.gainVsNothing, what: m.studentAction ?? "No action" }))
+    .sort((a, b) => b.lost - a.lost)
+    .slice(0, 3);
+  return {
+    version: 2, lines, totals,
+    grandTotal: round1(Object.values(totals).reduce((s, x) => s + x, 0)),
+    moments: live.moments, costliestMistakes, run,
+  };
+}

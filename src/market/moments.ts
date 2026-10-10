@@ -31,7 +31,8 @@ export interface Moment {
 
 const WINDOW = 3;
 const HORIZON_EXTRA = 4;
-const COOLDOWN_DAYS = 7;
+/** SPEC §13 #1: about 6–8 decision moments per run. */
+export const MAX_MOMENTS = 8;
 const MIN_DAILY_SPEND = 150;
 
 const cellsOf = (r: DayResult, campaignId: string) => r.cells.filter((c) => c.campaignId === campaignId);
@@ -156,21 +157,20 @@ function detectForDay(input: DetectInput, day: number): Candidate[] {
   return found.filter((m) => m.levers.length > 0);
 }
 
-/** All moments in a run, one per type × campaign × subject per cooldown period. */
+/** Moments in a run: each type × campaign × subject counts once (its first day), at most MAX_MOMENTS, earliest first. */
 export function detectMoments(input: DetectInput): Moment[] {
   const moments: Moment[] = [];
-  const lastSeen = new Map<string, number>();
+  const seen = new Set<string>();
   for (const r of input.results) {
+    if (r.day > input.ctx.totalDays - WINDOW) break;
     for (const m of detectForDay(input, r.day)) {
       const key = `${m.type}|${m.campaignId}|${m.subject}`;
-      const prev = lastSeen.get(key);
-      if (prev !== undefined && r.day - prev < COOLDOWN_DAYS) continue;
-      if (r.day > input.ctx.totalDays - WINDOW) continue;
-      lastSeen.set(key, r.day);
+      if (seen.has(key)) continue;
+      seen.add(key);
       moments.push({ ...m, id: `${key}|${r.day}`, window: WINDOW });
     }
   }
-  return moments;
+  return moments.slice(0, MAX_MOMENTS);
 }
 
 // ── Counterfactual scoring ────────────────────────────────────────────────────
