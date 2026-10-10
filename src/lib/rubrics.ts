@@ -105,11 +105,20 @@ export function categoryLabel(key: string, version: ScoreVersion = 1): string {
 
 // ── Plain text ────────────────────────────────────────────────────────────────
 
-/** Remove em dashes from older saved text: "A — b" becomes "A. B". */
+/** Remove em dashes from older saved text: "A — b" becomes "A. B", "Alert — Day 9" becomes "Alert: Day 9". */
+const FORMAT_NAMES: Record<string, string> = {
+  product_booster: "Product Booster",
+  recommendation_ads: "Recommendation Ads",
+  listing_spotlight: "Listing Spotlight",
+  brand_booster: "Brand Booster",
+};
+
 export function plainText(s: string): string {
   return s
+    .replace(/\b(product_booster|recommendation_ads|listing_spotlight|brand_booster)\b/g, (id) => FORMAT_NAMES[id] ?? id)
+    .replace(/\s*—\s*$/g, ".")
     .replace(/\s*—\s*([a-z])/g, (_m, c: string) => `. ${c.toUpperCase()}`)
-    .replace(/\s*—\s*/g, ". ")
+    .replace(/\s*—\s*/g, ": ")
     .replace(/\.\s*\./g, ".");
 }
 

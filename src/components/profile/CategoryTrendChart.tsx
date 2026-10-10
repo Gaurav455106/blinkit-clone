@@ -42,7 +42,7 @@ export function CategoryTrendChart({ rows, version }: CategoryTrendChartProps) {
             {cats.map((c, i) => (
               <Line
                 key={c.key}
-                type="monotone"
+                type="linear"
                 dataKey={c.key}
                 stroke={SERIES_COLORS[i]}
                 strokeWidth={2}

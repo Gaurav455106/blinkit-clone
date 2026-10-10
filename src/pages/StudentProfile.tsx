@@ -88,9 +88,9 @@ function ProfileBody({ rows, isStaff }: ProfileBodyProps) {
       </div>
 
       {latestLines
-        ? <ScoreSummary summaries={qualitativeSummary(latestLines, latestVersion)} title="Your latest run in plain words" description={`${brandOf(latest)}, ${longDate(latest.created_at)}. What went well, where points were lost, and what to do first next time.`} />
+        ? <ScoreSummary summaries={qualitativeSummary(latestLines, latestVersion)} title={isStaff ? "Latest run in plain words" : "Your latest run in plain words"} description={`${brandOf(latest)}, ${longDate(latest.created_at)}. What went well, where points were lost, and what to do first next time.`} />
         : (
-          <Section title="Your latest run in plain words">
+          <Section title={isStaff ? "Latest run in plain words" : "Your latest run in plain words"}>
             <p className="text-sm text-muted-foreground">This run was saved before we stored a score for each line, so only the part totals are available.</p>
           </Section>
         )}
@@ -100,7 +100,7 @@ function ProfileBody({ rows, isStaff }: ProfileBodyProps) {
         return (
           <Section
             key={`trend-${v}`}
-            title={versions.length > 1 ? `How your parts changed (${v === 2 ? "new scoring" : "current scoring"})` : "How your parts changed"}
+            title={versions.length > 1 ? `How the parts changed (${v === 2 ? "new scoring" : "current scoring"})` : "How the parts changed"}
             description={vRows.length < 2 ? "Finish another run to see a trend." : "Share of points in each part, run by run."}
           >
             <CategoryTrendChart rows={vRows} version={v} />
@@ -157,6 +157,7 @@ interface StudentProfileProps {
 export function StudentProfile({ email, isStaff }: StudentProfileProps) {
   const nav = useNavigate();
   const { state, reload } = useStudentAttempts(email);
+  useEffect(() => { window.scrollTo(0, 0); }, [email]);
   const rows = state.status === "ready" ? state.rows : [];
   const name = rows[0]?.name ?? (isStaff ? email ?? "Student" : "Your profile");
   const batch = rows[0]?.batch_code;

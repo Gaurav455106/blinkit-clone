@@ -26,7 +26,7 @@ export function CrisisBreakdown({ stats }: { stats: readonly CrisisStat[] }) {
                 <div className="mt-1 h-2 rounded-r bg-secondary" title={`${o.count} chose this, ${o.avgPoints} points on average`}>
                   <div className={cn("h-full rounded-r", FILL[scoreTone(o.avgPoints, c.max)])} style={{ width: `${o.share}%` }} />
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">{o.count} chose this, worth {o.avgPoints} points</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{o.count} chose this, worth {o.avgPoints} {o.avgPoints === 1 ? "point" : "points"}</p>
               </li>
             ))}
           </ul>

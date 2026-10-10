@@ -28,8 +28,10 @@ const v1Row: AttemptRow = {
 describe("plainText", () => {
   it("removes em dashes", () => {
     expect(plainText("Ran all campaigns on 24/7 — dead hours burned budget.")).toBe("Ran all campaigns on 24/7. Dead hours burned budget.");
-    expect(plainText("Good — ")).toBe("Good. ");
+    expect(plainText("Good — ")).toBe("Good.");
+    expect(plainText("Supply Alert — Day 9")).toBe("Supply Alert: Day 9");
     expect(plainText("No dashes here.")).toBe("No dashes here.");
+    expect(plainText("You chose product_booster.")).toBe("You chose Product Booster.");
   });
 
   it("leaves no em dash in any v1 rubric text", () => {
