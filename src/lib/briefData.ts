@@ -6,7 +6,8 @@
 
 import type { BrandProfile, GoalType, Scenario, SKU, StateName, Velocity } from "@/data/scenarios";
 import { BLINKIT_STATES } from "@/data/scenarios";
-import type { BrandMarket, KeywordTier, RivalArchetype, RivalData } from "@/market/types";
+import type { BrandMarket, CategoryProfile, KeywordTier, RivalArchetype, RivalData } from "@/market/types";
+import { SLOT_LABELS } from "@/market/slots";
 import type { MarketContext } from "@/market/engineTypes";
 import { stateShares } from "@/market/demand";
 import { monthlyVolume, suggestKeywordRange, type BidRange } from "@/market/suggest";
@@ -120,28 +121,28 @@ export interface StakeholderView {
 
 const TENSION_BY_GOAL: Record<GoalType, string> = {
   "ROAS-First":
-    "Your client goal sides with finance, but the brand head will judge you on head terms. Those are where the market leader bids hardest, so holding 30% there can push ROAS under break-even. Decide which head terms are worth defending and which to let go.",
+    "Your client cares most about return, like finance. But the big searches are where the market leader bids hardest. Holding 30% of the ads there can cost more than those sales bring in. Pick the big searches worth fighting for and let the rest go.",
   "Awareness-First":
-    "Your client goal sides with the brand head. Reach formats rarely hit finance's ROAS on their own, so agree up front which campaigns are judged on reach and which on return, or you'll be judged on both and miss both.",
+    "Your client cares most about being seen, like the brand head. Ads that build awareness rarely pay back straight away. Agree early which campaigns are judged on reach and which on return, or you'll be judged on both and miss both.",
   "Category-Creation":
-    "Nobody searches this category much yet, so head-term SOV is cheap to win but converts slowly. Finance will see low ROAS in week one. Show them the path: awareness first, then the search volume you created.",
+    "Few people search for this kind of product yet. That makes the big searches cheap to win, but slow to turn into sales. Finance will see a low return in week one. Show them the plan: get noticed first, then sell to the searches you created.",
   "Volume-First":
-    "Units matter most to the client, and volume comes from head terms. Finance will accept a thinner return for volume, but not a loss. Push units where ROAS stays above break-even and stop where it doesn't.",
+    "Your client wants as many units sold as possible, and most units come from the big searches. Finance will accept a smaller return for more units, but not a loss. Push units while every ₹1 of ads still earns back more than break-even, and stop when it doesn't.",
   "Inventory-Clearance":
-    "Clearing aging stock matters more than a perfect return, so finance's target is softer this month. The brand head still wants visibility on head terms. Spend where it moves units, not where it only buys SOV.",
+    "Clearing old stock matters more than a perfect return this month, so finance is more relaxed. The brand head still wants to be seen on the big searches. Spend where it sells units, not where it only buys visibility.",
 };
 
 export function stakeholderView(goalType: GoalType, t: StakeholderTargets): StakeholderView {
   return {
     finance: {
-      who: "Finance controller",
-      ask: `Blended ROAS of at least ${t.financeRoas.toFixed(1)}x for the month.`,
-      why: `Break-even across your SKUs is about ${t.blendedBreakEven.toFixed(1)}x. Finance wants a 10% cushion on top, because returns, discounts and attribution gaps eat into it.`,
+      who: "Finance head",
+      ask: `Every ₹1 of ads should bring back at least ₹${t.financeRoas.toFixed(1)} in sales (ROAS ${t.financeRoas.toFixed(1)}x).`,
+      why: `Across your products you break even at about ₹${t.blendedBreakEven.toFixed(1)} of sales per ₹1 of ads. Finance wants 10% more than that as a safety margin, because returns and discounts eat into sales.`,
     },
     brandHead: {
       who: "Brand head",
-      ask: `At least ${t.brandHeadSovPct}% share of voice on head terms.`,
-      why: "Shoppers who don't see the brand on the big searches don't learn it exists. The brand head reports SOV to the founders every week.",
+      ask: `Your ad in at least ${t.brandHeadSovPct}% of the ad spots on the biggest searches (share of voice).`,
+      why: "If shoppers never see the brand on the big searches, they never learn it exists. The brand head reports this number to the founders every week.",
     },
     tension: TENSION_BY_GOAL[goalType],
   };
@@ -151,9 +152,9 @@ export function stakeholderView(goalType: GoalType, t: StakeholderTargets): Stak
 
 const ARCHETYPE_LABEL: Record<RivalArchetype, string> = {
   leader: "Market leader",
-  challenger: "Challenger",
-  price_warrior: "Price warrior",
-  newcomer: "Newcomer",
+  challenger: "Fast-growing rival",
+  price_warrior: "Discount brand",
+  newcomer: "New entrant",
 };
 
 export function archetypeLabel(a: RivalArchetype): string {
@@ -264,6 +265,60 @@ export function keywordRows(ctx: MarketContext): KeywordRow[] {
       v1: good.has(k.term) ? "good" as const : risky.has(k.term) ? "risky" as const : null,
     }))
     .sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier] || b.monthlySearches - a.monthlySearches);
+}
+
+// ── Shopping hours (from the category's slot data, not the v1 peakHours text) ──
+
+export interface SlotInfo {
+  slot: number;
+  label: string;
+  /** Share of a day's searches in this 3-hour slot (0–1). */
+  share: number;
+  /** How readily shoppers buy in this slot (1 = average). */
+  intent: number;
+}
+
+export interface ShoppingHours {
+  slots: SlotInfo[];
+  busiest: SlotInfo;
+  /** The next two busiest slots. */
+  runnersUp: SlotInfo[];
+  /** Slot where shoppers buy most readily. */
+  bestConverting: SlotInfo;
+  /** Slots with under 5% of searches. */
+  quiet: SlotInfo[];
+}
+
+const QUIET_SHARE = 0.05;
+const RUNNER_UP_COUNT = 2;
+
+/** "6–9 PM" → "6 to 9 PM" for plain reading. */
+export const plainSlotLabel = (slot: number): string => SLOT_LABELS[slot].replace("–", " to ");
+
+export function shoppingHours(category: CategoryProfile): ShoppingHours {
+  const slots = category.slotShare.map((share, slot) => ({ slot, label: plainSlotLabel(slot), share, intent: category.intent[slot] }));
+  const byShare = [...slots].sort((a, b) => b.share - a.share);
+  const bestConverting = slots.reduce((best, s) => (s.intent > best.intent ? s : best));
+  return {
+    slots,
+    busiest: byShare[0],
+    runnersUp: byShare.slice(1, 1 + RUNNER_UP_COUNT),
+    bestConverting,
+    quiet: slots.filter((s) => s.share < QUIET_SHARE),
+  };
+}
+
+// ── Plain text ────────────────────────────────────────────────────────────────
+
+/**
+ * Removes em and en dashes from copy that comes from scenario data:
+ * "a — b" becomes "a. B", "25–35%" becomes "25-35%", anything else becomes a comma.
+ */
+export function plainText(s: string): string {
+  return s
+    .replace(/(\d)\s*[–—]\s*(\d)/g, "$1-$2")
+    .replace(/\s+—\s+(\S)/g, (_, ch: string) => `. ${ch.toUpperCase()}`)
+    .replace(/\s*[—–]\s*/g, ", ");
 }
 
 /** v1 shortlist keywords that aren't in the market data (shown as plain chips). */

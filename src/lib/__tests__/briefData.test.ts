@@ -5,7 +5,7 @@ import { testContext } from "@/market/__tests__/testContext";
 import {
   breakEvenRoas, skuEconomics, breakEvenRange, workedExample, stakeholderTargets, stakeholderView,
   comparePrice, archetypeLabel, lastMonthSov, briefRivals, stateDemandRows, keywordRows,
-  FINANCE_BUFFER, BRAND_HEAD_SOV_TARGET,
+  FINANCE_BUFFER, BRAND_HEAD_SOV_TARGET, shoppingHours, plainText,
 } from "@/lib/briefData";
 
 const profile = (id: string) => BRAND_PROFILES.find((b) => b.id === id)!;
@@ -99,7 +99,7 @@ describe("rival price comparison", () => {
 describe("rivals", () => {
   it("names archetypes in plain words", () => {
     expect(archetypeLabel("leader")).toBe("Market leader");
-    expect(archetypeLabel("price_warrior")).toBe("Price warrior");
+    expect(archetypeLabel("price_warrior")).toBe("Discount brand");
   });
 
   it("gives last-month SOV from target SOV, and zero for rivals not yet in the market", () => {
@@ -163,5 +163,47 @@ describe("keyword rows", () => {
     const rows = keywordRows(testContext("munchbox"));
     expect(rows.find((r) => r.term === "chips")?.v1).toBe("risky");
     expect(rows.find((r) => r.term === "roasted makhana")?.v1).toBe("good");
+  });
+});
+
+describe("shopping hours (from the category's slot data)", () => {
+  it("puts FuelUp's busiest slot at 6 to 9 PM with a 6 to 9 AM gym slot next", () => {
+    const h = shoppingHours(MARKET_DATA.fuelup.category);
+    expect(h.busiest.label).toBe("6 to 9 PM");
+    expect(h.busiest.share).toBeCloseTo(0.3, 6);
+    expect(h.runnersUp.map((s) => s.label)).toContain("6 to 9 AM");
+    expect(h.bestConverting.label).toBe("6 to 9 PM");
+  });
+
+  it("puts TinyBuddy's busiest slot at 9 AM to 12 PM", () => {
+    expect(shoppingHours(MARKET_DATA.tinybuddy.category).busiest.label).toBe("9 AM to 12 PM");
+  });
+
+  it("puts MunchBox and Glow Republic's busiest slot at 9 PM to 12 AM", () => {
+    expect(shoppingHours(MARKET_DATA.munchbox.category).busiest.label).toBe("9 PM to 12 AM");
+    expect(shoppingHours(MARKET_DATA.glow.category).busiest.label).toBe("9 PM to 12 AM");
+  });
+
+  it("returns all 8 slots in order with shares that sum to 1", () => {
+    const h = shoppingHours(MARKET_DATA.henlo.category);
+    expect(h.slots).toHaveLength(8);
+    expect(h.slots[0].label).toBe("12 to 3 AM");
+    expect(h.slots.reduce((s, x) => s + x.share, 0)).toBeCloseTo(1, 6);
+    expect(h.quiet.length).toBeGreaterThan(0);
+    expect(h.quiet.every((s) => s.share < 0.05)).toBe(true);
+  });
+});
+
+describe("plainText", () => {
+  it("turns a spaced em dash into a full stop and a capital", () => {
+    expect(plainText("metros — demand is hyperlocal")).toBe("metros. Demand is hyperlocal");
+  });
+
+  it("turns number ranges into hyphens", () => {
+    expect(plainText("You need 25–35% higher bids")).toBe("You need 25-35% higher bids");
+  });
+
+  it("leaves no em or en dashes", () => {
+    expect(plainText("a—b – c")).not.toMatch(/[—–]/);
   });
 });
