@@ -69,7 +69,7 @@ export function useMarket(ctx: MarketContext | null): MarketRun {
     setBusy(true);
     const res = await send({ id: nextId.current++, ctx, state, campaigns });
     setBusy(false);
-    if (!res.ok) {
+    if ("error" in res) {
       setError(res.error);
       return null;
     }
