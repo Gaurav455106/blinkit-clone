@@ -25,7 +25,7 @@ function formatTarget(t: { label: string; target: number; unit: string }) {
 function inventoryImplication(tone: string): string {
   switch (tone) {
     case "healthy":    return "Good stock levels — scale confidently. Your ads can deliver without constraints.";
-    case "warning":    return "Stock is patchy. Narrow geo targeting to stocked states only to avoid under-delivery.";
+    case "warning":    return "Stock is patchy. Ads stop wherever a state sells out, so watch OSA and don't push spend into states close to a stock-out.";
     case "critical":   return "Critical OSA — ads will underdeliver badly. Fix inventory before spending on reach campaigns.";
     case "overstocked":return "Too much stock. Sell-through is the priority — price promotions or heavy conversion spend may help.";
     default: return "";
@@ -281,7 +281,7 @@ export default function Brief() {
             </div>
             {/* Fixed: correct explanation of what 0-OSA means for delivery */}
             <p className="text-xs text-amber-900 mt-3 bg-amber-50 border border-amber-200 rounded p-2">
-              ⚠️ Blinkit only serves ads where you have stock. Your campaign will automatically skip states with 0 OSA — but if you select Pan India, your budget only delivers in the {stockedStates(scenario).length} stocked state{stockedStates(scenario).length !== 1 ? "s" : ""} above. This means your budget under-delivers and your impression targets become much harder to hit. Select only stocked states to get full delivery.
+              ℹ️ Blinkit only serves ads where you have stock. Your ads will run only in the {stockedStates(scenario).length} stocked state{stockedStates(scenario).length !== 1 ? "s" : ""} above, so selecting Pan India costs nothing extra: spend simply doesn't happen in states with 0 OSA. What matters is that you reach every state where you do have stock, and that you watch OSA so ads don't stop when a state sells out.
             </p>
           </Card>
 

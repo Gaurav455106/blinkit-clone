@@ -298,7 +298,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
     goodKeywords: ["whey protein", "protein supplement", "protein bar", "plant protein", "fitness supplement"],
     riskyKeywords: ["fuelup", "gym protein"],
     optimalObjective: "performance", optimalAdFormat: "product_booster",
-    trap: "Pan India targeting burns budget. Demand is hyperlocal — concentrated in metros only",
+    trap: "Demand is hyperlocal — gym-goers in metros. Broad fitness terms and the ₹99 bar soak up budget at thin margins",
     unitEconomics: "Avg MRP ₹799 · Avg Margin ₹158 · Hyperlocal demand",
     relevantCategories: ["Health & Wellness", "Sports Nutrition"],
     goalType: "ROAS-First",
@@ -322,7 +322,7 @@ export const SEASONS = [
 
 export const MARKET_CONDITIONS = [
   { name: "Stable Market", note: "No major competitor moves.", implication: "No unusual pressure. Run your plan as designed." },
-  { name: "Aggressive Competitor", note: "CPMs +35%.", implication: "You need 25–35% higher bids to hold impression share. Narrow your geo to conserve budget for stocked states." },
+  { name: "Aggressive Competitor", note: "CPMs +35%.", implication: "You need 25–35% higher bids to hold impression share. Concentrate budget on the keywords and states that convert best." },
   { name: "Price War in Category", note: "Margins squeezed across the shelf.", implication: "Don't chase ROAS — margins are thin. Focus on sell-through volume instead." },
   { name: "New Entrant Disrupting", note: "A new brand is buying share aggressively.", implication: "Defend your shelf. Consider Listing Spotlight to hold visibility while the new entrant burns budget on generic terms." },
   { name: "Platform Pushing Private Label", note: "Blinkit pushing its own label in your category.", implication: "Platform will favour its own SKUs in organic ranking. You need a strong CM pitch and above-average bids to compete." },

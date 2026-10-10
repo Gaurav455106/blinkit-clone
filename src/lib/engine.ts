@@ -68,14 +68,18 @@ const CM_BONUS: Record<string, number> = {
   rejected: 0.85,
 };
 
-/** Dead hour block indices (12–3 AM = 6, 3–6 AM = 7) */
-export const DEAD_BLOCKS = [6, 7] as const;
-
-/** Hour block labels (index 0-7, each 3 hours) */
+/**
+ * Hour block labels (index 0-7, each 3 hours), numbered from midnight to match
+ * the schedule editor (ProductBoosterSettings TIME_SLOTS) and dayEngine.
+ * This used to start at 6 AM, which scored every schedule two slots off.
+ */
 export const HOUR_BLOCK_LABELS = [
-  "6–9 AM", "9 AM–12 PM", "12–3 PM", "3–6 PM",
-  "6–9 PM", "9 PM–12 AM", "12–3 AM", "3–6 AM",
+  "12–3 AM", "3–6 AM", "6–9 AM", "9 AM–12 PM",
+  "12–3 PM", "3–6 PM", "6–9 PM", "9 PM–12 AM",
 ] as const;
+
+/** Dead hour block indices (12–3 AM = 0, 3–6 AM = 1) */
+export const DEAD_BLOCKS = [0, 1] as const;
 
 /** Weekly replenishment rate by inventory tone */
 const REPLENISH_RATE: Record<string, number> = {
@@ -192,12 +196,12 @@ function getCmBonus(status: string | undefined): number {
 /** Peak hour-block indices for a brand's category */
 export function getPeakBlocks(category: string): number[] {
   const c = category.toLowerCase();
-  if (c.includes("baby"))                                         return [1];       // 9 AM–12 PM
-  if (c.includes("snack"))                                        return [3, 4];    // 3–6 PM, 6–9 PM
-  if (c.includes("pet"))                                          return [0, 4];    // 6–9 AM, 6–9 PM
-  if (c.includes("supplement") || c.includes("protein") || c.includes("fitness")) return [0, 4];
-  if (c.includes("skincare"))                                     return [1, 4];    // 9 AM–12 PM, 6–9 PM
-  return [0, 1, 4];
+  if (c.includes("baby"))                                         return [3];       // 9 AM–12 PM
+  if (c.includes("snack"))                                        return [5, 6];    // 3–6 PM, 6–9 PM
+  if (c.includes("pet"))                                          return [2, 6];    // 6–9 AM, 6–9 PM
+  if (c.includes("supplement") || c.includes("protein") || c.includes("fitness")) return [2, 6];
+  if (c.includes("skincare"))                                     return [3, 6];    // 9 AM–12 PM, 6–9 PM
+  return [2, 3, 6];
 }
 
 /**
