@@ -210,7 +210,7 @@ describe("linesFromFinalScore", () => {
     const c2 = lines.find((l) => l.key === "crisis2")!;
     expect(c2.earned).toBe(0);
     expect(c2.max).toBe(9);
-    expect(c2.note).toMatch(/no response/i);
+    expect(c2.note).toMatch(/no answer/i);
     expect(lines.find((l) => l.key === "crisis1")!.earned).toBe(8);
   });
 

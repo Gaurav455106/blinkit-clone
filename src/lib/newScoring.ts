@@ -120,19 +120,19 @@ export function scoreSetup(scenario: Scenario, campaigns: SavedCampaign[]): Setu
 
   if (hasCorrectObjective && hasOptimalFormat) {
     comprehensionEarned = 20;
-    comprehensionNote   = `Chose ${profile.optimalObjective} objective + ${profile.optimalAdFormat} — perfect match for a ${profile.goalType} brand.`;
+    comprehensionNote   = `You chose the ${profile.optimalObjective} objective and ${profile.optimalAdFormat}. That is the right match for a ${profile.goalType} brand.`;
   } else if (hasCorrectObjective && bucketCovered) {
     comprehensionEarned = 12;
-    comprehensionNote   = `Right objective (${profile.optimalObjective}), right bucket — but ${profile.optimalAdFormat} would have been stronger.`;
+    comprehensionNote   = `Right objective (${profile.optimalObjective}) and the right type of format, but ${profile.optimalAdFormat} would have worked better.`;
   } else if (!hasCorrectObjective && hasOptimalFormat) {
     comprehensionEarned = 8;
-    comprehensionNote   = `Picked the right format (${profile.optimalAdFormat}) but wrong objective. ${profile.optimalObjective} was the call.`;
+    comprehensionNote   = `You picked the right format (${profile.optimalAdFormat}) but the wrong objective. ${profile.optimalObjective} was the right choice.`;
   } else if (!hasCorrectObjective && bucketCovered) {
     comprehensionEarned = 6;
-    comprehensionNote   = `Right campaign bucket but wrong objective — ${profile.optimalObjective} + ${profile.optimalAdFormat} was the correct combo.`;
+    comprehensionNote   = `Right type of format, but the wrong objective. The best pair was ${profile.optimalObjective} with ${profile.optimalAdFormat}.`;
   } else {
     comprehensionEarned = 0;
-    comprehensionNote   = `Wrong objective (needed ${profile.optimalObjective}) and wrong format (needed ${profile.optimalAdFormat}) for a ${profile.goalType} brand.`;
+    comprehensionNote   = `Wrong objective (it needed ${profile.optimalObjective}) and wrong format (it needed ${profile.optimalAdFormat}) for a ${profile.goalType} brand.`;
   }
 
   const comprehensionLine: ScoreLine = {
@@ -155,16 +155,16 @@ export function scoreSetup(scenario: Scenario, campaigns: SavedCampaign[]): Setu
 
   if (coverage >= 1) {
     geoEarned = 7;
-    geoNote   = `Reaches all ${stocked.length} stocked states. Ads only run where stock exists, so nothing is wasted elsewhere.`;
+    geoNote   = `Reaches all ${stocked.length} states that have stock. Ads only run where stock exists, so nothing is wasted.`;
   } else if (coverage >= 0.5) {
     geoEarned = 4;
-    geoNote   = `Misses stocked demand in ${missed.join(", ")}. Pan India would have covered it at no extra cost.`;
+    geoNote   = `Misses shoppers in ${missed.join(", ")}, where you have stock. Pan India would have covered them at no extra cost.`;
   } else if (coverage > 0) {
     geoEarned = 2;
-    geoNote   = `Reaches only ${reached.size} of ${stocked.length} stocked states. Most of the demand you could serve is left out.`;
+    geoNote   = `Reaches only ${reached.size} of the ${stocked.length} states that have stock. Most of the shoppers you could sell to are left out.`;
   } else {
     geoEarned = 0;
-    geoNote   = "None of the targeted states has stock, so the ads can't run anywhere.";
+    geoNote   = "None of the states you chose has stock, so the ads can't run anywhere.";
   }
 
   const geoLine: ScoreLine = {
@@ -183,16 +183,16 @@ export function scoreSetup(scenario: Scenario, campaigns: SavedCampaign[]): Setu
 
   if (allKeywords.length === 0) {
     kwEarned = 1;
-    kwNote   = "No keywords selected — missed targeting opportunity.";
+    kwNote   = "No keywords selected, so you missed the chance to show up in searches.";
   } else if (riskyKwHits === 0) {
     kwEarned = 5;
-    kwNote   = "All keywords on-target — competitive budget efficiency.";
+    kwNote   = "Every keyword matches how shoppers search for the product, so the budget is well used.";
   } else if (goodKwHits > riskyKwHits) {
     kwEarned = 3;
-    kwNote   = `Good keywords outnumber risky (${goodKwHits} good, ${riskyKwHits} risky) — acceptable but could tighten.`;
+    kwNote   = `More good keywords than risky ones (${goodKwHits} good, ${riskyKwHits} risky). OK, but you could drop the risky ones.`;
   } else {
     kwEarned = 1;
-    kwNote   = `Too many risky/generic keywords (${riskyKwHits} of ${allKeywords.length}) — expensive clicks, low conversion.`;
+    kwNote   = `Too many risky or general keywords (${riskyKwHits} of ${allKeywords.length}). They cost a lot and rarely lead to a sale.`;
   }
 
   const kwLine: ScoreLine = {
@@ -210,16 +210,16 @@ export function scoreSetup(scenario: Scenario, campaigns: SavedCampaign[]): Setu
 
   if (uniqueSkus <= 1) {
     skuEarned = 3;
-    skuNote   = "Focused on a single hero SKU — concentrated impact.";
+    skuNote   = "Focused on one main product (hero SKU), so it gets the full budget.";
   } else if (uniqueSkus <= 2) {
     skuEarned = 3;
-    skuNote   = "Tight SKU selection — strong focus.";
+    skuNote   = "Only two products chosen, so each one gets enough budget.";
   } else if (uniqueSkus <= Math.ceil(totalSkus / 2)) {
     skuEarned = 2;
-    skuNote   = `Selected ${uniqueSkus} SKUs — acceptable but hero-focus would be stronger.`;
+    skuNote   = `You chose ${uniqueSkus} products (SKUs). OK, but focusing on the main one would work better.`;
   } else {
     skuEarned = 0;
-    skuNote   = `Spread across all ${uniqueSkus} SKUs — budget diluted, no SKU gets enough push.`;
+    skuNote   = `Budget spread across all ${uniqueSkus} products (SKUs), so none of them gets enough push.`;
   }
 
   const skuLine: ScoreLine = {
@@ -281,22 +281,22 @@ export function scoreDayparting(params: {
 
   if (bestMult >= 1.15 && changedEarly) {
     earned = 15;
-    note   = `Identified peak hours and optimised schedule by Day ${earliestChangeDay} — strong ROAS improvement.`;
+    note   = `You found the busy hours and set your ad schedule by day ${earliestChangeDay}. This raised sales per ₹1 of ads (ROAS).`;
   } else if (bestMult >= 1.1 && changedEarly) {
     earned = 12;
-    note   = `Good schedule change by Day ${earliestChangeDay} — removed dead hours, peaks preserved.`;
+    note   = `Good schedule change by day ${earliestChangeDay}. You turned off the quiet hours and kept the busy ones.`;
   } else if (bestMult >= 1.1 && !changedEarly) {
     earned = 8;
-    note   = `Good schedule change but implemented late (Day ${earliestChangeDay}) — missed early gains.`;
+    note   = `Good schedule change, but it came late (day ${earliestChangeDay}), so you missed the early gains.`;
   } else if (bestMult >= 1.05) {
     earned = 6;
-    note   = "Partial daypart improvement — removed some dead hours but didn't fully optimise.";
+    note   = "Your schedule turned off some quiet hours, but not enough to make a big difference.";
   } else if (bestMult < 1.0) {
     earned = 3;
-    note   = "Custom schedule removed peak hours — ROAS was worse than 24/7. Check peak blocks for your brand category.";
+    note   = "Your schedule turned off busy hours, so results were worse than running all day. Check the busy hours for your category.";
   } else {
     earned = 0;
-    note   = "Ran all campaigns on 24/7 — dead hours (12–6 AM) burned budget with near-zero returns.";
+    note   = "No schedule set that beats running all day (24/7). Quiet hours (12 AM to 6 AM) used up budget and sold almost nothing.";
   }
 
   return {
@@ -319,14 +319,14 @@ export function scoreNewCampaign(params: {
       return {
         key: "newcampaign", label: "Mid-Run Campaign Launch",
         earned: 3, max: 10,
-        note: `₹${Math.round(remainingBudgetAtEnd / 1000)}K left unspent — launching a follow-up campaign could have driven more results.`,
+        note: `₹${Math.round(remainingBudgetAtEnd / 1000)}K was left unspent. A second campaign could have used it to get more sales.`,
         good: false,
       };
     }
     return {
       key: "newcampaign", label: "Mid-Run Campaign Launch",
       earned: 3, max: 10,
-      note: "Budget fully utilised — no remaining budget for a new campaign.",
+      note: "No new campaign launched during the run. Almost all the budget was already used.",
       good: false,
     };
   }
@@ -353,7 +353,7 @@ export function scoreNewCampaign(params: {
     return {
       key: "newcampaign", label: "Mid-Run Campaign Launch",
       earned: 10, max: 10,
-      note: `Launched ${newCampaigns.length} new campaign(s) mid-run with improved targeting — applied learnings from the data.`,
+      note: `You launched ${newCampaigns.length} new campaign(s) during the run with better targeting, using what the data showed.`,
       good: true,
     };
   }
@@ -361,7 +361,7 @@ export function scoreNewCampaign(params: {
   return {
     key: "newcampaign", label: "Mid-Run Campaign Launch",
     earned: 5, max: 10,
-    note: `Launched ${newCampaigns.length} new campaign(s) but repeated the same geo/keyword choices — missed the chance to improve.`,
+    note: `You launched ${newCampaigns.length} new campaign(s) but kept the same states and keywords, so nothing improved.`,
     good: false,
   };
 }
@@ -418,10 +418,10 @@ export function scoreCrisisResponse(
     : 0;
   const pct = maxOptionScore > 0 ? optionScore / maxOptionScore : 0;
   const note =
-    pct >= 0.9 ? "Best possible response — strong strategic read." :
-    pct >= 0.6 ? "Acceptable call but the optimal response would have done better." :
-    pct >= 0.3 ? "Cautious choice — low upside, low downside." :
-                 "This decision hurt the campaign — review the scenario reasoning.";
+    pct >= 0.9 ? "Best possible choice. You read the situation well." :
+    pct >= 0.6 ? "An OK choice, but the best option would have done better." :
+    pct >= 0.3 ? "A cautious choice: little to gain, little to lose." :
+                 "This choice hurt the campaign. Read the situation again to see why.";
 
   return {
     key: `crisis${crisisNum}`, label: `Crisis ${crisisNum} Response`,
@@ -489,10 +489,10 @@ export function scoreResults(
     achievementPct >= 50 ? 4  : 1;
 
   const goalNote =
-    achievementPct >= 90 ? `${achievementPct}% of client goals met — outstanding.` :
-    achievementPct >= 70 ? `${achievementPct}% of client goals met — solid run.` :
-    achievementPct >= 50 ? `${achievementPct}% of client goals met — below target.` :
-                           `${achievementPct}% of client goals met — campaign fell short.`;
+    achievementPct >= 90 ? `You reached ${achievementPct}% of the client's goals on average. Excellent.` :
+    achievementPct >= 70 ? `You reached ${achievementPct}% of the client's goals on average. A solid run.` :
+    achievementPct >= 50 ? `You reached ${achievementPct}% of the client's goals on average. Below target.` :
+                           `You reached ${achievementPct}% of the client's goals on average. The campaign fell short.`;
 
   const scenarioBudget = scenario.budget ?? 200_000;
   const budgetPct = (totalSpent / scenarioBudget) * 100;
@@ -502,9 +502,9 @@ export function scoreResults(
 
   const bLabel = `₹${Math.round(scenarioBudget / 1000)}K`;
   const budgetNote =
-    budgetPct >= 85 ? `₹${Math.round(totalSpent / 1000)}K of ${bLabel} deployed — budget well utilised.` :
-    budgetPct >= 65 ? `₹${Math.round(totalSpent / 1000)}K spent — left ₹${Math.round((scenarioBudget - totalSpent) / 1000)}K undeployed.` :
-                      `Only ₹${Math.round(totalSpent / 1000)}K of ${bLabel} spent — significant budget wasted due to geo or stock issues.`;
+    budgetPct >= 85 ? `You spent ₹${Math.round(totalSpent / 1000)}K of ${bLabel}. The budget was well used.` :
+    budgetPct >= 65 ? `You spent ₹${Math.round(totalSpent / 1000)}K and left ₹${Math.round((scenarioBudget - totalSpent) / 1000)}K unused.` :
+                      `You spent only ₹${Math.round(totalSpent / 1000)}K of ${bLabel}. A lot of budget went unused, often because of state or stock choices.`;
 
   const lines: ScoreLine[] = [
     { key: "goalach",  label: "Goal Achievement",   earned: goalEarned,   max: 10, note: goalNote,   good: goalEarned   >= 7 },

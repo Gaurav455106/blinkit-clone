@@ -139,7 +139,7 @@ describe("lineStats", () => {
   });
 
   it("groups reasons, ignoring numbers", () => {
-    expect(dp.topReasons[0]).toEqual({ reason: "Ran all campaigns on 24/7 — dead hours burned budget.", count: 2 });
+    expect(dp.topReasons[0]).toEqual({ reason: "Ran all campaigns on 24/7. Dead hours burned budget.", count: 2 });
   });
 
   it("writes a data-driven fix note", () => {
@@ -149,7 +149,7 @@ describe("lineStats", () => {
   });
 
   it("says so when no attempt has line detail", () => {
-    expect(lineStats([row({ lines: null })])[0].dataNote).toMatch(/no line-level/i);
+    expect(lineStats([row({ lines: null })])[0].dataNote).toMatch(/no line-by-line/i);
   });
 });
 

@@ -1,12 +1,15 @@
 // ── Attempt analysis: pure functions over rows from the `attempts` table ─────
 // Used by the results page (saving), the student profile, and the admin and
-// trainer cohort views. Attempts saved before line-level scoring have no
-// `score_breakdown.lines`; every function here copes with that.
+// trainer cohort views. Handles three kinds of saved attempt:
+//   - old v1 rows with category totals only (no score_breakdown.lines)
+//   - v1 rows with lines (version 1; guide text comes from rubrics.ts)
+//   - v2 rows (version 2; lines carry their own judgedOn / tiers / howToImprove)
+// Scores from different versions are never mixed in one statistic.
 
-import { SCORE_MAX, crisisCardScore, type FinalScore, type ResultsScore } from "@/lib/newScoring";
+import { crisisCardScore, type FinalScore, type ResultsScore } from "@/lib/newScoring";
 import {
-  RUBRICS, RUBRIC_BY_KEY, CATEGORY_ORDER, CATEGORY_LABELS, isRubricKey, tierFor, linesFromFinalScore,
-  type LineResult, type RubricCategory, type RubricKey,
+  RUBRICS, RUBRIC_BY_KEY, SCORE_SCHEMES, isRubricKey, lineGuide, lineTier, linesFromFinalScore, plainText,
+  type LineResult, type RubricTier, type ScoreVersion,
 } from "@/lib/rubrics";
 
 export interface AttemptRow {
@@ -26,14 +29,18 @@ export interface AttemptRow {
   badge?: string | null;
 }
 
-export type CategoryTotals = Record<RubricCategory, number>;
+export type CategoryTotals = Record<string, number>;
 export type GoalRow = ResultsScore["goalRows"][number];
 
-export interface SavedBreakdown extends CategoryTotals {
+export interface SavedBreakdown {
   version: 1;
   grandTotal: number;
   grade: FinalScore["grade"];
   gradeLabel: string;
+  setup: number;
+  liveOpt: number;
+  crisis: number;
+  results: number;
   achievementPct: number;
   lines: LineResult[];
   goalRows: GoalRow[];
@@ -52,7 +59,7 @@ const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 
 // ── Saving ────────────────────────────────────────────────────────────────────
 
-/** The score_breakdown saved with each attempt. Keeps the pre-v1 fields so old readers still work. */
+/** The score_breakdown saved with each attempt. Keeps the older fields so old readers still work. */
 export function buildSavedBreakdown(fs: FinalScore): SavedBreakdown {
   return {
     version: 1,
@@ -71,6 +78,30 @@ export function buildSavedBreakdown(fs: FinalScore): SavedBreakdown {
 
 // ── Reading ───────────────────────────────────────────────────────────────────
 
+export function attemptVersion(row: AttemptRow): ScoreVersion {
+  return num(asRecord(row.score_breakdown)?.version) === 2 ? 2 : 1;
+}
+
+function parseTier(v: unknown): RubricTier | null {
+  const o = asRecord(v);
+  const points = num(o?.points);
+  if (!o || points === null) return null;
+  const condition = str(o.condition) ?? str(o.description) ?? str(o.label) ?? "";
+  const minPoints = num(o.minPoints);
+  return {
+    points,
+    ...(minPoints !== null ? { minPoints } : {}),
+    condition: plainText(condition),
+    short: plainText(str(o.short) ?? str(o.label) ?? condition),
+  };
+}
+
+function parseTiers(v: unknown): RubricTier[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const tiers = v.map(parseTier).filter((t): t is RubricTier => t !== null);
+  return tiers.length ? [...tiers].sort((a, b) => b.points - a.points) : undefined;
+}
+
 function parseLine(v: unknown): LineResult | null {
   const o = asRecord(v);
   if (!o) return null;
@@ -78,15 +109,18 @@ function parseLine(v: unknown): LineResult | null {
   const earned = num(o.earned);
   const max = num(o.max);
   if (!key || earned === null || max === null) return null;
-  const savedCat = str(o.category);
-  const category: RubricCategory | null =
-    savedCat && (CATEGORY_ORDER as readonly string[]).includes(savedCat) ? (savedCat as RubricCategory)
-    : isRubricKey(key) ? RUBRIC_BY_KEY[key].category : null;
+  const category = str(o.category) ?? (isRubricKey(key) ? RUBRIC_BY_KEY[key].category : null);
   if (!category) return null;
+  const judgedOn = str(o.judgedOn);
+  const howToImprove = str(o.howToImprove);
+  const tiers = parseTiers(o.tiers);
   return {
     key, category, earned, max,
     label: str(o.label) ?? (isRubricKey(key) ? RUBRIC_BY_KEY[key].label : key),
-    note: str(o.note) ?? "",
+    note: plainText(str(o.note) ?? ""),
+    ...(judgedOn ? { judgedOn: plainText(judgedOn) } : {}),
+    ...(howToImprove ? { howToImprove: plainText(howToImprove) } : {}),
+    ...(tiers ? { tiers } : {}),
   };
 }
 
@@ -98,22 +132,25 @@ export function attemptLines(row: AttemptRow): LineResult[] | null {
   return lines.every((l): l is LineResult => l !== null) ? lines : null;
 }
 
-function totalsFrom(o: Json | null): CategoryTotals | null {
+function totalsFrom(o: Json | null, version: ScoreVersion): CategoryTotals | null {
   if (!o) return null;
-  const vals = CATEGORY_ORDER.map((c) => num(o[c]));
+  const keys = SCORE_SCHEMES[version].map((c) => c.key);
+  const vals = keys.map((k) => num(o[k]));
   if (vals.some((v) => v === null)) return null;
-  return Object.fromEntries(CATEGORY_ORDER.map((c, i) => [c, vals[i] as number])) as CategoryTotals;
+  return Object.fromEntries(keys.map((k, i) => [k, vals[i] as number]));
 }
 
-/** Category totals from the saved breakdown, the legacy snapshot copy, or the lines. */
+/** Category totals (keyed by the version's categories) from the breakdown, the legacy snapshot copy, or the lines. */
 export function attemptTotals(row: AttemptRow): CategoryTotals | null {
-  const direct = totalsFrom(asRecord(row.score_breakdown)) ?? totalsFrom(asRecord(asRecord(row.snapshot)?.score_breakdown));
+  const version = attemptVersion(row);
+  const direct = totalsFrom(asRecord(row.score_breakdown), version)
+    ?? (version === 1 ? totalsFrom(asRecord(asRecord(row.snapshot)?.score_breakdown), 1) : null);
   if (direct) return direct;
   const lines = attemptLines(row);
   if (!lines) return null;
   return Object.fromEntries(
-    CATEGORY_ORDER.map((c) => [c, lines.filter((l) => l.category === c).reduce((s, l) => s + l.earned, 0)]),
-  ) as CategoryTotals;
+    SCORE_SCHEMES[version].map((c) => [c.key, lines.filter((l) => l.category === c.key).reduce((s, l) => s + l.earned, 0)]),
+  );
 }
 
 export function brandOf(row: AttemptRow): string {
@@ -155,11 +192,12 @@ export function attemptCrisisResponses(row: AttemptRow): CrisisResponseLite[] {
     const score = num(o.score) ?? 0;
     const maxScore = num(o.maxScore);
     const pts = crisisCardScore({ crisisNum: n, score, maxScore: maxScore ?? undefined });
+    const key = str(o.optionKey) ?? "?";
     return [{
       crisisNum: n, score, maxScore,
-      optionKey: str(o.optionKey) ?? "?",
-      optionLabel: str(o.optionLabel) ?? `Option ${(str(o.optionKey) ?? "?").toUpperCase()}`,
-      title: str(o.title) ?? `Crisis ${n}`,
+      optionKey: key,
+      optionLabel: plainText(str(o.optionLabel) ?? `Option ${key.toUpperCase()}`),
+      title: plainText(str(o.title) ?? `Crisis ${n}`),
       day: num(o.day),
       earned: pts.earned, max: pts.max,
     }];
@@ -173,13 +211,21 @@ export const ALL = "All";
 export interface AttemptFilter {
   batch?: string;
   brand?: string;
+  version?: ScoreVersion;
 }
 
 export function filterAttempts(rows: readonly AttemptRow[], f: AttemptFilter): AttemptRow[] {
   return rows.filter((r) =>
     (!f.batch || f.batch === ALL || r.batch_code === f.batch) &&
-    (!f.brand || f.brand === ALL || brandOf(r) === f.brand),
+    (!f.brand || f.brand === ALL || brandOf(r) === f.brand) &&
+    (!f.version || attemptVersion(r) === f.version),
   );
+}
+
+/** Score versions present, newest first. */
+export function versionsPresent(rows: readonly AttemptRow[]): ScoreVersion[] {
+  const set = new Set(rows.map(attemptVersion));
+  return ([2, 1] as const).filter((v) => set.has(v));
 }
 
 export function latestFirst(rows: readonly AttemptRow[]): AttemptRow[] {
@@ -215,8 +261,8 @@ const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((s, x) => s + x, 
 export interface Bin { label: string; count: number }
 
 const SHARE_BINS = [
-  { label: "0–19%", min: 0 }, { label: "20–39%", min: 0.2 }, { label: "40–59%", min: 0.4 },
-  { label: "60–79%", min: 0.6 }, { label: "80–100%", min: 0.8 },
+  { label: "0 to 19%", min: 0 }, { label: "20 to 39%", min: 0.2 }, { label: "40 to 59%", min: 0.4 },
+  { label: "60 to 79%", min: 0.6 }, { label: "80 to 100%", min: 0.8 },
 ] as const;
 
 function binShares(shares: readonly number[]): Bin[] {
@@ -227,7 +273,7 @@ function binShares(shares: readonly number[]): Bin[] {
 }
 
 export interface CategoryStat {
-  category: RubricCategory;
+  category: string;
   label: string;
   max: number;
   n: number;
@@ -236,15 +282,19 @@ export interface CategoryStat {
   bins: Bin[];
 }
 
-export function categoryStats(rows: readonly AttemptRow[]): CategoryStat[] {
-  const totals = rows.map(attemptTotals).filter((t): t is CategoryTotals => t !== null);
-  return CATEGORY_ORDER.map((c) => {
-    const vals = totals.map((t) => t[c]);
+/** Per-category averages and spread. Only rows of `version` count. */
+export function categoryStats(rows: readonly AttemptRow[], version: ScoreVersion = 1): CategoryStat[] {
+  const totals = rows
+    .filter((r) => attemptVersion(r) === version)
+    .map(attemptTotals)
+    .filter((t): t is CategoryTotals => t !== null);
+  return SCORE_SCHEMES[version].map((c) => {
+    const vals = totals.map((t) => t[c.key] ?? 0);
     const avg = round1(mean(vals));
     return {
-      category: c, label: CATEGORY_LABELS[c], max: SCORE_MAX[c], n: vals.length,
-      avg, pctOfMax: pctOf(avg, SCORE_MAX[c]),
-      bins: binShares(vals.map((v) => v / SCORE_MAX[c])),
+      category: c.key, label: c.label, max: c.max, n: vals.length,
+      avg, pctOfMax: pctOf(avg, c.max),
+      bins: binShares(vals.map((v) => v / c.max)),
     };
   });
 }
@@ -259,9 +309,9 @@ export interface TierCount {
 }
 
 export interface LineStat {
-  key: RubricKey;
+  key: string;
   label: string;
-  category: RubricCategory;
+  category: string;
   max: number;
   n: number;
   avgEarned: number;
@@ -288,34 +338,65 @@ function topReasons(notes: readonly string[]): { reason: string; count: number }
   return Array.from(groups.values()).sort((a, b) => b.count - a.count).slice(0, MAX_REASONS);
 }
 
-function dataNoteFor(key: RubricKey, n: number, tiers: readonly TierCount[]): string {
-  if (n === 0) return "No line-level data yet for this view.";
-  const losing = tiers.filter((t) => t.points < RUBRIC_BY_KEY[key].max && t.count > 0);
-  if (losing.length === 0) return "Everyone in this view scored full marks here.";
-  const worst = losing.reduce((a, b) => (b.count > a.count ? b : a));
-  const pts = worst.minPoints !== undefined && worst.minPoints !== worst.points ? `${worst.minPoints}–${worst.points}` : `${worst.points}`;
-  return `${worst.share}% scored ${pts} here (${worst.short.toLowerCase()}): ${RUBRIC_BY_KEY[key].trainerTip}.`;
+function pointsText(t: Pick<TierCount, "points" | "minPoints">): string {
+  return t.minPoints !== undefined && t.minPoints !== t.points ? `${t.minPoints} to ${t.points}` : `${t.points}`;
 }
 
+function dataNoteFor(max: number, n: number, tiers: readonly TierCount[], trainerTip: string): string {
+  if (n === 0) return "No line-by-line scores yet for this view.";
+  const losing = tiers.filter((t) => t.points < max && t.count > 0);
+  if (losing.length === 0) return "Everyone in this view got full marks here.";
+  const worst = losing.reduce((a, b) => (b.count > a.count ? b : a));
+  const tip = trainerTip ? `: ${trainerTip}.` : ".";
+  return `${worst.share}% scored ${pointsText(worst)} here (${worst.short.toLowerCase()})${tip}`;
+}
+
+/** Line keys in display order: v1 rubric order first, then any other keys in the order first seen. */
+function orderedKeys(all: readonly LineResult[][]): string[] {
+  const seen = new Set(all.flatMap((ls) => ls.map((l) => l.key)));
+  const v1 = RUBRICS.map((r) => r.key).filter((k) => seen.has(k));
+  const rest: string[] = [];
+  for (const ls of all) for (const l of ls) if (!isRubricKey(l.key) && !rest.includes(l.key)) rest.push(l.key);
+  return [...v1, ...rest];
+}
+
+function linesWithDetail(rows: readonly AttemptRow[]): LineResult[][] {
+  return rows.map(attemptLines).filter((l): l is LineResult[] => l !== null);
+}
+
+/** Per-line statistics. Pass rows of one score version (see filterAttempts). */
 export function lineStats(rows: readonly AttemptRow[]): LineStat[] {
-  const all = rows.map(attemptLines).filter((l): l is LineResult[] => l !== null);
-  return RUBRICS.map((r) => {
-    const lines = all.map((ls) => ls.find((l) => l.key === r.key)).filter((l): l is LineResult => !!l);
+  const all = linesWithDetail(rows);
+  const keys = all.length ? orderedKeys(all) : RUBRICS.map((r) => r.key);
+  return keys.map((key) => {
+    const lines = all.map((ls) => ls.find((l) => l.key === key)).filter((l): l is LineResult => !!l);
+    const sample: LineResult = lines.find((l) => l.tiers?.length) ?? lines[0] ?? emptyLine(key);
+    const guide = lineGuide(sample);
     const n = lines.length;
-    const tiers = r.tiers.map((t) => {
-      const count = lines.filter((l) => tierFor(r.key, l.earned) === t).length;
+    const levelOf = (l: LineResult) => lineTier({ ...l, tiers: l.tiers?.length ? l.tiers : [...guide.tiers] });
+    const tiers = guide.tiers.map((t) => {
+      const count = lines.filter((l) => sameLevel(levelOf(l), t)).length;
       return { points: t.points, minPoints: t.minPoints, short: t.short, condition: t.condition, count, share: pctOf(count, n) };
     });
     return {
-      key: r.key, label: r.label, category: r.category, max: r.max, n,
+      key, label: sample.label, category: sample.category, max: sample.max, n,
       avgEarned: round1(mean(lines.map((l) => l.earned))),
       pctLost: pctOf(lines.filter((l) => l.earned < l.max).length, n),
       tiers,
       topReasons: topReasons(lines.filter((l) => l.earned < l.max).map((l) => l.note)),
-      howToImprove: r.howToImprove,
-      dataNote: dataNoteFor(r.key, n, tiers),
+      howToImprove: guide.howToImprove,
+      dataNote: dataNoteFor(sample.max, n, tiers, guide.trainerTip),
     };
   });
+}
+
+function emptyLine(key: string): LineResult {
+  const r = isRubricKey(key) ? RUBRIC_BY_KEY[key] : null;
+  return { key, label: r?.label ?? key, category: r?.category ?? "", earned: 0, max: r?.max ?? 0, note: "" };
+}
+
+function sameLevel(a: RubricTier | null, b: RubricTier): boolean {
+  return !!a && a.points === b.points && (a.minPoints ?? a.points) === (b.minPoints ?? b.points);
 }
 
 export interface CrisisOptionStat { optionKey: string; label: string; count: number; share: number; avgPoints: number }
@@ -338,6 +419,7 @@ function mostCommon(values: readonly string[]): string | null {
   return best;
 }
 
+/** v1 crisis choices from snapshot.crisisResponses. */
 export function crisisStats(rows: readonly AttemptRow[]): CrisisStat[] {
   const responses = rows.flatMap(attemptCrisisResponses);
   return ([1, 2, 3] as const).map((n) => {
@@ -366,28 +448,28 @@ export function crisisStats(rows: readonly AttemptRow[]): CrisisStat[] {
 
 // ── One student ───────────────────────────────────────────────────────────────
 
-export interface Strength { key: RubricKey; label: string; avgPct: number; attempts: number }
-export interface Gap { key: RubricKey; label: string; avgLost: number; lostIn: number; attempts: number; howToImprove: string }
+export interface Strength { key: string; label: string; avgPct: number; attempts: number }
+export interface Gap { key: string; label: string; avgLost: number; lostIn: number; attempts: number; howToImprove: string }
 
 const STRENGTH_SHARE = 0.8;
 
-/** Lines a student consistently scores well on, and lines they lose points on in most attempts. */
+/** Lines a student usually scores well on, and lines they lose points on in most attempts. */
 export function strengthsAndGaps(rows: readonly AttemptRow[]): { strengths: Strength[]; gaps: Gap[] } {
-  const all = rows.map(attemptLines).filter((l): l is LineResult[] => l !== null);
+  const all = linesWithDetail(rows);
   if (all.length === 0) return { strengths: [], gaps: [] };
-  const per = RUBRICS.map((r) => {
-    const lines = all.map((ls) => ls.find((l) => l.key === r.key)).filter((l): l is LineResult => !!l);
-    return { r, lines };
-  }).filter((x) => x.lines.length > 0);
+  const per = orderedKeys(all).map((key) => {
+    const lines = all.map((ls) => ls.find((l) => l.key === key)).filter((l): l is LineResult => !!l);
+    return { key, lines, label: lines[0].label, guide: lineGuide(lines.find((l) => l.howToImprove) ?? lines[0]) };
+  });
 
   const strengths = per
-    .map(({ r, lines }) => ({ key: r.key, label: r.label, attempts: lines.length, avgPct: pctOf(mean(lines.map((l) => l.earned)), r.max) }))
+    .map(({ key, label, lines }) => ({ key, label, attempts: lines.length, avgPct: pctOf(mean(lines.map((l) => l.earned)), mean(lines.map((l) => l.max))) }))
     .filter((s) => s.avgPct >= STRENGTH_SHARE * 100)
     .sort((a, b) => b.avgPct - a.avgPct);
 
   const gaps = per
-    .map(({ r, lines }) => ({
-      key: r.key, label: r.label, attempts: lines.length, howToImprove: r.howToImprove,
+    .map(({ key, label, lines, guide }) => ({
+      key, label, attempts: lines.length, howToImprove: guide.howToImprove,
       lostIn: lines.filter((l) => l.earned < l.max).length,
       avgLost: round1(mean(lines.map((l) => l.max - l.earned))),
     }))
