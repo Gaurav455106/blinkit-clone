@@ -13,7 +13,15 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sim: ["Geist", "ui-sans-serif", "system-ui", "sans-serif"],
+        simmono: ["Geist Mono", "ui-monospace", "monospace"],
+      },
       colors: {
+        "sim-good": "hsl(var(--sim-good))",
+        "sim-warn": "hsl(var(--sim-warn))",
+        "sim-bad": "hsl(var(--sim-bad))",
+        "sim-highlight": "hsl(var(--sim-highlight))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
