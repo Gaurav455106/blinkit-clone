@@ -101,10 +101,29 @@ export interface EventEffect {
   cvr?: readonly CvrMod[];
 }
 
+/** Downloadable reports (SPEC §7.3.2) an alert can point students to. */
+export type ReportId = "R1" | "R2" | "R3" | "R4" | "R5" | "R6" | "R7" | "R8" | "R9" | "R10" | "R11" | "R12";
+
+export const REPORT_NAMES: Readonly<Record<ReportId, string>> = {
+  R1: "Campaign performance", R2: "Keyword performance", R3: "Product (SKU) performance",
+  R4: "State performance", R5: "Hour-of-day", R6: "Placement / feed", R7: "Auction insights",
+  R8: "Creative", R9: "Inventory", R10: "Budget pacing", R11: "Change log", R12: "Search terms",
+};
+
+export interface ReportRef {
+  id: ReportId;
+  /** Ready to show, e.g. "See R9 Inventory". */
+  label: string;
+}
+
+export const reportRef = (id: ReportId): ReportRef => ({ id, label: `See ${id} ${REPORT_NAMES[id]}` });
+
 export interface EventAlert {
   headline: string;
-  /** One line with the data that triggered it. */
+  /** Plain words, short sentences, with the data that triggered it. */
   detail: string;
+  /** The report where the student can check it. */
+  report: ReportRef;
 }
 
 export interface EventActivation {
@@ -291,8 +310,9 @@ const saleDay = define({
       rivalBids: [{ mult: SALE_RIVAL_BID_MULT, includeBackground: true }],
     },
     alert: {
-      headline: `${e.label ?? "Big Savings Day"} starts tomorrow`,
-      detail: `Searches run about ${mult(SALE_DEMAND_MULT)} and rival bids about ${mult(SALE_RIVAL_BID_MULT)} for ${days(length)}. Yesterday you spent ${inr(spentYesterday)}; a 24/7 budget at that level can run dry before the evening.`,
+      headline: `${e.label ?? "Big Savings Day"} is tomorrow`,
+      detail: `For ${days(length)}, about ${mult(SALE_DEMAND_MULT)} as many people will search, and rivals will bid about ${mult(SALE_RIVAL_BID_MULT)} higher, so ads cost more. You spent ${inr(spentYesterday)} yesterday. A budget that runs all day may run out before the evening.`,
+      report: reportRef("R10"),
     },
     stake: yesterdayRevenue(input.history) * (SALE_DEMAND_MULT - 1) * length,
     data: { demandMult: SALE_DEMAND_MULT, rivalBidMult: SALE_RIVAL_BID_MULT, spentYesterday, days: length },
@@ -313,7 +333,8 @@ const iplEvening = define({
       effect: { demand: [{ mult: IPL_EVENING_MULT, slots: [IPL_SLOT] }] },
       alert: {
         headline: "IPL evenings start tomorrow",
-        detail: `${SLOT_LABELS[IPL_SLOT]} searches run about ${mult(IPL_EVENING_MULT)} until day ${e.toDay}. Yesterday ${pct(eveningShare)} of your spend landed in ${SLOT_LABELS[IPL_SLOT]}.`,
+        detail: `Until day ${e.toDay}, about ${mult(IPL_EVENING_MULT)} as many people will search between ${SLOT_LABELS[IPL_SLOT]}. Yesterday ${pct(eveningShare)} of your ad spend was in that time.`,
+        report: reportRef("R5"),
       },
       stake: sumCells(cells, (c) => c.slot === IPL_SLOT).revenue * (IPL_EVENING_MULT - 1) * (e.toDay - e.fromDay + 1),
       data: { slot: IPL_SLOT, demandMult: IPL_EVENING_MULT, eveningSpendShare: eveningShare },
@@ -340,7 +361,8 @@ const payday = define({
     effect: { cvr: [{ mult: PAYDAY_PREMIUM_CVR, skuIds: premium }] },
     alert: {
       headline: "Payday starts tomorrow",
-      detail: `Shoppers convert about ${pct(PAYDAY_PREMIUM_CVR - 1)} better on premium SKUs (${names}) until day ${e.toDay}.`,
+      detail: `Until day ${e.toDay}, people are about ${pct(PAYDAY_PREMIUM_CVR - 1)} more likely to buy your pricier products: ${names}.`,
+      report: reportRef("R3"),
     },
     stake: sumCells(lastDay(input.history)?.cells ?? [], (c) => premium.includes(c.skuId)).revenue * (PAYDAY_PREMIUM_CVR - 1) * (e.toDay - e.fromDay + 1),
     data: { cvrMult: PAYDAY_PREMIUM_CVR, premiumSkus: premium.join(",") },
@@ -359,7 +381,8 @@ const festival = define({
   },
   alert: {
     headline: `${e.label ?? "Festival"} starts tomorrow`,
-    detail: `Searches run about ${mult(FESTIVAL_DEMAND_MULT)} and rival bids about ${mult(FESTIVAL_RIVAL_BID_MULT)} until day ${e.toDay}.`,
+    detail: `Until day ${e.toDay}, about ${mult(FESTIVAL_DEMAND_MULT)} as many people will search, and rivals will bid about ${mult(FESTIVAL_RIVAL_BID_MULT)} higher, so ads cost more.`,
+    report: reportRef("R10"),
   },
   stake: yesterdayRevenue(input.history) * (FESTIVAL_DEMAND_MULT - 1) * (e.toDay - e.fromDay + 1),
   data: { demandMult: FESTIVAL_DEMAND_MULT, rivalBidMult: FESTIVAL_RIVAL_BID_MULT },
@@ -415,8 +438,9 @@ const rivalStockout = define({
     key: `rival_stockout|${occ.rivalId}|${occ.state}|${occ.day}`, endDay: occ.day + occ.days - 1,
     effect: { rivalExits: [{ rivalId: occ.rivalId, states: [occ.state] }] },
     alert: {
-      headline: `${name} is out of stock in ${occ.state}`,
-      detail: `Its ads stop there for about ${days(occ.days)}, so clearing CPMs drop. Your share of ad views in ${occ.state} yesterday was ${pct(ratio(t.viewable, t.totalAdViewable))}.`,
+      headline: `${name} has run out of stock in ${occ.state}`,
+      detail: `Its ads stop there for about ${days(occ.days)}, so ads in ${occ.state} get cheaper. Yesterday you got ${pct(ratio(t.viewable, t.totalAdViewable))} of all ad views there.`,
+      report: reportRef("R4"),
     },
     stake: t.revenue * occ.days * 0.5,
     data: { rival: name, state: occ.state, days: occ.days, yourSov: ratio(t.viewable, t.totalAdViewable) },
@@ -424,7 +448,7 @@ const rivalStockout = define({
 });
 
 const rainSpike = define({
-  id: "rain_spike", title: "Rain spike", source: "seeded", engineModelled: false,
+  id: "rain_spike", title: "Rain in a big city", source: "seeded", engineModelled: false,
   expiresAfter: 1, decisionWindowDays: 1, pauses: false,
   rightLevers: ["raise_state_budget", "raise_budget"],
 }, (input, meta) => {
@@ -435,8 +459,9 @@ const rainSpike = define({
     key: `rain_spike|${occ.state}|${occ.day}`, endDay: occ.day + occ.days - 1,
     effect: { demand: [{ mult: RAIN_DEMAND_MULT, states: [occ.state] }] },
     alert: {
-      headline: `Heavy rain forecast in ${occ.state}`,
-      detail: `Searches there run about ${mult(RAIN_DEMAND_MULT)} for ${days(occ.days)}. You earned ${inr(stateRevenue)} in ${occ.state} yesterday.`,
+      headline: `Heavy rain expected in ${occ.state} tomorrow`,
+      detail: `People stay in and order more: about ${mult(RAIN_DEMAND_MULT)} as many searches there for ${days(occ.days)}. You earned ${inr(stateRevenue)} in ${occ.state} yesterday.`,
+      report: reportRef("R4"),
     },
     stake: stateRevenue * (RAIN_DEMAND_MULT - 1) * occ.days,
     data: { state: occ.state, demandMult: RAIN_DEMAND_MULT, days: occ.days, stateRevenue },
@@ -455,7 +480,7 @@ function rivalShares(day: DayResult | undefined, terms: readonly string[]): read
 }
 
 const rivalConquest = define({
-  id: "rival_conquest", title: "Rival bidding on your brand term", source: "state", engineModelled: true,
+  id: "rival_conquest", title: "A rival is bidding on your brand name", source: "state", engineModelled: true,
   expiresAfter: 5, decisionWindowDays: 3, pauses: true,
   rightLevers: ["defend_brand_term", "raise_bid", "add_keyword"],
 }, (input, meta) => {
@@ -468,13 +493,14 @@ const rivalConquest = define({
     .map((s) => {
       const name = rivalName(input.ctx, s.rivalId);
       const mine = sumCells(lastDay(input.history)?.cells ?? [], (c) => c.term === s.term);
-      const yours = mine.totalAdViewable > 0 ? `; your share was ${pct(ratio(mine.viewable, mine.totalAdViewable))}` : "; you aren't bidding on it";
+      const yours = mine.totalAdViewable > 0 ? ` You got ${pct(ratio(mine.viewable, mine.totalAdViewable))}.` : " You are not bidding on it.";
       const term = input.ctx.market.keywords.find((k) => k.term === s.term);
       return activate(meta, input, {
         key: `rival_conquest|${s.rivalId}|${s.term}`,
         alert: {
-          headline: `${name} is bidding on "${s.term}"`,
-          detail: `It took ${pct(s.sov)} of ad views on your brand term yesterday${yours}.`,
+          headline: `${name} is bidding on your brand name "${s.term}"`,
+          detail: `When people searched "${s.term}" yesterday, ${name} got ${pct(s.sov)} of the ad views.${yours}`,
+          report: reportRef("R7"),
         },
         stake: Math.max(mine.revenue, (term?.dailyVolume ?? 0) * 0.02) * s.sov * meta.decisionWindowDays,
         data: { rival: name, term: s.term, rivalSov: s.sov, yourSov: ratio(mine.viewable, mine.totalAdViewable) },
@@ -485,7 +511,7 @@ const rivalConquest = define({
 const cpm = (t: CellTotals) => ratio(t.spend, t.viewable) * 1000;
 
 const newcomerLaunch = define({
-  id: "newcomer_launch", title: "Newcomer launch", source: "state", engineModelled: true,
+  id: "newcomer_launch", title: "A new brand starts advertising", source: "state", engineModelled: true,
   expiresAfter: NEWCOMER_SHOCK_DAYS, decisionWindowDays: 3, pauses: true,
   rightLevers: ["hold", "shift_to_long_tail", "lower_bid", "move_budget"],
 }, (input, meta) => input.ctx.market.rivals
@@ -499,12 +525,13 @@ const newcomerLaunch = define({
     const onTerms = (c: CellRow) => terms.includes(c.term);
     const cpmBefore = cpm(sumCells(input.history[input.history.length - 2]?.cells ?? [], onTerms));
     const cpmNow = cpm(sumCells(y?.cells ?? [], onTerms));
-    const cpmLine = cpmBefore > 0 && cpmNow > 0 ? ` Your CPM on its terms went from ${inr(cpmBefore)} to ${inr(cpmNow)}.` : "";
+    const cpmLine = cpmBefore > 0 && cpmNow > 0 ? ` What you pay per 1,000 ad views on those keywords went from ${inr(cpmBefore)} to ${inr(cpmNow)}.` : "";
     return [activate(meta, input, {
       key: `newcomer_launch|${r.id}`,
       alert: {
-        headline: `${r.name} launched on ${terms.slice(0, 2).join(", ")}`,
-        detail: `It took ${pct(sov)} of ad views on its terms on day one.${cpmLine}`,
+        headline: `A new brand, ${r.name}, started advertising`,
+        detail: `On its first day it got ${pct(sov)} of the ad views on keywords like ${terms.slice(0, 2).join(" and ")}.${cpmLine}`,
+        report: reportRef("R7"),
       },
       stake: sumCells(y?.cells ?? [], onTerms).spend * meta.decisionWindowDays * 0.3,
       data: { rival: r.name, rivalSov: sov, cpmBefore, cpmNow },
@@ -523,13 +550,14 @@ const rivalPriceCut = define({
     const after = sumCells(lastDay(input.history)?.cells ?? [], shared);
     const newPrice = r.price * (1 - r.priceCut.pct);
     const cvrLine = before.clicks > 0 && after.clicks > 0
-      ? ` Your CVR on shared terms went from ${pct(ratio(before.units, before.clicks))} to ${pct(ratio(after.units, after.clicks))}.`
+      ? ` On the keywords you both bid on, ${pct(ratio(before.units, before.clicks))} of your clicks used to end in a sale. Yesterday it was ${pct(ratio(after.units, after.clicks))}.`
       : "";
     return activate(meta, input, {
       key: `rival_price_cut|${r.id}`,
       alert: {
-        headline: `${r.name} cut its price ${pct(r.priceCut.pct)}`,
-        detail: `Now ${inr(newPrice)}, down from ${inr(r.price)}.${cvrLine}`,
+        headline: `${r.name} cut its price by ${pct(r.priceCut.pct)}`,
+        detail: `It now sells at ${inr(newPrice)} instead of ${inr(r.price)}.${cvrLine}`,
+        report: reportRef("R2"),
       },
       stake: after.revenue * r.priceCut.pct * meta.decisionWindowDays * 2,
       data: { rival: r.name, cutPct: r.priceCut.pct, oldPrice: r.price, newPrice, cvrBefore: ratio(before.units, before.clicks), cvrAfter: ratio(after.units, after.clicks) },
@@ -555,8 +583,9 @@ const stockLow = define({
       return activate(meta, input, {
         key: `stock_low|${r.skuId}|${r.state}`,
         alert: {
-          headline: `${skuName(input.ctx, r.skuId)} is running low in ${r.state}`,
-          detail: `OSA fell to ${pct(r.osa)} yesterday (${Math.round(r.closing)} units, about ${cover.toFixed(1)} days of cover). Ads stop where stock runs out.`,
+          headline: `${skuName(input.ctx, r.skuId)} is running out in ${r.state}`,
+          detail: `Only ${pct(r.osa)} of stores there had it in stock yesterday (OSA). ${Math.round(r.closing)} units are left, about ${cover.toFixed(1)} days of sales. Your ads stop where it runs out.`,
+          report: reportRef("R9"),
         },
         stake: revenue * meta.decisionWindowDays,
         data: { skuId: r.skuId, state: r.state, osa: r.osa, units: r.closing, daysCover: cover },
@@ -565,7 +594,7 @@ const stockLow = define({
 });
 
 const budgetCapping = define({
-  id: "budget_capping", title: "Budget capping before peak", source: "state", engineModelled: false,
+  id: "budget_capping", title: "Budget runs out before the busy hours", source: "state", engineModelled: false,
   expiresAfter: 3, decisionWindowDays: 3, pauses: true,
   rightLevers: ["raise_budget", "daypart", "move_budget"],
 }, (input, meta) => {
@@ -584,8 +613,9 @@ const budgetCapping = define({
     return [activate(meta, input, {
       key: `budget_capping|${id}`,
       alert: {
-        headline: `${campaignName(input, id)} runs out of budget before the ${SLOT_LABELS[peak]} peak`,
-        detail: `IS lost to budget in ${SLOT_LABELS[peak]} was ${pct(shareA)} and ${pct(shareB)} the last two days.`,
+        headline: `${campaignName(input, id)} runs out of money before the ${SLOT_LABELS[peak]} rush`,
+        detail: `${SLOT_LABELS[peak]} is the busiest time. In the last two days your ad missed ${pct(shareA)} and then ${pct(shareB)} of searches then, because the day's budget was already spent.`,
+        report: reportRef("R5"),
       },
       stake: b.lostToBudget * valuePerWon * meta.decisionWindowDays,
       data: { campaignId: id, slot: peak, lostShareDay1: shareA, lostShareDay2: shareB },
@@ -630,8 +660,9 @@ const pacing = define({
   return [activate(meta, input, {
     key: t.key,
     alert: {
-      headline: `Budget runs out on day ${runOut}`,
-      detail: `At ${inr(t.avgDaily)} a day (${PACING_WINDOW_DAYS}-day average), ${t.label} runs out ${days(early)} early. Spent so far: ${inr(t.spent)}.`,
+      headline: `Your budget will run out on day ${runOut}`,
+      detail: `You are spending about ${inr(t.avgDaily)} a day (average of the last ${PACING_WINDOW_DAYS} days). At this rate ${t.label} runs out ${days(early)} before the end. Spent so far: ${inr(t.spent)}.`,
+      report: reportRef("R10"),
     },
     stake: avgRevenue * early * 0.25,
     data: { runOutDay: runOut, avgDaily: t.avgDaily, spent: t.spent, budget: t.budget, daysEarly: early },

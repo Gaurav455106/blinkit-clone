@@ -211,9 +211,10 @@ describe("pacing: budget runs out before day 30", () => {
   it("fires when the account budget runs out early", () => {
     const inp = { ...input(fuel, 5, { history: spendDays(9000) }), state: stateAt(fuel, 5, { totalSpend: 45000 }) };
     const [a] = fire("pacing", inp);
-    expect(a.alert.headline).toBe("Budget runs out on day 22");
+    expect(a.alert.headline).toBe("Your budget will run out on day 22");
+    expect(a.alert.report.label).toBe("See R10 Budget pacing");
     expect(a.alert.detail).toContain("₹9,000");
-    expect(a.alert.detail).toContain("8 days early");
+    expect(a.alert.detail).toContain("8 days before the end");
   });
 
   it("does not fire when spend fits the budget or with too little history", () => {
@@ -265,7 +266,11 @@ describe("evaluateEvents", () => {
       state = { ...state, day: r.day, totalSpend: state.totalSpend + r.cells.reduce((s, c) => s + c.spend, 0) };
     }
     expect(raised.length).toBeGreaterThan(3);
-    raised.forEach((a) => expect(a.alert.detail).toMatch(/\d/));
+    raised.forEach((a) => {
+      expect(a.alert.detail).toMatch(/\d/);
+      expect(a.alert.report.label).toMatch(/^See R\d+ /);
+      expect(`${a.alert.headline} ${a.alert.detail}`).not.toContain("\u2014");
+    });
     expect(raised.some((a) => a.eventId === "rival_price_cut")).toBe(true);
   }, 20000);
 });
