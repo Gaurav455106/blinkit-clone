@@ -179,9 +179,11 @@ describe("shopping hours (from the category's slot data)", () => {
     expect(shoppingHours(MARKET_DATA.tinybuddy.category).busiest.label).toBe("9 AM to 12 PM");
   });
 
-  it("puts MunchBox and Glow Republic's busiest slot at 9 PM to 12 AM", () => {
-    expect(shoppingHours(MARKET_DATA.munchbox.category).busiest.label).toBe("9 PM to 12 AM");
-    expect(shoppingHours(MARKET_DATA.glow.category).busiest.label).toBe("9 PM to 12 AM");
+  // Hours follow each brief's peakHours text (MunchBox "5-10 PM", Glow "8-11 AM and 7-10 PM")
+  it("puts MunchBox and Glow Republic's busiest slot at 6 to 9 PM, and VitaBoost's at 6 to 9 AM", () => {
+    expect(shoppingHours(MARKET_DATA.munchbox.category).busiest.label).toBe("6 to 9 PM");
+    expect(shoppingHours(MARKET_DATA.glow.category).busiest.label).toBe("6 to 9 PM");
+    expect(shoppingHours(MARKET_DATA.vitaboost.category).busiest.label).toBe("6 to 9 AM");
   });
 
   it("returns all 8 slots in order with shares that sum to 1", () => {
