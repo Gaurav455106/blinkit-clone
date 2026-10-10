@@ -1,5 +1,12 @@
 # Blinkit Ads Simulation — Claude Reference
 
+## v2 Redesign (in progress)
+> **`SPEC.md` is the plan for the v2 rebuild** (market engine, auction/SOV, reacting rivals,
+> state-driven events and Rohit, scoring v2). Read it before any engine, live-dashboard,
+> CM-pitch or scoring work. Its §12 lists the phases and §13 the decided and open questions.
+> Don't start a phase without Gaurav's go-ahead. The rest of this file describes v1 until a
+> phase replaces it.
+
 ## Dependency Reference
 > **For all logic, scoring formulas, brand profiles, and module interconnections — read `DEPENDENCIES.md` first.**  
 > CLAUDE.md covers project structure; DEPENDENCIES.md covers how everything calculates and connects.
