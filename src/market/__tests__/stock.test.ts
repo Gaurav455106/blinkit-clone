@@ -5,17 +5,30 @@ import {
 } from "@/market/stock";
 
 describe("osa (F6)", () => {
-  it("is the share of dark stores in stock, from units", () => {
+  it("is 0 with no units and rises towards 1 as units per store grow", () => {
     const stores = 40;
-    const full = stores * SAFETY_UNITS_PER_STORE.Low;
-    expect(osa(full, stores, "Low")).toBe(1);
-    expect(osa(full * 2, stores, "Low")).toBe(1);
-    expect(osa(full / 2, stores, "Low")).toBeCloseTo(0.5, 6);
     expect(osa(0, stores, "Low")).toBe(0);
+    const levels = [10, 40, 80, 200, 1000].map((u) => osa(u, stores, "Low"));
+    for (let i = 1; i < levels.length; i++) expect(levels[i]).toBeGreaterThan(levels[i - 1]);
+    expect(levels[levels.length - 1]).toBeGreaterThan(0.99);
+    expect(levels[levels.length - 1]).toBeLessThanOrEqual(1);
+  });
+
+  it("is about 63% when each store holds k units", () => {
+    expect(osa(40 * SAFETY_UNITS_PER_STORE.Medium, 40, "Medium")).toBeCloseTo(1 - Math.exp(-1), 6);
   });
 
   it("is 0 in a state with no dark stores", () => {
     expect(osa(100, 0, "Low")).toBe(0);
+  });
+
+  it("lands near 86% / 61% / 32% OSA at healthy / shaky / critical cover for a typical state", () => {
+    // 53 stores, ~5 units sold a day, Low velocity (k = 1 unit per store)
+    const at = (days: number) => osa(5 * days, 53, "Low");
+    expect(at(TARGET_COVER_DAYS.healthy)).toBeGreaterThan(0.8);
+    expect(at(TARGET_COVER_DAYS.warning)).toBeGreaterThan(0.5);
+    expect(at(TARGET_COVER_DAYS.warning)).toBeLessThan(0.7);
+    expect(at(TARGET_COVER_DAYS.critical)).toBeLessThan(0.4);
   });
 });
 
@@ -24,6 +37,11 @@ describe("initialUnits", () => {
     const units = initialUnits(80, 40, "Medium");
     expect(osa(units, 40, "Medium")).toBeCloseTo(0.8, 6);
     expect(initialUnits(0, 40, "Medium")).toBe(0);
+  });
+
+  it("treats 100% OSA as 99% so units stay finite", () => {
+    expect(Number.isFinite(initialUnits(100, 40, "Medium"))).toBe(true);
+    expect(osa(initialUnits(100, 40, "Medium"), 40, "Medium")).toBeCloseTo(0.99, 6);
   });
 });
 

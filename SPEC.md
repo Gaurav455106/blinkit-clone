@@ -1075,7 +1075,8 @@ Each slice is test-first, keeps v1 playable, and touches no UI until 1h.
 | 1c | `src/market/types.ts` + `data.ts`: categories, states, keywords (tiers, fit, clusters), rivals, background bidders. **FuelUp first**, then the other 6 | Data validation tests: shares sum to 1, every keyword has a fit for each SKU, etc. |
 | 1d | `demand.ts` (F1) and `auction.ts` (F2a–F2g) | Spec tests: higher bid never lowers IS; price ≤ bid; floor; dedupe; slot-3 not at floor with background bidders |
 | 1e | `shoppers.ts` (F7), `stock.ts` (F6), `rivals.ts` (F11) | Unit tests per formula |
-| 1f | `step.ts` `stepDay` with pacing (F5), metrics (F8) | Spend ≤ cap; partition = 100%; same seed + actions → identical day |
+| 1f | `step.ts` `stepDay` with pacing (F5), metrics (F8), **keyword inventory** (Product Booster, keyword Rec Ads) | Spend ≤ cap; partition = 100%; same seed + actions → identical day. **Done:** Day 1 in 27 ms |
+| 1f-b | Category, Spotlight, Stories and recommendation inventory (§3.2.2) on the same `stepDay` | Each format can lose SOV and regain it with a higher bid |
 | 1g | `suggest.ts` (F3) and headless 30-day runner + calibration report for all 7 brands | Calibration targets in §3.3.4, §3.7.2, §3.11 met or listed as tuning work |
 | 1h | `worker.ts` + `useMarket.ts`; bids saved from the wizard; suggested ranges sourced from `suggest.ts` | Day 1 < 50 ms headless; platform screenshots unchanged |
 
@@ -1237,16 +1238,19 @@ never exceeds the cap. Budget changes apply next day.
 < 50%", which is a share of dark stores. And only ad sales reduced stock (no organic sales),
 so stock lasted unrealistically long.
 ```
-OSA[sku][state] = clamp( units ÷ (stores[state] × safetyUnitsPerStore), 0, 1 )
+OSA[sku][state] = 1 − e^( −units ÷ (stores[state] × k) )      saturating; see note below
 eligible share  = OSA          ads run only in catchments of in-stock stores
 units sold      = adUnits + organicUnits
 organicUnits    = baseVelocity[sku] × stateShare × dowMult × seasonMult × (1 + 0.1 × SOV)
 restock (every 7 days or as agreed) = max(0, targetCoverDays × avgDailyUnits_7d − units)
 targetCoverDays: Healthy 21 · Shaky 10 · Critical 4 · Overstocked 45
 ```
-**Built in slice 1e:** `safetyUnitsPerStore` by SKU velocity: High 6 · Medium 4 · Low 3 · Very
-Low 2. Starting units reproduce the scenario's OSA % (`osa% × stores × safetyUnits`). Organic
-sales are also limited by stock.
+**Built in slices 1e–1f:** a linear OSA (`units ÷ (stores × safety)`) turned out inconsistent:
+21 days of cover only reached ~66% OSA, so even healthy stock drifted down all run. OSA is now
+the saturating curve above: units are spread unevenly, and extra units add cover, not OSA.
+`k` by SKU velocity: High 3 · Medium 2 · Low 1 · Very Low 0.7 units per store. Healthy /
+shaky / critical cover then gives roughly 86% / 61% / 32% OSA. Starting units reproduce the
+scenario's OSA % (capped at 99%). Organic sales are also limited by stock.
 
 ### F7. Shopper response (full chain)
 
