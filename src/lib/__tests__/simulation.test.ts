@@ -153,7 +153,8 @@ describe("OSA & stock delivery", () => {
     expect(result.perCampaign[0].spend).toBe(0);
   });
 
-  it("Pan India with 1/23 states stocked delivers far less than selecting that state only", () => {
+  // Blinkit only runs ads where stock exists, so Pan India is not a mistake (SPEC §3.4).
+  it("Pan India with 1/23 states stocked delivers the same as selecting that state only", () => {
     const scenario = makeScenario("henlo"); // Karnataka = 80, rest = 0
     const allStates = [...BLINKIT_STATES];
     const panIndia = makeCampaign({ cities: allStates, budget: 100000 });
@@ -162,21 +163,17 @@ describe("OSA & stock delivery", () => {
     const panResult    = simulateRun(scenario, [panIndia],    null);
     const selectResult = simulateRun(scenario, [selectOnly],  null);
 
-    // Pan India with 1/23 stocked → stateScale ≈ 0.043 → much lower delivery
-    expect(panResult.perCampaign[0].impressions).toBeLessThan(selectResult.perCampaign[0].impressions);
+    expect(panResult.perCampaign[0].impressions).toBe(selectResult.perCampaign[0].impressions);
   });
 
-  it("selecting only stocked states = no noBadCities penalty in score", () => {
-    const scenario = makeScenario("henlo");
-    const goodCampaign = makeCampaign({ cities: ["Karnataka"] });
-    const badCampaign  = makeCampaign({ cities: ["Karnataka", "Rajasthan"] }); // Rajasthan = 0 stock
+  it("an extra unstocked state is ignored; missing a stocked state is what costs points", () => {
+    const scenario = makeScenario("henlo", { Maharashtra: 60 }); // Karnataka 80, Maharashtra 60
+    const withExtra   = makeCampaign({ cities: ["Karnataka", "Maharashtra", "Rajasthan"] }); // Rajasthan = 0 stock
+    const missesOne   = makeCampaign({ cities: ["Karnataka"] });
 
-    const good = simulateRun(scenario, [goodCampaign], null);
-    const bad  = simulateRun(scenario, [badCampaign],  null);
-
-    const stockGood = good.decisionScore.find((d) => d.label === "Stock Management")!;
-    const stockBad  = bad.decisionScore.find((d) => d.label === "Stock Management")!;
-    expect(stockGood.earned).toBeGreaterThan(stockBad.earned);
+    const stock = (c: SavedCampaign) =>
+      simulateRun(scenario, [c], null).decisionScore.find((d) => d.label === "Stock Management")!.earned;
+    expect(stock(withExtra)).toBeGreaterThan(stock(missesOne));
   });
 });
 

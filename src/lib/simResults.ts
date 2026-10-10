@@ -7,6 +7,7 @@ import {
   scoreAbTests, scoreTokenEconomy,
 } from "@/lib/phase3";
 import { requiredBuckets, isAwarenessFormat, isConversionFormat } from "@/lib/scoring";
+import { deliverableStates, stockedCoverage, stockedStateNames } from "@/lib/geoCoverage";
 
 export interface CampaignMetrics {
   campaignId: string;
@@ -70,23 +71,24 @@ function buildEffectiveStockMap(
 }
 
 /**
- * Given an effective stock map and the campaign's selected cities:
- * - Only cities with OSA > 0 deliver impressions (Blinkit doesn't serve ads for OOS products).
- * - avgOsa: average OSA across stocked cities only (determines conversion quality).
- * - stateScale: fraction of selected cities that actually have stock (determines impression volume).
+ * Given an effective stock map and a campaign:
+ * - Ads only run in stocked states (Blinkit doesn't serve ads for OOS products),
+ *   so unstocked selections are simply ignored and Pan India reaches every stocked state.
+ * - avgOsa: average OSA across the states the ads can run in (conversion quality).
+ * - stateScale: share of the brand's stocked states the campaign reaches (demand it can serve).
  *
- * Example: 23 states selected, 3 stocked at 80% OSA →
- *   avgOsa = 0.80, stateScale = 3/23 = 0.13 → severely limited delivery.
+ * Example: 3 states stocked at 80% OSA → Pan India or selecting all 3: stateScale = 1;
+ *   selecting 1 of them: stateScale = 0.33.
  */
 function effectiveDelivery(
   stockMap: Record<string, number>,
-  cities: string[],
+  campaign: SavedCampaign,
 ): { avgOsa: number; stateScale: number; stockedCities: string[] } {
-  const stockedCities = cities.filter((c) => (stockMap[c] ?? 0) > 0);
+  const stockedCities = deliverableStates(campaign, stockMap);
   const avgOsa = stockedCities.length
     ? stockedCities.reduce((s, c) => s + stockMap[c], 0) / stockedCities.length / 100
     : 0;
-  const stateScale = stockedCities.length / Math.max(cities.length, 1);
+  const stateScale = stockedCoverage(campaign, stockMap);
   return { avgOsa, stateScale, stockedCities };
 }
 
@@ -105,13 +107,12 @@ export function simulateRun(
   const effectiveStockMap = buildEffectiveStockMap(scenario, cm);
 
   const perCampaign: CampaignMetrics[] = campaigns.map((c) => {
-    // Delivery is gated purely by stocked cities (OSA > 0).
-    // Pan India with stock in 3/23 states → stateScale 0.13 → severely limited impressions.
-    const { avgOsa, stateScale } = effectiveDelivery(effectiveStockMap, c.cities);
+    // Delivery is gated purely by stocked states (OSA > 0); Pan India reaches all of them.
+    const { avgOsa, stateScale } = effectiveDelivery(effectiveStockMap, c);
 
     const objectiveMatch = c.objective === scenario.profile.optimalObjective ? 1.3 : 0.6;
     const baseImp = (c.budget || 0) * 100;
-    // Impressions scale with stateScale (how many selected states actually have stock)
+    // Impressions scale with stateScale (share of stocked states reached)
     // and avgOsa (how well-stocked those states are).
     const impressions = Math.round(baseImp * stateScale * avgOsa * objectiveMatch * cmBonus * competitorDrag * seasonMult);
 
@@ -187,9 +188,10 @@ export function simulateRun(
 
   // Decision score
   const objMatches = campaigns.some((c) => c.objective === scenario.profile.optimalObjective);
-  const allCities = campaigns.flatMap((c) => c.cities);
-  // Use effectiveStockMap (post-CM) so CM-boosted cities aren't penalised.
-  const noBadCities = allCities.every((c) => (effectiveStockMap[c] ?? 0) > 0);
+  // Use effectiveStockMap (post-CM) so CM-boosted states count as stocked.
+  const reachedStates = new Set(campaigns.flatMap((c) => deliverableStates(c, effectiveStockMap)));
+  const stockedCount = stockedStateNames(effectiveStockMap).length;
+  const coversAllStocked = stockedCount > 0 && reachedStates.size >= stockedCount;
   const skuCount = new Set(campaigns.flatMap((c) => c.skuIds)).size;
   const kwAll = campaigns.flatMap((c) => c.keywords);
   const goodKw = kwAll.filter((k) => scenario.profile.goodKeywords.includes(k)).length;
@@ -270,7 +272,7 @@ export function simulateRun(
     { label: "Dayparting Strategy", earned: 7, max: 8 },
     { label: "Weekly Optimization", earned: 10, max: 12 },
     { label: "Event Responses", earned: 12, max: 16 },
-    { label: "Stock Management", earned: noBadCities ? 7 : 3, max: 8 },
+    { label: "Stock Management", earned: coversAllStocked ? 7 : 3, max: 8 },
     { label: "Token Economy", earned: tokenScore, max: 5 },
     { label: "Budget Allocation", earned: kwGood ? 5 : 3, max: 5 },
     { label: "Budget Mix Strategy", earned: budgetMixEarned, max: 8 },
@@ -282,12 +284,12 @@ export function simulateRun(
   const wrongs: string[] = [];
   if (objMatches) rights.push(`Chose ${scenario.profile.optimalObjective} which matched the client's ${scenario.profile.goalType}`);
   if (cm?.status === "strong") rights.push("Strong CM pitch — premium shelf placement and OSA boost");
-  if (noBadCities) rights.push("Selected only stocked cities — full budget delivered where stock exists");
+  if (coversAllStocked) rights.push("Reached every stocked state — ads ran wherever there was stock to sell");
   if (skuCount <= 2) rights.push("Focused SKU selection — concentrated impact");
   if (kwGood) rights.push("Mostly on-target keywords");
 
   if (!objMatches) wrongs.push(`Wrong objective — ${scenario.profile.optimalObjective} was the right call`);
-  if (!noBadCities) wrongs.push("Included states with zero stock — Blinkit won't serve ads there, so your budget under-delivered and impression reach was limited to stocked states only");
+  if (!coversAllStocked) wrongs.push("Left out states where you had stock — that demand went unserved. Pan India would have reached them at no extra cost, since ads never run where stock is zero");
   if (skuCount > 3) wrongs.push("Spread budget across too many SKUs — diluted impact");
   if (!kwGood && kwAll.length) wrongs.push("Selected too many risky keywords — competitive category, expensive clicks");
   if (cm?.status === "rejected" || cm?.status === "weak") wrongs.push("CM had concerns about your pitch");

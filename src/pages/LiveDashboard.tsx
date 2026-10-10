@@ -52,11 +52,11 @@ const TIME_BLOCKS: { label: string; shortLabel: string; mult: number }[] = [
   { label: "12–3 AM",  shortLabel: "12a", mult: 0.80 },
   { label: "3–6 AM",   shortLabel: "3a",  mult: 0.80 },
   { label: "6–9 AM",   shortLabel: "6a",  mult: 1.00 },
-  { label: "9–12 PM",  shortLabel: "9a",  mult: 1.10 },
+  { label: "9 AM–12 PM", shortLabel: "9a", mult: 1.10 },
   { label: "12–3 PM",  shortLabel: "12p", mult: 1.10 },
   { label: "3–6 PM",   shortLabel: "3p",  mult: 1.20 },
   { label: "6–9 PM",   shortLabel: "6p",  mult: 1.40 },
-  { label: "9–12 AM",  shortLabel: "9p",  mult: 1.15 },
+  { label: "9 PM–12 AM", shortLabel: "9p", mult: 1.15 },
 ];
 
 const FORMAT_LABEL: Record<string, string> = {

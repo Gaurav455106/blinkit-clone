@@ -15,6 +15,7 @@ import type { SavedCampaign, CampaignOptimization, StockMap, CmPitchResult } fro
 import type { DailyNoise } from "./noise";
 import { modifierForDay } from "./crisisEvents";
 import type { ModifierContext } from "./crisisEvents";
+import { stockedCoverage } from "@/lib/geoCoverage";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 export const MAX_DAYS  = 120;
@@ -113,36 +114,25 @@ function keywordQualityMult(
 
 /**
  * Geographic conversion multiplier — affects CVR only, not impressions or clicks.
- * Impressions are served regardless; but clicks from unstocked states don't convert
- * (customers see the ad, tap, but can't order because the store is dark / OOS).
+ * Blinkit only runs ads where the SKU is in stock, so the budget always lands in
+ * stocked states: unstocked selections and Pan India cost nothing. What matters
+ * is how much of the stocked demand the campaign reaches (see geoCoverage.ts).
  *
- * Pan India with limited state coverage dilutes conversions proportionally.
- * Select-cities targeting that exactly matches stocked states rewards precision.
+ * Full coverage (Pan India, or every stocked state) = 1.25, the old "precise
+ * targeting" value, so correct setups keep their numbers. Partial coverage
+ * scales down mildly; no stocked state at all = 0.10.
  */
+const GEO_FULL_COVERAGE_MULT = 1.25;
+const GEO_PARTIAL_FLOOR      = 0.70;
+const GEO_NO_STOCK_MULT      = 0.10;
+
 function geoConversionMult(
   c: SavedCampaign,
   cityStockMap: CityStockMap,
 ): number {
-  const allStates    = Object.keys(cityStockMap);
-  const stockedCount = allStates.filter((s) => (cityStockMap[s] ?? 0) > 0).length;
-  const total        = allStates.length;
-  if (total === 0) return 1.0;
-
-  const panIndia = c.geography === "pan_india" || !c.cities || c.cities.length === 0;
-
-  if (panIndia) {
-    // Penalise proportionally to the fraction of unstocked states getting traffic
-    return clamp(0.40 + 0.60 * (stockedCount / total), 0.40, 1.00);
-  }
-
-  // Select cities: compare chosen states against which ones actually have stock
-  const stockRatio = c.cities.length > 0
-    ? c.cities.filter((s) => (cityStockMap[s] ?? 0) > 0).length / c.cities.length
-    : stockedCount / total;
-
-  if (stockRatio >= 1) return 1.25; // All selected states have stock → precision rewarded
-  if (stockRatio <= 0) return 0.10; // No selected state has stock → heavy penalty
-  return clamp(0.30 + 0.95 * stockRatio, 0.30, 1.24);
+  const coverage = stockedCoverage(c, cityStockMap);
+  if (coverage <= 0) return GEO_NO_STOCK_MULT;
+  return GEO_FULL_COVERAGE_MULT * (GEO_PARTIAL_FLOOR + (1 - GEO_PARTIAL_FLOOR) * coverage);
 }
 
 /** Binary stock gate: returns true if campaign can deliver ads in at least one city */
