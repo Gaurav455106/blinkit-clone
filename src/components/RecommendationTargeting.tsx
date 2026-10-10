@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BidInput }    from "@/components/targeting/BidInput";
 import { InfoTooltip } from "@/components/targeting/InfoTooltip";
-import { catBidRange, inFmt } from "@/lib/targetingUtils";
+import { inFmt } from "@/lib/targetingUtils";
+import { recSlotRange } from "@/market/wizardData";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useSim } from "@/context/SimContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Asset table data — mirrors actual Blinkit structure
@@ -496,10 +499,15 @@ export function RecommendationTargeting({
   onTargetingValid?: (v: boolean) => void;
 } = {}) {
   // checked state for all assets (children + top-level)
-  const [assetChecked, setAssetChecked] = useState<Record<string, boolean>>(
+  const { scenario, student } = useSim();
+  const batch = student?.batch ?? "";
+  const slotRange = (id: string) => (scenario ? recSlotRange(scenario, batch, id) : { lo: 200, hi: 400 });
+  // Persisted so slot selections and bids are saved with the campaign and reach the engine
+  const [assetChecked, setAssetChecked] = useLocalStorage<Record<string, boolean>>(
+    "sim_rec_checked",
     Object.fromEntries(ALL_ASSETS.map((a) => [a.id, true]))
   );
-  const [bids,       setBids]       = useState<Record<string, string>>({});
+  const [bids,       setBids]       = useLocalStorage<Record<string, string>>("sim_rec_bids", {});
   const [showErrors, setShowErrors] = useState(false);
   const [previewIdx, setPreviewIdx] = useState(0);
 
@@ -580,7 +588,7 @@ export function RecommendationTargeting({
         {/* Children of Repeat Order Suggestions — indented */}
         {REPEAT_ORDER_CHILDREN.map((asset, idx) => {
           const checked    = getChecked(asset.id);
-          const [lo, hi]   = catBidRange(asset.id);
+          const { lo, hi } = slotRange(asset.id);
           const missingBid = showErrors && checked && !bids[asset.id];
           const lowBid     = checked && isBidLow(bids[asset.id] ?? "");
           return (
@@ -628,7 +636,7 @@ export function RecommendationTargeting({
         {/* ── Top-level asset rows ── */}
         {TOP_LEVEL_ASSETS.map((asset, idx) => {
           const checked    = getChecked(asset.id);
-          const [lo, hi]   = catBidRange(asset.id);
+          const { lo, hi } = slotRange(asset.id);
           const missingBid = showErrors && checked && !bids[asset.id];
           const lowBid     = checked && isBidLow(bids[asset.id] ?? "");
           const slideIdx   = idx + 2;

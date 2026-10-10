@@ -1116,7 +1116,7 @@ for the six new brands; challenger budgets; the "peak loses ≥ 20%" target repl
 schedule includes the peak" because profit comparisons break when naive play is loss-making by
 design (awareness brands spend less → lose less). Gains are ₹ differences, not ratios, for
 the same reason.
-| 1h | `worker.ts` + `useMarket.ts`; bids saved from the wizard; suggested ranges sourced from `suggest.ts` | Day 1 < 50 ms headless; platform screenshots unchanged |
+| 1h | `worker.ts` + `useMarket.ts`; bids saved from the wizard; suggested ranges sourced from `suggest.ts` | **Done.** Found: the wizard never saved keyword, category or Rec Ads bids (kept in `useState` though listed as saved); now persisted to their localStorage keys, no visual change. `adapter.ts` maps SavedCampaign → engine input (Spotlight auto-bids at the range midpoint pending Q27) |
 
 ---
 

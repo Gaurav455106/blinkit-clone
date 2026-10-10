@@ -287,6 +287,10 @@ finalCPM = round(baseCPM × dayMult × timeMult / 25) × 25
 | `sim_keyword_exact_bids` | Record<string,string> | ProductBoosterTargeting |
 | `sim_keyword_smart_bids` | Record<string,string> | ProductBoosterTargeting |
 | `sim_keyword_smart_enabled` | Record<string,boolean> | ProductBoosterTargeting |
+| `sim_keyword_boost` | Record<string,boolean> | ProductBoosterTargeting (saved since v2 1h) |
+| `sim_keyword_boost_pct` | Record<string,string> | ProductBoosterTargeting (saved since v2 1h) |
+| `sim_rec_checked` | Record<string,boolean> | RecommendationTargeting (saved since v2 1h) |
+| `sim_rec_bids` | Record<string,string> | RecommendationTargeting (saved since v2 1h) |
 | `sim_category_targeting` | boolean | ProductBoosterTargeting |
 | `sim_cat_enabled` | Record<string,boolean> | ProductBoosterTargeting |
 | `sim_cat_bids` | Record<string,string> | ProductBoosterTargeting |
