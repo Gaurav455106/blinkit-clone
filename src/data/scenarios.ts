@@ -20,6 +20,7 @@ export interface SKU {
   id: string;
   name: string;
   mrp: number;
+  /** Contribution per unit in ₹ after Blinkit commission, before ads. Break-even ROAS = mrp ÷ margin. */
   margin: number;
   velocity: Velocity;
 }
@@ -154,15 +155,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     primaryState: "Karnataka", secondaryStates: ["Maharashtra", "Telangana"],
     peakHours: "Pet owners typically shop 7-10 AM and 6-9 PM. Consider these peak windows.",
     skus: [
-      { id: "henlo-1", name: "Henlo Chicken Jerky Treats 150g", mrp: 299, margin: 15, velocity: "High" },
-      { id: "henlo-2", name: "Henlo Dental Chews Pack of 10", mrp: 249, margin: 12, velocity: "High" },
-      { id: "henlo-3", name: "Henlo Puppy Biscuits 200g", mrp: 199, margin: 10, velocity: "Medium" },
+      { id: "henlo-1", name: "Henlo Chicken Jerky Treats 150g", mrp: 299, margin: 45, velocity: "High" },
+      { id: "henlo-2", name: "Henlo Dental Chews Pack of 10", mrp: 249, margin: 36, velocity: "High" },
+      { id: "henlo-3", name: "Henlo Puppy Biscuits 200g", mrp: 199, margin: 25, velocity: "Medium" },
     ],
     goodKeywords: ["dog treats", "dental chews", "puppy snacks", "dog biscuits", "chicken jerky"],
     riskyKeywords: ["henlo", "dog food", "pet accessories"],
     optimalObjective: "performance", optimalAdFormat: "product_booster",
-    trap: "Overstocking kills margin — ₹15 margin vanishes in 15 days of storage costs",
-    unitEconomics: "Avg MRP ₹249 · Avg Margin ₹12 · High velocity hero SKU",
+    trap: "Thin margins (break-even ROAS ~7) — overstocking and broad keywords wipe out profit fast",
+    unitEconomics: "Avg MRP ₹249 · Avg Margin ₹35 · High velocity hero SKU",
     relevantCategories: ["Dog Needs", "Pet Food & Accessories"],
     goalType: "ROAS-First",
     statePresence: {
@@ -200,15 +201,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     primaryState: "Maharashtra", secondaryStates: ["Karnataka", "Telangana"],
     peakHours: "Health-conscious customers shop 6-9 AM.",
     skus: [
-      { id: "vita-1", name: "VitaBoost Multivitamin 60 tabs", mrp: 799, margin: 160, velocity: "Low" },
-      { id: "vita-2", name: "VitaBoost Omega-3 30 caps", mrp: 599, margin: 120, velocity: "Low" },
-      { id: "vita-3", name: "VitaBoost Iron + Folic 30 tabs", mrp: 499, margin: 100, velocity: "Low" },
+      { id: "vita-1", name: "VitaBoost Multivitamin 60 tabs", mrp: 799, margin: 200, velocity: "Low" },
+      { id: "vita-2", name: "VitaBoost Omega-3 30 caps", mrp: 599, margin: 150, velocity: "Low" },
+      { id: "vita-3", name: "VitaBoost Iron + Folic 30 tabs", mrp: 499, margin: 120, velocity: "Low" },
     ],
     goodKeywords: ["multivitamin", "omega 3", "iron tablets", "folic acid", "vitamin c tablets"],
     riskyKeywords: ["vitaboost", "health supplements", "vitamins"],
     optimalObjective: "reach", optimalAdFormat: "listing_spotlight",
     trap: "Category barely exists on Blinkit — customers don't search supplements here, dead stock guaranteed",
-    unitEconomics: "Avg MRP ₹632 · Avg Margin ₹126 · Category not trained yet",
+    unitEconomics: "Avg MRP ₹632 · Avg Margin ₹157 · Category not trained yet",
     relevantCategories: ["Health & Wellness", "Supplements"],
     goalType: "Category-Creation",
     statePresence: {
@@ -223,15 +224,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     primaryState: "Delhi", secondaryStates: ["Haryana", "Uttar Pradesh"],
     peakHours: "New parents shop 9 AM-1 PM, not evening hours.",
     skus: [
-      { id: "tiny-1", name: "TinyBuddy Baby Wipes 80 pcs", mrp: 199, margin: 35, velocity: "Medium" },
-      { id: "tiny-2", name: "TinyBuddy Diaper Rash Cream 50g", mrp: 299, margin: 60, velocity: "Medium" },
-      { id: "tiny-3", name: "TinyBuddy Baby Shampoo 200ml", mrp: 249, margin: 50, velocity: "Low" },
+      { id: "tiny-1", name: "TinyBuddy Baby Wipes 80 pcs", mrp: 199, margin: 50, velocity: "Medium" },
+      { id: "tiny-2", name: "TinyBuddy Diaper Rash Cream 50g", mrp: 299, margin: 90, velocity: "Medium" },
+      { id: "tiny-3", name: "TinyBuddy Baby Shampoo 200ml", mrp: 249, margin: 70, velocity: "Low" },
     ],
     goodKeywords: ["baby wipes", "diaper cream", "baby shampoo", "rash cream", "baby essentials"],
     riskyKeywords: ["tinybuddy", "baby care", "parenting"],
     optimalObjective: "reach", optimalAdFormat: "brand_booster",
     trap: "Wrong dayparting — new parents shop 10AM-1PM, not 8-11PM. 24/7 ads waste budget on dead hours",
-    unitEconomics: "Avg MRP ₹249 · Avg Margin ₹48 · Morning-only demand window",
+    unitEconomics: "Avg MRP ₹249 · Avg Margin ₹70 · Morning-only demand window",
     relevantCategories: ["Baby Care", "Mother & Baby"],
     goalType: "Volume-First",
     statePresence: {
@@ -246,15 +247,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     primaryState: "Maharashtra", secondaryStates: ["Gujarat", "Karnataka"],
     peakHours: "Snack purchases peak 5 PM-10 PM.",
     skus: [
-      { id: "munch-1", name: "MunchBox Roasted Makhana Peri Peri 60g", mrp: 149, margin: 18, velocity: "High" },
-      { id: "munch-2", name: "MunchBox Multigrain Chips Tangy 50g", mrp: 49, margin: 5, velocity: "High" },
-      { id: "munch-3", name: "MunchBox Mixed Nuts & Seeds 100g", mrp: 249, margin: 45, velocity: "Medium" },
+      { id: "munch-1", name: "MunchBox Roasted Makhana Peri Peri 60g", mrp: 149, margin: 45, velocity: "High" },
+      { id: "munch-2", name: "MunchBox Multigrain Chips Tangy 50g", mrp: 49, margin: 8, velocity: "High" },
+      { id: "munch-3", name: "MunchBox Mixed Nuts & Seeds 100g", mrp: 249, margin: 70, velocity: "Medium" },
     ],
     goodKeywords: ["makhana snacks", "roasted makhana", "healthy chips", "multigrain chips", "mixed nuts"],
     riskyKeywords: ["chips", "namkeen", "snacks"],
     optimalObjective: "performance", optimalAdFormat: "product_booster",
     trap: "Bidding on generic 'chips' puts you against Haldirams and Lay's. Niche keywords win here",
-    unitEconomics: "Avg MRP ₹149 · Avg Margin ₹22 · Niche keywords beat generics",
+    unitEconomics: "Avg MRP ₹149 · Avg Margin ₹41 · Niche keywords beat generics",
     relevantCategories: ["Snacks", "Packaged Foods"],
     goalType: "ROAS-First",
     statePresence: {
@@ -269,15 +270,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     primaryState: "Telangana", secondaryStates: ["Karnataka", "Maharashtra"],
     peakHours: "Considered purchases happen 10 AM-6 PM.",
     skus: [
-      { id: "paw-1", name: "PawLife Adjustable Dog Leash 1.5m", mrp: 599, margin: 120, velocity: "Low" },
-      { id: "paw-2", name: "PawLife Stainless Steel Dog Bowl Set", mrp: 499, margin: 100, velocity: "Low" },
-      { id: "paw-3", name: "PawLife Dog Harness Medium", mrp: 799, margin: 160, velocity: "Very Low" },
+      { id: "paw-1", name: "PawLife Adjustable Dog Leash 1.5m", mrp: 599, margin: 180, velocity: "Low" },
+      { id: "paw-2", name: "PawLife Stainless Steel Dog Bowl Set", mrp: 499, margin: 140, velocity: "Low" },
+      { id: "paw-3", name: "PawLife Dog Harness Medium", mrp: 799, margin: 240, velocity: "Very Low" },
     ],
     goodKeywords: ["dog leash", "dog bowl", "dog harness", "pet leash", "dog collar"],
     riskyKeywords: ["pet accessories", "dog products", "pawlife"],
     optimalObjective: "reach", optimalAdFormat: "recommendation_ads",
     trap: "Students assume pet accessories behave like pet food/treats. Nobody impulse-buys a dog leash in 10 minutes",
-    unitEconomics: "Avg MRP ₹632 · Avg Margin ₹127 · Considered purchase, not impulse",
+    unitEconomics: "Avg MRP ₹632 · Avg Margin ₹187 · Considered purchase, not impulse",
     relevantCategories: ["Pet Food & Accessories", "Dog Needs"],
     goalType: "Awareness-First",
     statePresence: {
@@ -291,15 +292,15 @@ export const BRAND_PROFILES: BrandProfile[] = [
     primaryState: "Karnataka", secondaryStates: ["Maharashtra", "Delhi"],
     peakHours: "Gym-goers shop 5-8 AM (pre-workout) and 6-9 PM (post-workout).",
     skus: [
-      { id: "fuel-1", name: "FuelUp Whey Protein Chocolate 500g", mrp: 1299, margin: 260, velocity: "Low" },
-      { id: "fuel-2", name: "FuelUp Plant Protein Vanilla 400g", mrp: 999, margin: 200, velocity: "Very Low" },
+      { id: "fuel-1", name: "FuelUp Whey Protein Chocolate 500g", mrp: 1299, margin: 400, velocity: "Low" },
+      { id: "fuel-2", name: "FuelUp Plant Protein Vanilla 400g", mrp: 999, margin: 300, velocity: "Very Low" },
       { id: "fuel-3", name: "FuelUp Protein Bar Choco Fudge 60g", mrp: 99, margin: 15, velocity: "Medium" },
     ],
     goodKeywords: ["whey protein", "protein supplement", "protein bar", "plant protein", "fitness supplement"],
     riskyKeywords: ["fuelup", "gym protein"],
     optimalObjective: "performance", optimalAdFormat: "product_booster",
     trap: "Pan India targeting burns budget. Demand is hyperlocal — concentrated in metros only",
-    unitEconomics: "Avg MRP ₹799 · Avg Margin ₹158 · Hyperlocal demand",
+    unitEconomics: "Avg MRP ₹799 · Avg Margin ₹238 · Hyperlocal demand",
     relevantCategories: ["Health & Wellness", "Sports Nutrition"],
     goalType: "ROAS-First",
     statePresence: {
