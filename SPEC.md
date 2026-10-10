@@ -1244,6 +1244,9 @@ organicUnits    = baseVelocity[sku] × stateShare × dowMult × seasonMult × (1
 restock (every 7 days or as agreed) = max(0, targetCoverDays × avgDailyUnits_7d − units)
 targetCoverDays: Healthy 21 · Shaky 10 · Critical 4 · Overstocked 45
 ```
+**Built in slice 1e:** `safetyUnitsPerStore` by SKU velocity: High 6 · Medium 4 · Low 3 · Very
+Low 2. Starting units reproduce the scenario's OSA % (`osa% × stores × safetyUnits`). Organic
+sales are also limited by stock.
 
 ### F7. Shopper response (full chain)
 
@@ -1263,6 +1266,11 @@ affinity     = 1.5 on own brand term; else 1 + 0.15 × min(1, reach[state] ÷ sh
 ```
 The draft's price rule ("≥ 10% cheaper → up to −30%") had no curve; this one starts at a 5% gap
 and reaches −30% at a 25% gap. Position is handled by viewability (F2b), not repeated here.
+
+**Built in slice 1e:** outcomes are expected values, not random draws (noise comes from Poisson
+demand, F1), so every number can be explained. **Indirect revenue** (decision #20) = 15% of
+direct revenue (`INDIRECT_REVENUE_RATE`), with contribution at the same margin, so break-even
+ROAS is unchanged by it.
 
 ### F8. Visibility metrics
 
