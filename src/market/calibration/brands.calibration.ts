@@ -4,6 +4,8 @@
 
 import { describe, it, expect } from "vitest";
 import { runHeadless, type HeadlessRun } from "@/market/headless";
+import { objectiveFor } from "@/market/moments";
+import { sumMetrics } from "@/market/aggregate";
 import * as S from "@/market/calibration/strategies";
 import { suggestKeywordRange } from "@/market/suggest";
 import { MARKET_DATA } from "@/market/data";
@@ -13,6 +15,7 @@ import { testContext } from "@/market/__tests__/testContext";
  *  (a ₹ difference, so it stays meaningful when the baseline is a loss). */
 const GAIN_SHARE = 0.15;
 const MIN_GAIN = 10000;
+const DAYPARTING_GOALS = new Set(["ROAS-First", "Volume-First"]);
 const improves = (better: number, baseline: number, share = GAIN_SHARE) =>
   better - baseline >= Math.max(share * Math.abs(baseline), MIN_GAIN);
 const ROAS_BAND: [number, number] = [0.9, 1.5];
@@ -70,13 +73,21 @@ for (const brandId of Object.keys(MARKET_DATA)) {
       expect(traps.length).toBeGreaterThan(0);
     });
 
-    it("dayparting matters: the best schedule beats 24/7 (≥ 15% / ₹10K profit) and is built around the category's peak", () => {
-      const results = Object.entries(S.CANDIDATE_SCHEDULES).map(([name, sched]) => ({ name, sched, profit: profit(S.onSchedule(ctx, sched)) }));
-      const best = results.reduce((a, b) => (b.profit > a.profit ? b : a));
+    it("dayparting matters on the brand's own goal: the best schedule beats 24/7 (≥ 15%) and is built around the category's peak", () => {
+      // Judge by the brand's goal (profit, units or reach), as scoring does (§14 F13): for
+      // loss-making awareness brands, "best by profit" would just pick the schedule that spends least.
+      const goal = objectiveFor(ctx.scenario.profile.goalType);
+      const value = (strategy: S.Strategy) => goal(sumMetrics(runHeadless(ctx, strategy).results.flatMap((r) => r.cells)));
+      const baseline = goal(sumMetrics(naive.results.flatMap((r) => r.cells)));
+      const results = Object.entries(S.CANDIDATE_SCHEDULES).map(([name, sched]) => ({ name, sched, value: value(S.onSchedule(ctx, sched)) }));
+      const best = results.reduce((a, b) => (b.value > a.value ? b : a));
       const peak = S.peakSlots(ctx);
-      const peakOnlySpend = runHeadless(ctx, S.onSchedule(ctx, peak)).totals.spend;
-      report.push(`  best schedule "${best.name}" ₹${Math.round(best.profit)} (24/7 ₹${Math.round(naive.totals.profit)}); peak-only spends ${Math.round((100 * peakOnlySpend) / ctx.scenario.budget)}% of budget`);
-      expect(improves(best.profit, naive.totals.profit)).toBe(true);
+      report.push(`  best schedule on the brand's goal: "${best.name}" ${Math.round(best.value)} vs 24/7 ${Math.round(baseline)}`);
+      // Dayparting is a money and volume lesson (SPEC §3.3); for reach goals a view counts at any
+      // hour, so there we only require that the best schedule keeps the brand's peak hours.
+      if (DAYPARTING_GOALS.has(ctx.scenario.profile.goalType)) {
+        expect(best.value - baseline).toBeGreaterThanOrEqual(Math.abs(baseline) * GAIN_SHARE);
+      }
       expect(peak.every((p) => best.sched.includes(p))).toBe(true);
     });
 

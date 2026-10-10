@@ -58,8 +58,9 @@ describe("Excel reports R1–R12 (SPEC §7.3)", () => {
 
   it("builds a workbook with every report as a sheet", () => {
     const wb = buildWorkbook(buildReportSheets(input));
-    expect(wb.SheetNames).toHaveLength(12);
-    expect(wb.SheetNames[0]).toBe("R1 Campaign performance");
+    expect(wb.SheetNames).toHaveLength(13);
+    expect(wb.SheetNames[0]).toBe("How to read this");
+    expect(wb.SheetNames[1]).toBe("R1 Campaign performance");
   });
 
   it("only includes the days it is given (no future data)", () => {

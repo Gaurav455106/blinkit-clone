@@ -23,7 +23,7 @@ function scored(launched: CampaignConfig[], actions: LiveAction[], formats: Scor
     results.push(out.result);
     configsByDay.push(cfgs);
   }
-  return scoreRunV2({ ctx, launched, formats, actions, results, configsByDay, statesByDay, pitch: { score: 12, max: 15 }, describeAction: (a) => recordAction(launched, a).what });
+  return scoreRunV2({ ctx, launched, formats, actions, results, configsByDay, statesByDay, pitch: { score: 12, max: 15 }, insights: [], describeAction: (a) => recordAction(launched, a).what });
 }
 
 const all = ctx.scenario.profile.skus.map((s) => s.id);

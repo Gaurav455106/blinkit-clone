@@ -33,6 +33,7 @@ describe("useMarket (main-thread fallback in tests)", () => {
     await act(async () => { await result.current.step([campaign]); });
     expect(result.current.results.map((r) => r.day)).toEqual([1, 2]);
     expect(result.current.state?.day).toBe(2);
+    expect(result.current.statesByDay.map((st) => st.day)).toEqual([0, 1, 2]);
     expect(result.current.error).toBeNull();
   });
 

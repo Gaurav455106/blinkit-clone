@@ -263,18 +263,53 @@ export const REPORTS: readonly ReportDef[] = [
 
 export const REPORT_README: readonly { column: string; meaning: string }[] = [
   { column: "Sim day", meaning: "Day of the 30-day run. Only completed days are included." },
-  { column: "Searches / views", meaning: "Searches (keywords) or page views (placements) in your targeted states and hours." },
-  { column: "Impression share (%)", meaning: "Share of those searches where your ad appeared." },
-  { column: "IS lost to rank / budget / stock (%)", meaning: "Why you didn't appear: outbid, out of daily budget, or out of stock. With impression share these add to 100%." },
-  { column: "SOV (%)", meaning: "Your share of all viewable ad impressions on that page (slot 1 always ≈ 54% at most)." },
-  { column: "CPM (₹)", meaning: "₹ paid per 1,000 viewable impressions (second price, never above your bid)." },
-  { column: "Max profitable CPM (₹)", meaning: "Contribution earned per 1,000 viewable impressions: bid above this and each order loses money." },
-  { column: "Revenue (₹)", meaning: "Direct (the advertised SKU) + indirect (other brand SKUs bought after the click)." },
-  { column: "Break-even ROAS", meaning: "Revenue ÷ contribution for what was sold: ROAS below this loses money." },
-  { column: "Profit after ads (₹)", meaning: "Contribution minus ad spend." },
-  { column: "OSA (%)", meaning: "Share of dark stores in the state with the SKU in stock." },
+  { column: "Searches / views", meaning: "How many times shoppers searched your keyword (or opened that page) in your states and hours." },
+  { column: "Impression share (%)", meaning: "Out of those searches, how often your ad showed up." },
+  { column: "IS lost to rank / budget / stock (%)", meaning: "Why your ad didn't show: someone bid more (rank), your money ran out for the day (budget), or your product was out of stock (stock). These plus impression share add up to 100%." },
+  { column: "SOV (%)", meaning: "Share of voice: out of all ads shoppers saw on that page, how many were yours. The top slot alone gives at most about 54%." },
+  { column: "CPM (₹)", meaning: "What you paid for every 1,000 times your ad was seen. You never pay more than your bid." },
+  { column: "Max profitable CPM (₹)", meaning: "The profit you made for every 1,000 ad views. If you pay more than this, the ads lose money." },
+  { column: "Revenue (₹)", meaning: "Sales from your ads: the product in the ad (direct) plus your other products bought after the click (indirect)." },
+  { column: "Break-even ROAS", meaning: "The ROAS (sales for every ₹1 of ads) you need just to not lose money. Below this, you lose money." },
+  { column: "Profit after ads (₹)", meaning: "What you earned on the sales, minus what you spent on ads." },
+  { column: "OSA (%)", meaning: "On-shelf availability: how many Blinkit stores in that state have your product in stock." },
 ];
 
+/** The guide sheet first, then the reports. */
 export function buildReportSheets(input: ReportInput, ids?: readonly string[]): SheetSpec[] {
-  return REPORTS.filter((r) => !ids || ids.includes(r.id)).map((r) => ({ name: `${r.id} ${r.name}`, rows: r.build(input) }));
+  return [analysisGuideSheet(), ...REPORTS.filter((r) => !ids || ids.includes(r.id)).map((r) => ({ name: `${r.id} ${r.name}`, rows: r.build(input) }))];
+}
+
+// ── From report to action (Gaurav: downloading isn't the goal; acting on it is) ──
+
+export interface AnalysisStep {
+  report: string;
+  question: string;
+  lookAt: string;
+  badSign: string;
+  lever: string;
+}
+
+/** First sheet of every workbook and the guide shown when a download starts. */
+export const ANALYSIS_GUIDE: readonly AnalysisStep[] = [
+  { report: "R2 Keyword performance", question: "Which keywords lose money?", lookAt: "ROAS vs Break-even ROAS; Max profitable CPM vs CPM (₹)", badSign: "ROAS below break-even, or CPM above max profitable CPM, for 3+ days", lever: "Lower the bid to at most the max profitable CPM, or pause the keyword" },
+  { report: "R2 Keyword performance", question: "Where did I lose visibility, and why?", lookAt: "IS lost to rank / budget / stock (%)", badSign: "IS lost to rank jumps on a profitable keyword", lever: "Raise the bid, but never above max profitable CPM; or let it go and move the money" },
+  { report: "R5 Hour of day", question: "Is my budget spent in the right hours?", lookAt: "ROAS by slot; IS lost to budget (%) in the evening slots", badSign: "Money spent at 12–6 AM while peak slots lose impressions to budget", lever: "Switch off dead hours so the budget lasts into peak" },
+  { report: "R3 Product (SKU) performance", question: "Is a cheap product eating the budget?", lookAt: "Share of spend (%) vs ROAS and SKU break-even ROAS", badSign: "A SKU takes > 40% of spend below its own break-even", lever: "Give the hero SKU its own campaign; drop keywords that serve the cheap SKU" },
+  { report: "R2 Keyword performance (pivot by tier)", question: "Are head terms starving the long-tail?", lookAt: "Spend share and ROAS of head vs long-tail keywords in the same campaign", badSign: "One head term takes most spend at a lower ROAS than long-tail terms", lever: "Split long-tail into its own campaign with its own budget, or lower the head-term bid" },
+  { report: "R4 State performance", question: "Is a strong state rationed?", lookAt: "ROAS by state vs the campaign; OSA (%)", badSign: "A state earns 1.3× the campaign's ROAS while the campaign is budget-capped", lever: "Give that state its own campaign and budget, or drop weak states" },
+  { report: "R9 Inventory + R4 State", question: "Is stock about to stop my ads?", lookAt: "Days of cover and OSA (%) by state", badSign: "OSA under 30% or less than 3 days of cover where you advertise", lever: "Lower bids there, or ask Rohit for a restock" },
+  { report: "R7 Auction insights", question: "Who took my slot?", lookAt: "Competitor SOV and top-slot rate by day", badSign: "A rival's top-slot rate jumps on your keyword", lever: "Decide with max profitable CPM: defend if a click is still worth it, otherwise wait it out" },
+  { report: "R10 Budget pacing", question: "Will the money last to day 30?", lookAt: "Projected end-of-run spend vs the ₹2,00,000 total", badSign: "Projection runs out before day 30", lever: "Lower daily budgets or bids, or switch to an overall budget" },
+  { report: "R11 Change log", question: "Did my last change work?", lookAt: "Compare the 3 days before and after each change in R2/R5", badSign: "No improvement after a change", lever: "Undo it or try the next lever" },
+];
+
+export function analysisGuideSheet(): SheetSpec {
+  return {
+    name: "How to read this",
+    rows: ANALYSIS_GUIDE.map((g, i) => ({
+      "Step": i + 1, "Report": g.report, "Question": g.question, "Look at": g.lookAt,
+      "Bad sign": g.badSign, "Lever to pull": g.lever,
+    })),
+  };
 }

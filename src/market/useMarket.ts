@@ -9,12 +9,16 @@ import { handleStep, type StepRequest, type StepResponse } from "@/market/worker
 
 export interface MarketRun {
   state: MarketState | null;
+  /** statesByDay[d] = state after day d (index 0 = before day 1); used for scoring replays. */
+  statesByDay: readonly MarketState[];
   results: readonly DayResult[];
   busy: boolean;
   error: string | null;
   /** Simulate the next day with these campaigns; resolves with that day's result. */
   step: (campaigns: readonly CampaignConfig[]) => Promise<DayResult | null>;
   reset: () => void;
+  /** Replace the run with a replayed history (e.g. after a page refresh). */
+  restore: (statesByDay: readonly MarketState[], results: readonly DayResult[]) => void;
 }
 
 function createWorker(): Worker | null {
@@ -27,8 +31,9 @@ function createWorker(): Worker | null {
 }
 
 export function useMarket(ctx: MarketContext | null): MarketRun {
-  const [state, setState] = useState<MarketState | null>(() => (ctx ? initialMarketState(ctx) : null));
+  const [statesByDay, setStatesByDay] = useState<readonly MarketState[]>(() => (ctx ? [initialMarketState(ctx)] : []));
   const [results, setResults] = useState<readonly DayResult[]>([]);
+  const state = statesByDay.length ? statesByDay[statesByDay.length - 1] : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -48,10 +53,16 @@ export function useMarket(ctx: MarketContext | null): MarketRun {
   }, []);
 
   const reset = useCallback(() => {
-    setState(ctx ? initialMarketState(ctx) : null);
+    setStatesByDay(ctx ? [initialMarketState(ctx)] : []);
     setResults([]);
     setError(null);
   }, [ctx]);
+
+  const restore = useCallback((states: readonly MarketState[], days: readonly DayResult[]) => {
+    setStatesByDay(states);
+    setResults(days);
+    setError(null);
+  }, []);
 
   useEffect(reset, [reset]);
 
@@ -73,10 +84,10 @@ export function useMarket(ctx: MarketContext | null): MarketRun {
       setError(res.error);
       return null;
     }
-    setState(res.state);
+    setStatesByDay((prev) => [...prev, res.state]);
     setResults((prev) => [...prev, res.result]);
     return res.result;
   }, [ctx, state, send]);
 
-  return { state, results, busy, error, step, reset };
+  return { state, statesByDay, results, busy, error, step, reset, restore };
 }

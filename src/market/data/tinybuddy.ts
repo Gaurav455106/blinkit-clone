@@ -27,7 +27,7 @@ export const TINYBUDDY: BrandMarket = {
     { term: "tinybuddy rash cream",          tier: "long", dailyVolume: 300,   cluster: "brand",   fit: { "tiny-1": 0.20, "tiny-2": 1.30, "tiny-3": 0.20 }, isBrandTerm: true },
   ],
   placements: standardPlacements(["Baby Care", "Mother & Baby"], { "tiny-1": 1.0, "tiny-2": 0.9, "tiny-3": 0.8 }),
-  stateCVR:      { Delhi: 0.90, Haryana: 1.30, "Uttar Pradesh": 1.00 },
+  stateCVR:      { Delhi: 0.85, Haryana: 1.45, "Uttar Pradesh": 1.00 },
   stateAffinity: { Delhi: 1.30, Haryana: 1.00, "Uttar Pradesh": 1.00 },
   rivals: [
     {

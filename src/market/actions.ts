@@ -107,7 +107,7 @@ export function recordAction(current: readonly CampaignConfig[], action: LiveAct
     case "pauseKeyword":
       return { ...base, what: `Keyword "${ch.term}"`, from: ch.paused ? "running" : "paused", to: ch.paused ? "paused" : "running" };
     case "addKeyword":
-      return { ...base, what: `Added keyword "${ch.term}"`, from: "—", to: rupees(ch.bid) };
+      return { ...base, what: `Added keyword "${ch.term}"`, from: "not running", to: rupees(ch.bid) };
     case "placementBid":
       return { ...base, what: `Bid on ${ch.id}`, from: rupees(c?.placements?.find((p) => p.id === ch.id)?.bid), to: rupees(ch.bid) };
     case "budget":
