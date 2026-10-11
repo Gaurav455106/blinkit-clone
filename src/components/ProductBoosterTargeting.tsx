@@ -631,7 +631,7 @@ export function ProductBoosterTargeting({
                   {/* Entry point */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-600 leading-tight">
-                      {entryPoint(cat, scenario?.category ?? "")}
+                      {entryPoint(cat, scenario?.profile.category ?? "")}
                     </span>
                     <InfoTooltip
                       content="The category path where customers discover your product listing."

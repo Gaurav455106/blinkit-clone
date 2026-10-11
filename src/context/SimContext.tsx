@@ -242,7 +242,7 @@ interface SimState {
   initSimulation: (stock: StockMap) => void;
   setOptimization: (id: string, opt: Partial<CampaignOptimization>) => void;
   setStockLevels: (s: StockMap) => void;
-  setCurrentDay: (d: number) => void;
+  setCurrentDay: (d: number | ((prev: number) => number)) => void;
   logDecision: (d: DecisionLogEntry) => void;
   recordWeekTotals: (w: WeekResultStored) => void;
   setEventResponse: (week: 2 | 3, r: EventResponse) => void;
@@ -657,7 +657,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setOptimizationsState((prev) => {
       const next = { ...prev };
       for (const c of campaigns) {
-        if (!next[c.id]) next[c.id] = { paused: false, scaleMultiplier: 1, dayparting: "24_7" };
+        if (!next[c.id]) next[c.id] = { paused: false, scaleMultiplier: 1, dayparting: "24_7", pausedAtDay: null };
       }
       return next;
     });
@@ -696,7 +696,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       };
     });
   const setStockLevels = (s: StockMap) => setStockLevelsState(s);
-  const setCurrentDay = (d: number) => setCurrentDayState(d);
+  const setCurrentDay = (d: number | ((prev: number) => number)) => setCurrentDayState(d);
   const logDecision = (d: DecisionLogEntry) => setDecisionsLog((prev) => [...prev, d]);
   const recordWeekTotals = (w: WeekResultStored) => setWeekTotals((prev) => {
     const filtered = prev.filter((x) => x.week !== w.week);

@@ -151,7 +151,7 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
               )}
 
               {/* Step badge for flow items */}
-              {"step" in item && item.step !== null ? (
+              {"step" in item && typeof item.step === "number" ? (
                 <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border transition-all ${
                   locked
                     ? "bg-transparent text-slate-300 border-slate-200"
