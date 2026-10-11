@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { isEngineV2 } from "@/lib/engineFlag";
+import { useIsEngineV2 } from "@/lib/useEngine";
 import LiveDashboardV2 from "@/pages/LiveDashboardV2";
 import { useTour, useTourOpen } from "@/components/tour/useTour";
 import { useSim, REAL_MS_PER_SIM_DAY, CRISIS_DEADLINE_DAYS } from "@/context/SimContext";
@@ -279,9 +279,10 @@ function SOVTable({ keywords, goodKws, riskyKws, lifetimeImpressions }: {
 /** Picks the engine; checks the student and scenario first so neither page renders without them. */
 export default function LiveDashboard() {
   const { student, scenario } = useSim();
+  const isV2 = useIsEngineV2();
   if (!student) return <Navigate to="/" replace />;
   if (!scenario) return <Navigate to="/brief" replace />;
-  return isEngineV2() ? <LiveDashboardV2 student={student} scenario={scenario} /> : <LiveDashboardV1 />;
+  return isV2 ? <LiveDashboardV2 student={student} scenario={scenario} /> : <LiveDashboardV1 />;
 }
 
 function LiveDashboardV1() {

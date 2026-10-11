@@ -32,7 +32,7 @@ import { PitchSkuCard } from "@/components/rohit/PitchSkuCard";
 import { PitchVerdict } from "@/components/rohit/PitchVerdict";
 import type { ChipData } from "@/components/rohit/DataChips";
 import { commitmentRange, commitValidity, emptyPitchRow, type PitchRow } from "@/components/rohit/pitchForm";
-import { isEngineV2 } from "@/lib/engineFlag";
+import { useIsEngineV2 } from "@/lib/useEngine";
 import { marketContextFor } from "@/market/context";
 import DealV2 from "@/pages/DealV2";
 import { useTour } from "@/components/tour/useTour";
@@ -58,8 +58,9 @@ export default function CmPitch() {
     else if (localStorage.getItem("sim_brief_ack") !== "1") nav("/brief", { replace: true });
   }, [student, scenario, nav]);
 
+  const isV2 = useIsEngineV2();
   if (!student || !scenario) return null;
-  const dealCtx = isEngineV2() ? marketContextFor(scenario, student.batch) : null;
+  const dealCtx = isV2 ? marketContextFor(scenario, student.batch) : null;
   if (dealCtx) return <DealV2 student={student} scenario={scenario} ctx={dealCtx} />;
   return <CmPitchScreen studentName={student.name} scenario={scenario} />;
 }

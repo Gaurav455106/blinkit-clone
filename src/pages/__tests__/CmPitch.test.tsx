@@ -14,9 +14,10 @@ const scenario: Scenario = {
   clientGoals: { primary: "", performanceGoals: [], reachGoals: [], metrics: [], threshold: "", lifecycle: "Convert", campaignHint: "" },
   scheduledCrisis: { day: 12, eventId: "stock_crisis", reason: "" },
   city: profile.primaryState,
+  engine: "v1",
 };
 
-const sim = { student: { name: "Asha" }, scenario, setCmPitch: vi.fn(), consumeToken: vi.fn(), tokensRemaining: 10 };
+const sim: Record<string, unknown> = { student: { name: "Asha", email: "asha@x.com", batch: "B1" }, scenario, setCmPitch: vi.fn(), consumeToken: vi.fn(), tokensRemaining: 10, setOpeningDeal: vi.fn() };
 
 vi.mock("@/context/SimContext", () => ({ useSim: () => sim }));
 vi.mock("@/components/BlinkitSidebar", () => ({ BlinkitSidebar: () => <nav aria-label="Blinkit sidebar" /> }));
@@ -53,5 +54,13 @@ describe("CM pitch page", () => {
   it("uses plain copy with no em dashes", { timeout: 20000 }, () => {
     const { container } = renderPage();
     expect(container.textContent).not.toContain("—");
+  });
+
+  it("a brief started on v2 gets the deal with Rohit instead", { timeout: 20000 }, () => {
+    const before = sim.scenario;
+    sim.scenario = { ...scenario, engine: "v2" };
+    renderPage();
+    expect(screen.getByRole("heading", { name: "Strike a deal with Rohit" })).toBeInTheDocument();
+    sim.scenario = before;
   });
 });

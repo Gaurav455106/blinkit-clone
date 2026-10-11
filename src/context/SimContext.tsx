@@ -11,6 +11,7 @@ import { ACTIVE_EMAIL_KEY } from "@/lib/masterAccess";
 import type { OpeningDeal } from "@/market/deal";
 import { marketContextFor } from "@/market/context";
 import { dealPitchResult } from "@/lib/dealPitch";
+import { engineForScenario } from "@/lib/engineFlag";
 
 export interface Student {
   name: string;
@@ -379,6 +380,10 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
+  // Briefs made before the engine stamp: decide once (v1 if already pitched or running) and save it
+  useEffect(() => {
+    if (scenario && !scenario.engine) setScenario({ ...scenario, engine: engineForScenario(scenario, { hasPitch: !!cmPitch, hasRun: !!activeRunId }) });
+  }, [scenario, cmPitch, activeRunId]);
   useEffect(() => { localStorage.setItem("sim_cm_pitch", JSON.stringify(cmPitch)); }, [cmPitch]);
   useEffect(() => { localStorage.setItem("sim_cm_relationship", JSON.stringify(cmRelationship)); }, [cmRelationship]);
   useEffect(() => { localStorage.setItem("sim_v2_live_relationship", JSON.stringify(liveCmRelationship)); }, [liveCmRelationship]);
