@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
 import { useSim } from "@/context/SimContext";
@@ -10,6 +10,10 @@ import { SimPage, PageHeader, Section, ScoreBar, Tag } from "@/components/sim/pr
 import { scoreTone, type Tone } from "@/components/sim/tone";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isEngineV2 } from "@/lib/engineFlag";
+import { marketContextFor } from "@/market/context";
+import { savedCampaignToConfig } from "@/market/adapter";
+import { scoreSetupV2, SCORE_V2_MAX } from "@/market/scoringV2";
 
 // ── Mode picker ──────────────────────────────────────────────────────────────
 
@@ -26,6 +30,12 @@ const LATER_PARTS = [
   { label: "Final results", pts: SCORE_MAX.results },
 ] as const;
 
+const LATER_PARTS_V2 = [
+  { label: "Changes during the run", pts: SCORE_V2_MAX.live },
+  { label: "Market news and Rohit", pts: SCORE_V2_MAX.eventsRohit },
+  { label: "Final results", pts: SCORE_V2_MAX.results },
+] as const;
+
 const REVEAL_DELAY_MS = 150;
 const LAUNCH_DELAY_MS = 900;
 
@@ -38,7 +48,7 @@ const GRADE_LABEL: Record<Tone, string> = {
   neutral: "Not scored yet",
 };
 
-function ScoreLineRow({ line }: { line: ScoreLine }) {
+function ScoreLineRow({ line }: { line: Pick<ScoreLine, "key" | "label" | "earned" | "max" | "note"> }) {
   const tone = scoreTone(line.earned, line.max);
   return (
     <li className="grid gap-2 py-4 first:pt-0 last:pb-0 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-6">
@@ -95,14 +105,36 @@ export default function SetupScoreCard() {
     }
   }, [storedScore]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // v2: the engine's setup lines (SPEC §8), computed from the same campaigns
+  const v2 = isEngineV2();
+  const v2Lines = useMemo(() => {
+    if (!v2 || !scenario) return null;
+    const ctx = marketContextFor(scenario, student?.batch ?? "");
+    if (!ctx) return null;
+    const live = campaigns.filter((c) => !c.isDraft);
+    return scoreSetupV2({
+      ctx,
+      launched: live.map((c) => savedCampaignToConfig(c, scenario, student?.batch ?? "")),
+      formats: Object.fromEntries(live.map((c) => [c.id, { adFormat: c.adFormat, objective: c.objective }])),
+    });
+  }, [v2, scenario, student?.batch, campaigns]);
+
   if (!student || !scenario || !cmPitch) return null;
 
-  const max = score?.maxTotal ?? SCORE_MAX.setup;
-  const total = score?.total ?? 0;
+  const setupMax = v2Lines ? SCORE_V2_MAX.setup : SCORE_MAX.setup;
+  const laterParts = v2Lines ? LATER_PARTS_V2 : LATER_PARTS;
+  const shownLines = v2Lines ?? score?.lines ?? null;
+  const max = v2Lines ? SCORE_V2_MAX.setup : score?.maxTotal ?? SCORE_MAX.setup;
+  const total = v2Lines ? Math.round(v2Lines.reduce((s, l) => s + l.earned, 0) * 10) / 10 : score?.total ?? 0;
   const tone: Tone = score ? scoreTone(total, max) : "neutral";
 
   const handleLaunch = () => {
     setLaunching(true);
+    if (v2Lines) {
+      if (!activeRunId) startRun();
+      setTimeout(() => nav("/simulation"), LAUNCH_DELAY_MS);
+      return;
+    }
     const stock = buildInitialStock(scenario);
     initSimulation(stock);
     if (!activeRunId) startRun();
@@ -116,7 +148,7 @@ export default function SetupScoreCard() {
       <PageHeader
         eyebrow={`${scenario.profile.name} · ${scenario.profile.category}`}
         title="Your setup score"
-        description={`How well your campaigns are set up before going live. Setup is worth ${SCORE_MAX.setup} of the 100 points.`}
+        description={`How well your campaigns are set up before going live. Setup is worth ${setupMax} of the 100 points.`}
       />
 
       <div className={cn("grid gap-6 transition-[opacity,transform] duration-500 lg:grid-cols-[minmax(0,1fr)_340px]", revealed || score ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0")}>
@@ -136,9 +168,9 @@ export default function SetupScoreCard() {
           </Section>
 
           <Section title="Line by line" description="What you got right, and what to fix before launch.">
-            {score ? (
+            {shownLines ? (
               <ul className="divide-y divide-border">
-                {score.lines.map((line) => <ScoreLineRow key={line.key} line={line} />)}
+                {shownLines.map((line) => <ScoreLineRow key={line.key} line={line} />)}
               </ul>
             ) : (
               <div className="space-y-3" aria-busy="true" aria-label="Working out your score">
@@ -149,9 +181,9 @@ export default function SetupScoreCard() {
         </div>
 
         <div className="space-y-6">
-          <Section title="Still to play for" description={`${100 - SCORE_MAX.setup} points come during the run.`}>
+          <Section title="Still to play for" description={`${100 - setupMax} points come during the run.`}>
             <dl className="space-y-2">
-              {LATER_PARTS.map(({ label, pts }) => (
+              {laterParts.map(({ label, pts }) => (
                 <div key={label} className="flex items-baseline justify-between rounded-lg bg-secondary/60 px-3 py-2 text-sm">
                   <dt className="text-muted-foreground">{label}</dt>
                   <dd className="sim-num font-semibold text-foreground">{pts}</dd>
@@ -160,7 +192,7 @@ export default function SetupScoreCard() {
             </dl>
           </Section>
 
-          <Section title="How the run plays">
+          {!v2Lines && <Section title="How the run plays">
             <div className="space-y-3">
               <button
                 type="button"
@@ -219,7 +251,7 @@ export default function SetupScoreCard() {
                 </button>
               )}
             </div>
-          </Section>
+          </Section>}
 
           <div className="space-y-2">
             <Button onClick={handleLaunch} disabled={launching} size="lg" className="w-full gap-2">

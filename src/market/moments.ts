@@ -6,7 +6,7 @@
 
 import type { CampaignConfig, DayResult, MarketContext, MarketState } from "@/market/engineTypes";
 import { applyActions, type ActionChange, type LiveAction } from "@/market/actions";
-import { stepDay } from "@/market/step";
+import { stepDay, type StepOptions } from "@/market/step";
 import { sumMetrics, byUnit, byState, bySku, type Metrics } from "@/market/aggregate";
 import { peakSlotOf } from "@/market/momentHelpers";
 
@@ -197,13 +197,15 @@ export interface ReplayInput {
   actions: readonly LiveAction[];
   /** statesByDay[d] = state after day d (index 0 = before day 1). */
   statesByDay: readonly MarketState[];
+  /** Market events and Rohit effects of the real run, replayed unchanged. */
+  stepOptions?: StepOptions;
 }
 
 function replay(input: ReplayInput, actions: readonly LiveAction[], fromDay: number, toDay: number): Metrics {
   let state = input.statesByDay[fromDay - 1];
   const cells = [];
   for (let d = fromDay; d <= toDay; d++) {
-    const out = stepDay(input.ctx, state, applyActions(input.launched, actions, d));
+    const out = stepDay(input.ctx, state, applyActions(input.launched, actions, d), input.stepOptions);
     state = out.state;
     cells.push(...out.result.cells);
   }

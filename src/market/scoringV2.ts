@@ -5,6 +5,10 @@
 
 import type { CampaignConfig, DayResult, MarketContext, MarketState } from "@/market/engineTypes";
 import type { LiveAction } from "@/market/actions";
+import type { StepOptions } from "@/market/step";
+import type { EventActivation } from "@/market/events";
+import type { CommitmentResult, ReplyQuality } from "@/market/rohit";
+import { scoreEventResponses, ROHIT_QUALITY_SHARE } from "@/market/liveRun";
 import { detectMoments, scoreMoment, type MomentScore } from "@/market/moments";
 import { scoreInsights, type Insight } from "@/market/insights";
 import { clientGoalsV2 } from "@/market/goals";
@@ -43,6 +47,9 @@ export interface ScoreV2 {
   /** Top 3 decisions by ₹ (or goal units) lost vs the best lever. */
   costliestMistakes: readonly { title: string; lost: number; what: string }[];
   run: Metrics;
+  goalRows: readonly GoalRowV2[];
+  /** Average goal achievement, % (each goal capped at 150). */
+  achievementPct: number;
 }
 
 export interface ScoreV2Input {
@@ -60,7 +67,16 @@ export interface ScoreV2Input {
   /** Insights logged at the weekly checkpoints (report → action). */
   insights: readonly Insight[];
   describeAction: (a: LiveAction) => string;
+  /** Market events and Rohit effects of the run (needed for exact replays). */
+  stepOptions?: StepOptions;
+  /** Alerts that paused the clock (SPEC §5): the response to each is scored. */
+  alerts?: readonly EventActivation[];
+  /** Mid-run Rohit check-ins: reply quality and how the promises turned out. */
+  rohit?: { replies: readonly { quality: ReplyQuality }[]; commitments: readonly CommitmentResult[] };
 }
+
+/** What setup scoring needs: the launched campaigns and their formats. */
+export type SetupInputV2 = Pick<ScoreV2Input, "ctx" | "launched" | "formats">;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -71,7 +87,7 @@ function line(l: ScoreLineV2): ScoreLineV2 {
 
 // ── Setup (25) ────────────────────────────────────────────────────────────────
 
-function formatFit(input: ScoreV2Input): ScoreLineV2 {
+function formatFit(input: SetupInputV2): ScoreLineV2 {
   const p = input.ctx.scenario.profile;
   const fmts = Object.values(input.formats);
   const objective = fmts.some((f) => f.objective === p.optimalObjective);
@@ -97,7 +113,7 @@ function formatFit(input: ScoreV2Input): ScoreLineV2 {
   });
 }
 
-function keywordMaxCpm(input: ScoreV2Input, term: string, skuIds: readonly string[]): number {
+function keywordMaxCpm(input: Pick<ScoreV2Input, "ctx">, term: string, skuIds: readonly string[]): number {
   const k = input.ctx.market.keywords.find((x) => x.term === term);
   if (!k) return 0;
   const cat = input.ctx.market.category;
@@ -108,7 +124,7 @@ function keywordMaxCpm(input: ScoreV2Input, term: string, skuIds: readonly strin
   })));
 }
 
-function keywordChoice(input: ScoreV2Input): ScoreLineV2 {
+function keywordChoice(input: SetupInputV2): ScoreLineV2 {
   const chosen = input.launched.flatMap((c) => c.keywords.map((k) => ({ term: k.term, skus: c.skuIds })));
   const known = chosen.filter((k) => input.ctx.market.keywords.some((m) => m.term === k.term));
   const canProfit = known.filter((k) => keywordMaxCpm(input, k.term, k.skus) > suggestKeywordRange(input.ctx, k.term).lo);
@@ -123,7 +139,7 @@ function keywordChoice(input: ScoreV2Input): ScoreLineV2 {
   });
 }
 
-function bidDiscipline(input: ScoreV2Input): ScoreLineV2 {
+function bidDiscipline(input: SetupInputV2): ScoreLineV2 {
   const bids = input.launched.flatMap((c) => c.keywords.map((k) => ({ term: k.term, bid: k.exactBid * (1 + (c.boostPct ?? 0)), max: keywordMaxCpm(input, k.term, c.skuIds) })))
     .filter((b) => b.max > 0);
   const within = bids.filter((b) => b.bid <= b.max * 1.05);
@@ -138,7 +154,7 @@ function bidDiscipline(input: ScoreV2Input): ScoreLineV2 {
   });
 }
 
-function structure(input: ScoreV2Input): ScoreLineV2 {
+function structure(input: SetupInputV2): ScoreLineV2 {
   const traps = input.ctx.market.traps.filter((t) => t !== "creative");
   const camps = input.launched;
   const checks: Record<string, boolean> = {
@@ -193,7 +209,7 @@ function liveLines(input: ScoreV2Input): { lines: ScoreLineV2[]; moments: Moment
     };
   }
   const each = MOMENT_POINTS / detected.length;
-  const scored = detected.map((m) => scoreMoment({ ctx: input.ctx, launched: input.launched, actions: input.actions, statesByDay: input.statesByDay }, m, each, input.describeAction));
+  const scored = detected.map((m) => scoreMoment({ ctx: input.ctx, launched: input.launched, actions: input.actions, statesByDay: input.statesByDay, stepOptions: input.stepOptions }, m, each, input.describeAction));
   return {
     moments: scored,
     lines: [insightLine(input, detected), ...scored.map((s, i) => line({
@@ -221,11 +237,11 @@ function pacingLine(input: ScoreV2Input): ScoreLineV2 {
   const daily = input.results.map((r) => sumMetrics(r.cells).spend);
   const darkFrom = daily.findIndex((s, i) => s === 0 && daily.slice(i).every((x) => x === 0) && daily.slice(0, i).some((x) => x > 0));
   const ranOutEarly = darkFrom >= 0 && darkFrom + 1 < totalDays - 1;
-  const earned = ranOutEarly ? (darkFrom + 1 >= totalDays - 5 ? 5 : 0) : 10;
+  const earned = ranOutEarly ? (darkFrom + 1 >= totalDays - 5 ? 2.5 : 0) : 5;
   return line({
-    key: "v2_pacing", category: "eventsRohit", label: "Budget pacing", earned, max: 10,
+    key: "v2_pacing", category: "eventsRohit", label: "Budget pacing", earned, max: 5,
     judgedOn: "Whether the money lasted the whole run (a too-high daily budget burns the account early).",
-    tiers: [{ points: 10, rule: "Ads ran to the end" }, { points: 5, rule: "Ran out in the last 5 days" }, { points: 0, rule: "Ran out earlier" }],
+    tiers: [{ points: 5, rule: "Ads ran to the end" }, { points: 2.5, rule: "Ran out in the last 5 days" }, { points: 0, rule: "Ran out earlier" }],
     note: ranOutEarly ? `Spend stopped on day ${darkFrom + 1}; the last ${totalDays - darkFrom} days had no ads.` : "Ads ran through to the end of the run.",
     howToImprove: "Watch the pacing alert: lower daily budgets or bids, or use an overall budget, so money lasts to day 30.",
   });
@@ -234,11 +250,45 @@ function pacingLine(input: ScoreV2Input): ScoreLineV2 {
 function rohitLine(input: ScoreV2Input): ScoreLineV2 {
   const share = input.pitch && input.pitch.max > 0 ? input.pitch.score / input.pitch.max : 0;
   return line({
-    key: "v2_rohit", category: "eventsRohit", label: "Category manager (Rohit)", earned: 10 * share, max: 10,
+    key: "v2_rohit", category: "eventsRohit", label: "Pitch to Rohit", earned: 5 * share, max: 5,
     judgedOn: "How well you convinced Rohit, the category manager, using real numbers (stock, sales speed, profit) instead of promises.",
-    tiers: [{ points: 10, rule: "Strong, data-backed pitch" }, { points: 0, rule: "Pitch not made or rejected" }],
+    tiers: [{ points: 5, rule: "Strong, data-backed pitch" }, { points: 0, rule: "Pitch not made or rejected" }],
     note: input.pitch ? `Pitch score ${input.pitch.score} of ${input.pitch.max}.` : "No pitch recorded.",
     howToImprove: "Lead with the numbers Rohit cares about and commit only to what your stock can deliver.",
+  });
+}
+
+const VERDICT_TEXT = { right: "right move", held: "held steady (right here)", other: "changed something else", none: "no change in time" } as const;
+
+function eventsLine(input: ScoreV2Input): ScoreLineV2 {
+  const alerts = input.alerts ?? [];
+  const { items, share } = scoreEventResponses(alerts, input.actions, input.launched, input.ctx);
+  return line({
+    key: "v2_events", category: "eventsRohit", label: "Response to alerts", earned: 5 * share, max: 5,
+    judgedOn: "Each alert that stopped the clock had a few right moves. Did you make one before its decision window closed?",
+    tiers: [{ points: 5, rule: "A right move for every alert, in time" }, { points: 2, rule: "You changed something, but not a right move" }, { points: 0, rule: "No change in time" }],
+    note: items.length === 0
+      ? "No alert needed a response in this run."
+      : items.map((i) => `Day ${i.activation.raisedAfterDay}, ${i.activation.title}: ${VERDICT_TEXT[i.verdict]}`).join(". ") + ".",
+    howToImprove: "When an alert stops the clock, open the report it points to, then make one of the changes it suggests before the window closes.",
+  });
+}
+
+function checkInsLine(input: ScoreV2Input): ScoreLineV2 {
+  const replies = input.rohit?.replies ?? [];
+  const resolved = (input.rohit?.commitments ?? []).filter((c) => c.status !== "pending");
+  const none = replies.length === 0;
+  const quality = none ? 1 : replies.reduce((s, r) => s + ROHIT_QUALITY_SHARE[r.quality], 0) / replies.length;
+  const kept = resolved.length === 0 ? 1 : resolved.filter((c) => c.status === "kept").length / resolved.length;
+  const brokenText = resolved.filter((c) => c.status === "broken").map((c) => c.commitment.text);
+  return line({
+    key: "v2_checkins", category: "eventsRohit", label: "Rohit check-ins", earned: 5 * (0.6 * quality + 0.4 * kept), max: 5,
+    judgedOn: "How you answered Rohit during the run (replies backed by data score best) and whether you kept what you promised.",
+    tiers: [{ points: 5, rule: "Data-backed replies and every promise kept" }, { points: 3, rule: "Mixed replies or a broken promise" }, { points: 1, rule: "Weak replies and broken promises" }],
+    note: none
+      ? "Rohit did not need to check in with you during the run."
+      : `${replies.length} check-in${replies.length > 1 ? "s" : ""}; ${resolved.length ? `${resolved.length - brokenText.length} of ${resolved.length} promises kept` : "no promises due yet"}${brokenText.length ? ` (broken: ${brokenText.join("; ")})` : ""}.`,
+    howToImprove: "Pick replies that cite the numbers Rohit shows you, and only promise what your stock and budget can deliver.",
   });
 }
 
@@ -254,6 +304,16 @@ function goalActual(label: string, m: Metrics): number | null {
     case "CVR": return m.cvr * 100;
     default: return null;
   }
+}
+
+export interface GoalRowV2 { label: string; goal: number; actual: number; unit: string; pct: number }
+
+/** Each measurable client goal with the run's actual value; pct is capped at 150. */
+export function goalRowsV2(ctx: MarketContext, run: Metrics): GoalRowV2[] {
+  return clientGoalsV2(ctx.scenario).metrics
+    .map((g) => ({ g, actual: goalActual(g.label, run) }))
+    .filter((r): r is { g: typeof r.g; actual: number } => r.actual !== null && r.g.target > 0)
+    .map(({ g, actual }) => ({ label: g.label, goal: g.target, actual, unit: g.unit, pct: Math.round(Math.min(1.5, actual / g.target) * 100) }));
 }
 
 function goalsLine(input: ScoreV2Input, run: Metrics): ScoreLineV2 {
@@ -312,13 +372,19 @@ function wasteLine(results: readonly DayResult[]): ScoreLineV2 {
   });
 }
 
+/** The four setup lines (25 points), before any day has run (setup score card). */
+export function scoreSetupV2(input: SetupInputV2): ScoreLineV2[] {
+  return [formatFit(input), keywordChoice(input), bidDiscipline(input), structure(input)];
+}
+
 export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
   const run = sumMetrics(input.results.flatMap((r) => r.cells));
+  const goalRows = goalRowsV2(input.ctx, run);
   const live = liveLines(input);
   const lines = [
-    formatFit(input), keywordChoice(input), bidDiscipline(input), structure(input),
+    ...scoreSetupV2(input),
     ...live.lines,
-    pacingLine(input), rohitLine(input),
+    pacingLine(input), rohitLine(input), eventsLine(input), checkInsLine(input),
     goalsLine(input, run), profitLine(run), wasteLine(input.results),
   ];
   const totals = (Object.keys(SCORE_V2_MAX) as CategoryV2[]).reduce((acc, k) => ({
@@ -333,5 +399,6 @@ export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
     version: 2, lines, totals,
     grandTotal: round1(Object.values(totals).reduce((s, x) => s + x, 0)),
     moments: live.moments, costliestMistakes, run,
+    goalRows, achievementPct: goalRows.length ? Math.round(goalRows.reduce((s, r) => s + r.pct, 0) / goalRows.length) : 0,
   };
 }

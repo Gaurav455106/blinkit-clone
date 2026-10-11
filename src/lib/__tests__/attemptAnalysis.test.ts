@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   attemptLines, attemptTotals, brandOf, filterAttempts, bestPerStudent, latestFirst,
   categoryStats, lineStats, crisisStats, strengthsAndGaps, lineDetailSince, buildSavedBreakdown,
-  attemptCrisisResponses, biggestLoss, mostFrequent, attemptCampaigns, summariseBatches, type AttemptRow,
+  attemptCrisisResponses, biggestLoss, mostFrequent, attemptCampaigns, summariseBatches, buildSavedBreakdownV2, type AttemptRow,
 } from "@/lib/attemptAnalysis";
 import { RUBRICS, type LineResult } from "@/lib/rubrics";
 import {
@@ -259,5 +259,32 @@ describe("buildSavedBreakdown", () => {
     expect(bd.goalRows).toEqual(fs.results.goalRows);
     const asRow = { ...row(), score_breakdown: JSON.parse(JSON.stringify(bd)) };
     expect(attemptLines(asRow)).toEqual(bd.lines);
+  });
+});
+
+describe("buildSavedBreakdownV2", () => {
+  const v2Score = {
+    version: 2 as const,
+    lines: [
+      { key: "v2_format", category: "setup" as const, label: "Format", earned: 4, max: 5, judgedOn: "Fit", tiers: [{ points: 5, rule: "Right format" }], note: "Good.", howToImprove: "More." },
+      { key: "v2_events", category: "eventsRohit" as const, label: "Alerts", earned: 2, max: 5, judgedOn: "Moves", tiers: [{ points: 5, rule: "All right" }], note: "Some.", howToImprove: "Act." },
+    ],
+    totals: { setup: 20, live: 25, eventsRohit: 12, results: 15 },
+    grandTotal: 72, moments: [], costliestMistakes: [],
+    run: {} as never,
+    goalRows: [{ label: "ROAS", goal: 3, actual: 3.3, unit: "x", pct: 110 }],
+    achievementPct: 110,
+  };
+
+  it("saves version 2 with v2 totals, the older field names and readable lines", () => {
+    const saved = buildSavedBreakdownV2(v2Score);
+    expect(saved.version).toBe(2);
+    expect(saved).toMatchObject({ setup: 20, live: 25, eventsRohit: 12, results: 15, liveOpt: 25, crisis: 12, grandTotal: 72, achievementPct: 110 });
+    expect(saved.gradeLabel).toBe("Growing Fast");
+    const back = row({ score_breakdown: saved, score_total: 72 } as Partial<AttemptRow>);
+    expect(attemptTotals(back)).toEqual({ setup: 20, live: 25, eventsRohit: 12, results: 15 });
+    const lines = attemptLines(back)!;
+    expect(lines[1]).toMatchObject({ key: "v2_events", category: "eventsRohit", judgedOn: "Moves" });
+    expect(lines[0].tiers?.[0]).toMatchObject({ points: 5, condition: "Right format" });
   });
 });

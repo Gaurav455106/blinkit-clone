@@ -23,6 +23,23 @@ import { studentEntries, placementEntries, type StudentEntry } from "@/market/en
 import { rivalBid, rivalPrice, updateRival } from "@/market/rivals";
 import { shopperOutcome, priceEffect, affinity, fatigueMult } from "@/market/shoppers";
 import { osa, organicDemand, sellFrom, isRestockDay, restockAmount } from "@/market/stock";
+import { activeOn, demandMults, rivalBidMult, rivalExited, cvrMult, type EventActivation } from "@/market/events";
+import { EMPTY_ADJUSTMENTS, extraSpendOn, priceCutFor, shelfMult, stockAddsOn, type Adjustments } from "@/market/adjustments";
+
+/** Market events active in the run and the effects of Rohit's replies (both optional). */
+export interface StepOptions {
+  events?: readonly EventActivation[];
+  adjustments?: Adjustments;
+}
+
+/** Yesterday's closing stock plus any stock Rohit's replies deliver today. */
+function withStockAdds(prev: MarketState, adj: Adjustments, day: number): MarketState {
+  const adds = stockAddsOn(adj, day);
+  if (adds.length === 0) return prev;
+  const stock: Record<string, Record<string, number>> = Object.fromEntries(Object.entries(prev.stock).map(([sku, bySt]) => [sku, { ...bySt }]));
+  for (const a of adds) stock[a.skuId] = { ...(stock[a.skuId] ?? {}), [a.state]: (stock[a.skuId]?.[a.state] ?? 0) + a.units };
+  return { ...prev, stock };
+}
 
 const QUARTERS_PER_SLOT = 4;
 /** Active shoppers per dark store (reach and frequency, SPEC §14 F7, F10). */
@@ -127,10 +144,16 @@ function resolve(pages: readonly Page[], active: ReadonlySet<string>): SlotResul
 
 export function stepDay(
   ctx: MarketContext,
-  prev: MarketState,
+  yesterday: MarketState,
   campaigns: readonly CampaignConfig[],
+  opts: StepOptions = {},
 ): { state: MarketState; result: DayResult } {
-  const day = prev.day + 1;
+  const day = yesterday.day + 1;
+  const adj = opts.adjustments ?? EMPTY_ADJUSTMENTS;
+  const events = activeOn(opts.events ?? [], day);
+  const prev = withStockAdds(yesterday, adj, day);
+  const extraSpend = extraSpendOn(adj, day);
+  const shelf = shelfMult(adj, day);
   const { scenario, market } = ctx;
   const cat = market.category;
   const weekday = (ctx.startWeekday + day - 1) % 7;
@@ -156,7 +179,7 @@ export function stepDay(
 
   // Daily caps, scaled down if they'd pass the scenario budget
   const caps = live.map((c) => [c.id, dailyCap(c, prev, day, ctx)] as const);
-  const allowed = Math.max(0, scenario.budget - prev.totalSpend);
+  const allowed = Math.max(0, scenario.budget - prev.totalSpend - extraSpend);
   const capTotal = caps.reduce((s, [, v]) => s + v, 0);
   const capScale = capTotal > allowed ? allowed / capTotal : 1;
   const remaining = new Map(caps.map(([id, v]) => [id, v * capScale]));
@@ -172,16 +195,21 @@ export function stepDay(
     const pages: Page[] = [];
     for (const unit of units) {
       for (const st of BLINKIT_STATES) {
-        const n = searches(market, { term: unit.id, dailyVolume: unit.dailyVolume }, st, slot, dctx);
+        const pageDemand = events.length ? { ...dctx, eventMults: demandMults(events, day, st, slot, unit.id) } : dctx;
+        const n = searches(market, { term: unit.id, dailyVolume: unit.dailyVolume }, st, slot, pageDemand);
         if (n === 0) continue;
         const rivals = market.rivals.flatMap((r) => {
+          if (events.length && rivalExited(events, day, r.id, st)) return [];
           const bid = rivalBid(r, prev.rivals[r.id], unit.id, day, cat.rivalPressure[slot]);
-          return bid === null ? [] : [{ id: `rival:${r.id}`, ownerId: r.id, bid, relevance: r.relevance }];
+          const lift = events.length ? rivalBidMult(events, day, r.id, st, unit.id) : 1;
+          return bid === null ? [] : [{ id: `rival:${r.id}`, ownerId: r.id, bid: bid * lift, relevance: r.relevance }];
         });
-        const bg = backgroundBidders(cat, cat.rivalPressure[slot], streamFor(ctx.seed, "bg", unit.id, st, slot, day), unit.competition);
-        const entries = !served.has(st) ? []
+        const bgLift = events.length ? rivalBidMult(events, day, null, st, unit.id) : 1;
+        const bg = backgroundBidders(cat, cat.rivalPressure[slot], streamFor(ctx.seed, "bg", unit.id, st, slot, day), unit.competition * bgLift);
+        const rawEntries = !served.has(st) ? []
           : unit.kind === "keyword" ? studentEntries(scheduled, keywordById.get(unit.id)!, st, market, scenario, prev)
           : placementEntries(scheduled, placementById.get(unit.id)!, st, market, scenario, prev);
+        const entries = shelf === 1 ? rawEntries : rawEntries.map((e) => ({ ...e, relevance: e.relevance * shelf }));
         pages.push({ unit, state: st, searches: n, viewRates: VIEW_RATES_BY_KIND[unit.kind], others: [...rivals, ...bg], entries });
       }
     }
@@ -262,15 +290,18 @@ export function stepDay(
             const cheapest = rivalPricesOnPage.length ? Math.min(...rivalPricesOnPage) : null;
             // Creative-led formats build reach and tire; search-led formats benefit from that reach.
             const creativeLed = CREATIVE_KINDS.has(p.unit.kind);
+            const cut = priceCutFor(adj, day, e.skuId);
+            const price = sku.mrp * (1 - cut.pct);
+            const eventCvr = events.length ? cvrMult(events, day, e.skuId, p.state, p.unit.id) : 1;
             const out = shopperOutcome({
               viewableImpressions: vi, baseCTR: cat.baseCTR * p.unit.ctrMult,
               creativeMult: creativeLed ? campaignById.get(e.campaignId)?.creativeMult ?? 1 : 1,
               affinity: creativeLed ? 1 : affinity(p.unit.isBrandTerm, reachShare),
               fatigueMult: creativeLed ? fatigueMult(frequency) : 1,
               baseCVR: cat.baseCVR * p.unit.cvrMult, fit: e.fit, intent: cat.intent[slot],
-              stateCVR: market.stateCVR[p.state as keyof typeof market.stateCVR] ?? 1,
-              priceEffect: priceEffect(sku.mrp, cheapest),
-              sellingPrice: sku.mrp, contributionPerUnit: sku.margin,
+              stateCVR: (market.stateCVR[p.state as keyof typeof market.stateCVR] ?? 1) * eventCvr,
+              priceEffect: priceEffect(price, cheapest),
+              sellingPrice: price, contributionPerUnit: sku.margin - cut.marginGivenUp,
             });
             cell.won += entered;
             cell.position = cell.position === null ? win.slot : Math.min(cell.position, win.slot);
@@ -309,7 +340,8 @@ export function stepDay(
     };
   });
 
-  const state = nextState(ctx, prev, day, finalCells, [...rivalRows.values()], termTotalVI, nextStock, nextSales);
+  const settled = nextState(ctx, prev, day, finalCells, [...rivalRows.values()], termTotalVI, nextStock, nextSales);
+  const state = extraSpend > 0 ? { ...settled, totalSpend: settled.totalSpend + extraSpend } : settled;
   return { state, result: { day, cells: finalCells, rivals: [...rivalRows.values()].map((r) => ({ ...r })), stock: stockRows } };
 }
 

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
+import { isEngineV2 } from "@/lib/engineFlag";
+import LiveDashboardV2 from "@/pages/LiveDashboardV2";
 import { useSim, REAL_MS_PER_SIM_DAY, CRISIS_DEADLINE_DAYS } from "@/context/SimContext";
 import type { SavedCampaign } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -273,10 +275,22 @@ function SOVTable({ keywords, goodKws, riskyKws, lifetimeImpressions }: {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+/** Picks the engine; checks the student and scenario first so neither page renders without them. */
 export default function LiveDashboard() {
+  const { student, scenario } = useSim();
+  if (!student) return <Navigate to="/" replace />;
+  if (!scenario) return <Navigate to="/brief" replace />;
+  return isEngineV2() ? <LiveDashboardV2 student={student} scenario={scenario} /> : <LiveDashboardV1 />;
+}
+
+function LiveDashboardV1() {
   const nav = useNavigate();
+  const sim = useSim();
+  // The wrapper above guarantees both are set
+  const student = sim.student!;
+  const scenario = sim.scenario!;
   const {
-    student, scenario, campaigns, cmPitch, optimizations, setOptimization,
+    campaigns, cmPitch, optimizations, setOptimization,
     stockLevels, setStockLevels, tokensRemaining, consumeToken,
     crisisResponses, recordCrisisResponse, startRun, activeRunId,
     simMode, setSimMode, assignmentPace, setAssignmentPace, simStartedAt,
@@ -286,10 +300,7 @@ export default function LiveDashboard() {
     setupScore, daypartingChanges, recordDaypartingChange,
     currentDay, setCurrentDay,
     saveRunResult, savedRunResults, deleteCampaign, runHistory, clearActiveRun,
-  } = useSim();
-
-  if (!student) { nav("/", { replace: true }); return null; }
-  if (!scenario) { nav("/brief", { replace: true }); return null; }
+  } = sim;
 
   // A run is "pre-launch" if there is no activeRunId, OR if the current run is
   // already marked completed (user ended/finished and came back to this page).

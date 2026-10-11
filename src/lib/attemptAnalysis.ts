@@ -7,6 +7,7 @@
 // Scores from different versions are never mixed in one statistic.
 
 import { crisisCardScore, type FinalScore, type ResultsScore } from "@/lib/newScoring";
+import type { ScoreV2 } from "@/market/scoringV2";
 import {
   RUBRICS, RUBRIC_BY_KEY, SCORE_SCHEMES, isRubricKey, lineGuide, lineTier, linesFromFinalScore, plainText,
   type LineResult, type RubricTier, type ScoreVersion,
@@ -73,6 +74,55 @@ export function buildSavedBreakdown(fs: FinalScore): SavedBreakdown {
     achievementPct: fs.results.achievementPct,
     lines: linesFromFinalScore(fs),
     goalRows: fs.results.goalRows,
+  };
+}
+
+export interface SavedBreakdownV2 {
+  version: 2;
+  grandTotal: number;
+  grade: FinalScore["grade"];
+  gradeLabel: string;
+  setup: number;
+  live: number;
+  eventsRohit: number;
+  results: number;
+  /** Same totals under the v1 names, for older readers (leaderboard, exports). */
+  liveOpt: number;
+  crisis: number;
+  achievementPct: number;
+  lines: LineResult[];
+  goalRows: GoalRow[];
+  costliestMistakes: ScoreV2["costliestMistakes"];
+}
+
+export function gradeFor(total: number): { grade: FinalScore["grade"]; gradeLabel: string } {
+  if (total >= 90) return { grade: "🏆", gradeLabel: "QCommerce Pro" };
+  if (total >= 75) return { grade: "🎯", gradeLabel: "Sharp Strategist" };
+  if (total >= 60) return { grade: "📈", gradeLabel: "Growing Fast" };
+  if (total >= 40) return { grade: "📚", gradeLabel: "Still Learning" };
+  return { grade: "😬", gradeLabel: "Back to Basics" };
+}
+
+/** The score_breakdown saved with a v2 attempt (SPEC §8: score_version 2). */
+export function buildSavedBreakdownV2(score: ScoreV2): SavedBreakdownV2 {
+  return {
+    version: 2,
+    grandTotal: score.grandTotal,
+    ...gradeFor(score.grandTotal),
+    setup: score.totals.setup,
+    live: score.totals.live,
+    eventsRohit: score.totals.eventsRohit,
+    results: score.totals.results,
+    liveOpt: score.totals.live,
+    crisis: score.totals.eventsRohit,
+    achievementPct: score.achievementPct,
+    lines: score.lines.map((l) => ({
+      key: l.key, label: l.label, category: l.category, earned: l.earned, max: l.max, note: l.note,
+      judgedOn: l.judgedOn, howToImprove: l.howToImprove,
+      tiers: l.tiers.map((t) => ({ points: t.points, condition: t.rule, short: t.rule })),
+    })),
+    goalRows: score.goalRows.map((g) => ({ ...g })),
+    costliestMistakes: score.costliestMistakes,
   };
 }
 

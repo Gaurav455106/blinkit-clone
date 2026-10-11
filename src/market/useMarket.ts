@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CampaignConfig, DayResult, MarketContext, MarketState } from "@/market/engineTypes";
 import { initialMarketState } from "@/market/state";
 import { handleStep, type StepRequest, type StepResponse } from "@/market/workerProtocol";
+import type { StepOptions } from "@/market/step";
 
 export interface MarketRun {
   state: MarketState | null;
@@ -15,7 +16,7 @@ export interface MarketRun {
   busy: boolean;
   error: string | null;
   /** Simulate the next day with these campaigns; resolves with that day's result. */
-  step: (campaigns: readonly CampaignConfig[]) => Promise<DayResult | null>;
+  step: (campaigns: readonly CampaignConfig[], opts?: StepOptions) => Promise<DayResult | null>;
   reset: () => void;
   /** Replace the run with a replayed history (e.g. after a page refresh). */
   restore: (statesByDay: readonly MarketState[], results: readonly DayResult[]) => void;
@@ -75,10 +76,10 @@ export function useMarket(ctx: MarketContext | null): MarketRun {
     });
   }, []);
 
-  const step = useCallback(async (campaigns: readonly CampaignConfig[]) => {
+  const step = useCallback(async (campaigns: readonly CampaignConfig[], opts?: StepOptions) => {
     if (!ctx || !state) return null;
     setBusy(true);
-    const res = await send({ id: nextId.current++, ctx, state, campaigns });
+    const res = await send({ id: nextId.current++, ctx, state, campaigns, opts });
     setBusy(false);
     if ("error" in res) {
       setError(res.error);

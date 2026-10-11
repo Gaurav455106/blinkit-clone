@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
+import { isEngineV2 } from "@/lib/engineFlag";
+import DebriefV2 from "@/pages/DebriefV2";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { FlowHeader } from "@/components/FlowHeader";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,14 @@ const shareText = (total: number) =>
   `I scored ${total}/100 on the Blinkit Ads Simulation by Kraftshala and was promoted to Senior Executive. #QCommercePro #Kraftshala`;
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
+/** Picks the results page for the engine the run used. */
 export default function Day30Results() {
+  const { student, scenario } = useSim();
+  if (isEngineV2() && student && scenario) return <DebriefV2 student={student} scenario={scenario} />;
+  return <Day30ResultsV1 />;
+}
+
+function Day30ResultsV1() {
   const nav = useNavigate();
   const {
     student, scenario, campaigns, cmPitch, weekTotals, decisionsLog, newScenario,
