@@ -30,6 +30,8 @@ const LIGHT = 0.7;
 /** Unique people reached ≈ 60% of views. */
 const REACH_PER_VIEW = 0.6;
 
+import { formatHint } from "@/market/formats";
+
 const roundTo = (n: number, step: number) => Math.max(step, Math.round(n / step) * step);
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -54,29 +56,29 @@ export function clientGoalsV2(scenario: Scenario): ClientGoals {
     return goals("Sell the extra stock before it goes old", "Retain",
       [{ label: "Units sold", target: roundTo(b.units * 1.1, 10), unit: "units" }, { label: "Minimum ROAS", target: round1(b.breakEven * 0.8), unit: "x" }],
       [],
-      "Clearing stock: put the money into ads that sell (Product Booster, Recommendation Ads). Skip awareness ads until stock is normal.");
+      formatHint(scenario));
   }
   switch (scenario.profile.goalType) {
     case "ROAS-First":
       return goals("Make sales that earn back more than the ads cost", "Convert",
         [{ label: "ROAS", target: round1(b.breakEven * 1.15), unit: "x" }, { label: "Units sold", target: units, unit: "units" }],
         [{ label: "Reach", target: reach, unit: "people" }],
-        "Start with Product Booster for shoppers who are already searching. Keep every bid below what a click is worth to you.");
+        formatHint(scenario));
     case "Volume-First":
       return goals("Sell as many units as possible without losing money", "Convert",
         [{ label: "Units sold", target: units, unit: "units" }, { label: "Minimum ROAS", target: round1(b.breakEven * 0.95), unit: "x" }],
         [{ label: "Reach", target: reach, unit: "people" }],
-        "Go for volume, but watch ROAS: below break-even, every extra sale loses money.");
+        formatHint(scenario));
     case "Awareness-First":
       return goals("Get the brand seen by lots of new shoppers", "Acquire",
         [{ label: "CTR", target: round1(b.ctrPct * 0.9), unit: "%" }, { label: "Units sold", target: roundTo(b.units * LIGHT, 10), unit: "units" }],
         [{ label: "Impressions", target: impressions, unit: "views" }],
-        "Lead with Listing Spotlight or Brand Booster so shoppers notice the brand. Add a small Product Booster for people already searching.");
+        formatHint(scenario));
     case "Category-Creation":
       return goals("Teach shoppers that this kind of product exists", "Acquire",
         [{ label: "Units sold", target: roundTo(b.units * LIGHT, 10), unit: "units" }],
         [{ label: "Reach", target: reach, unit: "people" }, { label: "Impressions", target: impressions, unit: "views" }],
-        "Few people search for this yet, so search ads alone won't work. Use Listing Spotlight and Stories to show shoppers the product.");
+        formatHint(scenario));
     default:
       return scenario.clientGoals;
   }
