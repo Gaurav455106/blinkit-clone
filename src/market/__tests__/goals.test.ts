@@ -28,3 +28,24 @@ describe("v2 client goals (calibrated to the engine)", () => {
     }
   });
 });
+
+describe("goal targets follow the stock label (what good play can reach)", () => {
+  const withTone = (id: string, tone: "healthy" | "warning" | "critical") => {
+    const s = testContext(id).scenario;
+    return clientGoalsV2({ ...s, inventory: { ...s.inventory, tone } });
+  };
+  const target = (g: ReturnType<typeof clientGoalsV2>, label: string) => g.metrics.find((m) => m.label === label)?.target ?? 0;
+
+  it("critical stock lowers units and views targets; ROAS and CTR stay", () => {
+    const healthy = withTone("glow", "healthy"), critical = withTone("glow", "critical");
+    expect(target(critical, "Impressions") / target(healthy, "Impressions")).toBeCloseTo(0.4, 1);
+    expect(target(critical, "Units sold") / target(healthy, "Units sold")).toBeCloseTo(0.3, 1);
+    expect(target(critical, "CTR")).toBe(target(healthy, "CTR"));
+    const fuelHealthy = withTone("fuelup", "healthy"), fuelCritical = withTone("fuelup", "critical");
+    expect(target(fuelCritical, "ROAS")).toBe(target(fuelHealthy, "ROAS"));
+  });
+
+  it("shaky stock trims them a little", () => {
+    expect(target(withTone("henlo", "warning"), "Units sold") / target(withTone("henlo", "healthy"), "Units sold")).toBeCloseTo(0.9, 1);
+  });
+});

@@ -396,25 +396,33 @@ function goalActual(label: string, m: Metrics): number | null {
 
 export interface GoalRowV2 { label: string; goal: number; actual: number; unit: string; pct: number }
 
-/** Each measurable client goal with the run's actual value; pct is capped at 150. */
+/** Each goal counts up to 100%: beating one goal can't make up for missing another. */
+const GOAL_CAP = 1;
+
+/** Average achievement across goals, each capped at 100% (ratios of actual to target). */
+export function goalAchievement(ratios: readonly number[]): number {
+  return ratios.length ? ratios.reduce((s, r) => s + Math.min(GOAL_CAP, Math.max(0, r)), 0) / ratios.length : 0;
+}
+
+/** Each measurable client goal with the run's actual value; pct is capped at 100. */
 export function goalRowsV2(ctx: MarketContext, run: Metrics): GoalRowV2[] {
   return clientGoalsV2(ctx.scenario).metrics
     .map((g) => ({ g, actual: goalActual(g.label, run) }))
     .filter((r): r is { g: typeof r.g; actual: number } => r.actual !== null && r.g.target > 0)
-    .map(({ g, actual }) => ({ label: g.label, goal: g.target, actual, unit: g.unit, pct: Math.round(Math.min(1.5, actual / g.target) * 100) }));
+    .map(({ g, actual }) => ({ label: g.label, goal: g.target, actual, unit: g.unit, pct: Math.round(Math.min(GOAL_CAP, actual / g.target) * 100) }));
 }
 
 function goalsLine(input: ScoreV2Input, run: Metrics): ScoreLineV2 {
   const rows = clientGoalsV2(input.ctx.scenario).metrics
     .map((g) => ({ g, actual: goalActual(g.label, run) }))
     .filter((r): r is { g: typeof r.g; actual: number } => r.actual !== null && r.g.target > 0);
-  const achievement = rows.length ? rows.reduce((s, r) => s + Math.min(1.5, r.actual / r.g.target), 0) / rows.length : 0;
+  const achievement = goalAchievement(rows.map((r) => r.actual / r.g.target));
   const earned = achievement >= 0.9 ? 10 : achievement >= 0.7 ? 7 : achievement >= 0.5 ? 4 : rows.length ? 1 : 0;
   return line({
     key: "v2_goals", category: "results", label: "Client goals", earned, max: 10,
-    judgedOn: "How close you got to the client's goals, on average. Going past a goal counts up to 150%.",
+    judgedOn: "How close you got to the client's goals, on average. Each goal counts up to 100%, so beating one can't make up for missing another.",
     tiers: [{ points: 10, rule: "≥ 90%" }, { points: 7, rule: "≥ 70%" }, { points: 4, rule: "≥ 50%" }, { points: 1, rule: "< 50%" }],
-    note: rows.length ? `${Math.round(achievement * 100)}% average: ${rows.map((r) => `${r.g.label} ${Math.round((r.actual / r.g.target) * 100)}%`).join(", ")}.` : "No measurable client goals.",
+    note: rows.length ? `${Math.round(achievement * 100)}% average: ${rows.map((r) => `${r.g.label} ${Math.round(Math.min(GOAL_CAP, r.actual / r.g.target) * 100)}%${r.actual > r.g.target ? " (beaten)" : ""}`).join(", ")}.` : "No measurable client goals.",
     howToImprove: "Plan the run backwards from the client goals and check them at each weekly checkpoint.",
   });
 }
@@ -496,6 +504,6 @@ export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
     version: 2, lines, totals,
     grandTotal: round1(Object.values(totals).reduce((s, x) => s + x, 0)),
     moments: live.moments, costliestMistakes, run,
-    goalRows, achievementPct: goalRows.length ? Math.round(goalRows.reduce((s, r) => s + r.pct, 0) / goalRows.length) : 0,
+    goalRows, achievementPct: Math.round(goalAchievement(goalRows.map((r) => r.actual / r.goal)) * 100),
   };
 }

@@ -27,6 +27,15 @@ export const GOAL_BENCHMARKS: Readonly<Record<string, GoalBenchmark>> = {
 
 const STRETCH = 0.85;
 const LIGHT = 0.7;
+/** Share of the healthy-stock units and views that good play can still reach, by stock label.
+ *  Measured with the benchmark strategies on all 7 brands (2026-10-12): shaky ~0.92 / 0.92,
+ *  critical ~0.31 / 0.39. Rates (ROAS, CTR) don't depend on stock, so they aren't scaled. */
+const STOCK_REACH: Readonly<Partial<Record<string, { units: number; views: number }>>> = {
+  healthy: { units: 1, views: 1 },
+  warning: { units: 0.9, views: 0.9 },
+  critical: { units: 0.3, views: 0.4 },
+};
+
 /** Unique people reached ≈ 60% of views. */
 const REACH_PER_VIEW = 0.6;
 
@@ -48,9 +57,11 @@ function goals(primary: string, lifecycle: ClientGoals["lifecycle"], performance
 export function clientGoalsV2(scenario: Scenario): ClientGoals {
   const b = GOAL_BENCHMARKS[scenario.profile.id];
   if (!b) return scenario.clientGoals;
-  const units = roundTo(b.units * STRETCH, 10);
-  const reach = roundTo(b.views * REACH_PER_VIEW * STRETCH, 1000);
-  const impressions = roundTo(b.views * STRETCH, 1000);
+  const stock = STOCK_REACH[scenario.inventory.tone] ?? { units: 1, views: 1 };
+  const units = roundTo(b.units * STRETCH * stock.units, 10);
+  const reach = roundTo(b.views * REACH_PER_VIEW * STRETCH * stock.views, 1000);
+  const impressions = roundTo(b.views * STRETCH * stock.views, 1000);
+  const lightUnits = roundTo(b.units * LIGHT * stock.units, 10);
 
   if (scenario.inventory.tone === "overstocked") {
     return goals("Sell the extra stock before it goes old", "Retain",
@@ -71,12 +82,12 @@ export function clientGoalsV2(scenario: Scenario): ClientGoals {
         formatHint(scenario));
     case "Awareness-First":
       return goals("Get the brand seen by lots of new shoppers", "Acquire",
-        [{ label: "CTR", target: round1(b.ctrPct * 0.9), unit: "%" }, { label: "Units sold", target: roundTo(b.units * LIGHT, 10), unit: "units" }],
+        [{ label: "CTR", target: round1(b.ctrPct * 0.9), unit: "%" }, { label: "Units sold", target: lightUnits, unit: "units" }],
         [{ label: "Impressions", target: impressions, unit: "views" }],
         formatHint(scenario));
     case "Category-Creation":
       return goals("Teach shoppers that this kind of product exists", "Acquire",
-        [{ label: "Units sold", target: roundTo(b.units * LIGHT, 10), unit: "units" }],
+        [{ label: "Units sold", target: lightUnits, unit: "units" }],
         [{ label: "Reach", target: reach, unit: "people" }, { label: "Impressions", target: impressions, unit: "views" }],
         formatHint(scenario));
     default:
