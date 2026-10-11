@@ -21,8 +21,9 @@
 import type { Scenario } from "@/data/scenarios";
 import type { SavedCampaign } from "@/context/SimContext";
 import type { RunTotals } from "@/lib/engine";
-import { computeGeoQuality, computeKwQuality, computeDaypartMult, getPeakBlocks } from "@/lib/engine";
+import { computeKwQuality, computeDaypartMult, getPeakBlocks } from "@/lib/engine";
 import { requiredBuckets, isAwarenessFormat, isConversionFormat } from "@/lib/scoring";
+import { stockedStateNames, deliverableStates, stockedCoverage } from "@/lib/geoCoverage";
 
 // ─── Category maxes — single source for every score display ──────────────────
 
@@ -88,7 +89,7 @@ export interface FinalScore {
  *   Both wrong                                  → 0
  *
  * Geography + Targeting (15 pts):
- *   Geography (7): stocked cities only = 7, pan India + bad stock = 0, acceptable = 4
+ *   Geography (7): reaches all stocked states (Pan India counts) = 7, ≥ half = 4, some = 2, none = 0
  *   Keywords (5):  all good = 5, mixed = 3, all risky / none = 1
  *   SKU focus (3): hero or 1 SKU = 3, top 2-3 = 2, all = 0
  */
@@ -141,29 +142,29 @@ export function scoreSetup(scenario: Scenario, campaigns: SavedCampaign[]): Setu
   };
 
   // ── Geography (7 pts) ─────────────────────────────────────────────────────
-  // Check if student targeted states that actually have stock.
-  // We use the scenario's cityStockMap as the OSA source (pre-simulation).
-  const allSelectedCities = campaigns.flatMap(c => c.cities);
-  const badCities = allSelectedCities.filter(city => (scenario.cityStockMap[city] ?? 0) === 0);
-  const hasPanIndia = campaigns.some(c => c.geography === "pan_india");
-  const stockedStateCount = Object.values(scenario.cityStockMap).filter(v => v > 0).length;
+  // Blinkit only runs ads where stock exists, so Pan India and unstocked
+  // selections cost nothing. Score how many stocked states the campaigns reach
+  // together (scenario.cityStockMap is the pre-simulation OSA source).
+  const stocked = stockedStateNames(scenario.cityStockMap);
+  const reached = new Set(campaigns.flatMap(c => deliverableStates(c, scenario.cityStockMap)));
+  const coverage = stocked.length === 0 ? 0 : reached.size / stocked.length;
+  const missed = stocked.filter(s => !reached.has(s));
 
   let geoEarned: number;
   let geoNote: string;
 
-  if (hasPanIndia && stockedStateCount <= 5) {
-    geoEarned = 0;
-    geoNote   = `Pan India targeting with stock in only ${stockedStateCount} states — ${23 - stockedStateCount} states had zero stock and delivered nothing.`;
-  } else if (badCities.length === 0 && !hasPanIndia) {
+  if (coverage >= 1) {
     geoEarned = 7;
-    geoNote   = "Selected only states with live stock — full budget delivers.";
-  } else if (badCities.length > 0) {
-    const pct = Math.round((badCities.length / allSelectedCities.length) * 100);
-    geoEarned = pct > 50 ? 2 : 4;
-    geoNote   = `${badCities.length} of ${allSelectedCities.length} targeted states had zero stock — ${pct}% of budget under-delivered.`;
+    geoNote   = `Reaches all ${stocked.length} stocked states. Ads only run where stock exists, so nothing is wasted elsewhere.`;
+  } else if (coverage >= 0.5) {
+    geoEarned = 4;
+    geoNote   = `Misses stocked demand in ${missed.join(", ")}. Pan India would have covered it at no extra cost.`;
+  } else if (coverage > 0) {
+    geoEarned = 2;
+    geoNote   = `Reaches only ${reached.size} of ${stocked.length} stocked states. Most of the demand you could serve is left out.`;
   } else {
-    geoEarned = 5;
-    geoNote   = "Geo selection acceptable — a few borderline states included.";
+    geoEarned = 0;
+    geoNote   = "None of the targeted states has stock, so the ads can't run anywhere.";
   }
 
   const geoLine: ScoreLine = {
@@ -330,12 +331,10 @@ export function scoreNewCampaign(params: {
     };
   }
 
-  // Evaluate if new campaigns improved on the originals
-  const origBadCities = new Set(
-    originalCampaigns
-      .flatMap(c => c.cities)
-      .filter(city => (scenario.cityStockMap[city] ?? 0) === 0),
-  );
+  // Evaluate if new campaigns improved on the originals: reaching more of the
+  // stocked states (ads never run in unstocked ones, so those cost nothing),
+  // or dropping risky keywords.
+  const origCoverage = Math.max(0, ...originalCampaigns.map(c => stockedCoverage(c, scenario.cityStockMap)));
   const origRiskyKws = new Set(
     originalCampaigns
       .flatMap(c => c.keywords)
@@ -344,9 +343,8 @@ export function scoreNewCampaign(params: {
 
   let improved = 0;
   for (const nc of newCampaigns) {
-    const newBadCities = nc.cities.filter(city => origBadCities.has(city));
-    const newRiskyKws  = nc.keywords.filter(k => origRiskyKws.has(k));
-    if (newBadCities.length < Math.max(1, origBadCities.size) || newRiskyKws.length < origRiskyKws.size) {
+    const newRiskyKws = nc.keywords.filter(k => origRiskyKws.has(k));
+    if (stockedCoverage(nc, scenario.cityStockMap) > origCoverage || newRiskyKws.length < origRiskyKws.size) {
       improved++;
     }
   }
