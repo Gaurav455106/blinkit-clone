@@ -6,6 +6,8 @@ import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { SimPage, PageHeader, StatTile, Section, Tag, EmptyState } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTour } from "@/components/tour/useTour";
+import { TourButton } from "@/components/tour/TourButton";
 
 /** Goal achievement at or above this counts as "goal met". */
 const GOAL_MET_PCT = 90;
@@ -46,6 +48,8 @@ export default function Dashboard() {
     if (!hasInProgressRun && campaigns.length > 0) clearCampaigns();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useTour("dashboard", student?.email, !!student && !!scenario);
+
   if (!student) { nav("/", { replace: true }); return null; }
   if (!scenario) { newScenario(); return null; }
 
@@ -79,16 +83,21 @@ export default function Dashboard() {
             eyebrow="Dashboard"
             title={`Welcome back, ${student.name}`}
             description={<>You run Blinkit ads for a brand. Your brand right now: <span className="font-medium text-foreground">{scenario.profile.name}</span> ({scenario.profile.category}).</>}
-            actions={activeInProgress ? (
-              <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
-                <FileText className="h-4 w-4" /> Re-read brief
-              </Button>
-            ) : undefined}
+            actions={
+              <>
+                <TourButton />
+                {activeInProgress && (
+                  <Button variant="outline" onClick={() => nav("/brief")} className="gap-2">
+                    <FileText className="h-4 w-4" /> Re-read brief
+                  </Button>
+                )}
+              </>
+            }
           />
 
           <div className="space-y-6">
             {/* Next step */}
-            <section aria-labelledby="next-step" className="rounded-2xl bg-primary px-6 py-6 text-primary-foreground md:px-8">
+            <section data-tour="dash-next-step" aria-labelledby="next-step" className="rounded-2xl bg-primary px-6 py-6 text-primary-foreground md:px-8">
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                 <div className="max-w-[60ch]">
                   <p className="text-sm text-primary-foreground/75">{activeInProgress ? "Run in progress" : "Your next step"}</p>
@@ -106,7 +115,7 @@ export default function Dashboard() {
                 </Button>
               </div>
               {!activeInProgress && (
-                <ol className="mt-6 grid gap-2 text-sm sm:grid-cols-4">
+                <ol data-tour="dash-steps" className="mt-6 grid gap-2 text-sm sm:grid-cols-4">
                   {STEPS.map((s, i) => (
                     <li key={s} className={cn("rounded-lg px-3 py-2", i === 0 ? "bg-primary-foreground/15 font-medium" : "text-primary-foreground/70")}>
                       <span className="sim-num mr-2 text-primary-foreground/60">{i + 1}</span>{s}
@@ -128,7 +137,7 @@ export default function Dashboard() {
             )}
 
             {/* Attempts summary */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div data-tour="dash-stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatTile label="Attempts" value={runHistory.length} hint={`${completed.length} finished`} />
               <StatTile label="Best score" value={bestScore ? `${bestScore}/100` : "None yet"} />
               <StatTile label="Average score" value={avgScore ? `${avgScore}/100` : "None yet"} />
@@ -136,6 +145,7 @@ export default function Dashboard() {
             </div>
 
             {/* Past attempts */}
+            <div data-tour="dash-history">
             {past.length === 0 ? (
               <EmptyState
                 title="No attempts yet"
@@ -203,6 +213,7 @@ export default function Dashboard() {
                 </div>
               </Section>
             )}
+            </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Button variant="link" onClick={() => nav("/leaderboard")} className="px-0">

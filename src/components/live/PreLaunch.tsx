@@ -31,13 +31,13 @@ export function PreLaunch({ brandName, campaigns, calendar, onNew, onEdit, onDel
         description="Build your campaigns in the Blinkit wizard. When you go live, 30 days run one at a time. You can change bids, budgets, hours and states every day, and add campaigns any time."
         actions={
           <>
-            <Button variant="outline" onClick={onNew}><Plus className="mr-1 h-4 w-4" />New campaign</Button>
-            <Button onClick={onGoLive} disabled={ready.length === 0}><Rocket className="mr-1 h-4 w-4" />Go live</Button>
+            <Button data-tour="v2-new-campaign" variant="outline" onClick={onNew}><Plus className="mr-1 h-4 w-4" />New campaign</Button>
+            <Button data-tour="v2-go-live" onClick={onGoLive} disabled={ready.length === 0}><Rocket className="mr-1 h-4 w-4" />Go live</Button>
           </>
         }
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <Section title="Your campaigns" description="These start on day 1. Drafts don't run until you finish them.">
+        <Section tour="v2-campaign-list" title="Your campaigns" description="These start on day 1. Drafts don't run until you finish them.">
           {campaigns.length === 0 ? (
             <EmptyState
               title="No campaigns yet"
@@ -64,7 +64,7 @@ export function PreLaunch({ brandName, campaigns, calendar, onNew, onEdit, onDel
             </ul>
           )}
         </Section>
-        <CalendarStrip calendar={calendar} day={0} />
+        <div data-tour="v2-calendar"><CalendarStrip calendar={calendar} day={0} /></div>
       </div>
     </>
   );

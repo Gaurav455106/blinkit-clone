@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, ChevronLeft, BarChart2, Megaphone, Bookmark, Package, Menu, X } from "lucide-react";
+import { useTour } from "@/components/tour/useTour";
 
 type PlatformView = "brand_collections" | "catalogue" | null;
 
@@ -94,6 +95,8 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
 
   // ── Platform sidebar state ──
   const [platformView, setPlatformView] = useState<PlatformView>(null);
+  // First-time guide to the wizard (sim layer; adds no fields or steps)
+  useTour("wizard", student?.email, currentStep === 0 && platformView === null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => !!asSheet);
   const [createdCollections, setCreatedCollections] = useState<BrandCollection[]>([]);
   const [storiesShowErrors, setStoriesShowErrors] = useState(false);
@@ -285,7 +288,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
   return (
     <div ref={wizardRootRef} className={`flex w-full ${asSheet ? "h-full" : "h-screen"} bg-background overflow-hidden`}>
       {/* ── Platform sidebar ── */}
-      <div className={`flex flex-col border-r border-border bg-card h-full transition-all duration-200 ${sidebarCollapsed ? "w-14" : "w-52"} shrink-0`}>
+      <div data-tour="wizard-sidebar" className={`flex flex-col border-r border-border bg-card h-full transition-all duration-200 ${sidebarCollapsed ? "w-14" : "w-52"} shrink-0`}>
         <div className="flex items-center gap-2 px-3 py-4 border-b border-border">
           <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="text-muted-foreground hover:text-foreground p-1 rounded">
             <Menu className="h-5 w-5" />
@@ -374,7 +377,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
       </div>
 
       {/* Stepper — in its own card */}
-      <div className="px-8 pb-4">
+      <div data-tour="wizard-stepper" className="px-8 pb-4">
         <div className="bg-card border border-border rounded-lg px-8 py-5">
           <Stepper
             currentStep={currentStep}
@@ -390,7 +393,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
         {currentStep === 0 && (
           <div className="max-w-3xl space-y-8">
             {/* Campaign Name */}
-            <div className="space-y-1">
+            <div data-tour="wizard-name" className="space-y-1">
               <label className="text-sm font-semibold text-foreground">
                 Add a campaign name
               </label>
@@ -407,7 +410,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
             </div>
 
             {/* Advertising Objective */}
-            <div className="space-y-1">
+            <div data-tour="wizard-objective" className="space-y-1">
               <label className="text-sm font-semibold text-foreground">
                 Select your advertising objective
               </label>
@@ -721,6 +724,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
           </Button>
         )}
         <Button
+          data-tour="wizard-next"
           onClick={handleNext}
           disabled={
             (currentStep === 0 && (!objective || !adAsset || !campaignName.trim() || isDuplicateName)) ||

@@ -30,6 +30,7 @@ import { debriefFilename, debriefSheets, VERDICT_LABEL } from "@/lib/debriefV2Ex
 import { REPORT_README } from "@/market/reports";
 import { downloadWorkbook } from "@/lib/excel";
 import { describeDeal } from "@/components/deal/describeDeal";
+import { useTour } from "@/components/tour/useTour";
 
 const PITCH_MAX = 15;
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
@@ -117,6 +118,7 @@ export default function DebriefV2({ student, scenario }: Props) {
   const saved = useMemo(() => (score ? buildSavedBreakdownV2(score) : null), [score]);
   const summaries = useMemo(() => (saved ? qualitativeSummary(saved.lines, 2) : []), [saved]);
   useSaveAttempt(student, scenario, saved, campaigns.filter((c) => !c.isDraft).length);
+  useTour("resultsV2", student.email, !!score);
 
   const shell = (content: React.ReactNode) => (
     <div className="flex h-screen w-full overflow-hidden">
@@ -155,12 +157,13 @@ export default function DebriefV2({ student, scenario }: Props) {
   return shell(
     <>
       <PageHeader
+        tour="results-header"
         eyebrow={`${scenario.profile.name} · 30 days`}
         title={`${score.grandTotal} / 100 · ${saved.gradeLabel}`}
         description="Every point below says what we looked at, what you did and what would have earned more."
         actions={
           <>
-            <Button variant="outline" onClick={exportAll}><Download className="mr-1 h-4 w-4" />Download results (Excel)</Button>
+            <Button data-tour="results-download" variant="outline" onClick={exportAll}><Download className="mr-1 h-4 w-4" />Download results (Excel)</Button>
             <Button variant="ghost" onClick={() => nav("/dashboard")}><RotateCcw className="mr-1 h-4 w-4" />Back to dashboard</Button>
           </>
         }
@@ -174,7 +177,7 @@ export default function DebriefV2({ student, scenario }: Props) {
           <StatTile label="Profit after ads" value={rupees(score.run.profit)} tone={score.run.profit >= 0 ? "good" : "bad"} />
         </div>
         {score.costliestMistakes.length > 0 && (
-          <Section title="Your costliest mistakes" description="The moments where a different move would have earned the most, measured by replaying the same days.">
+          <Section tour="results-mistakes" title="Your costliest mistakes" description="The moments where a different move would have earned the most, measured by replaying the same days.">
             <ol className="space-y-2">
               {score.costliestMistakes.map((c, i) => (
                 <li key={c.title} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -187,17 +190,17 @@ export default function DebriefV2({ student, scenario }: Props) {
             </ol>
           </Section>
         )}
-        <ScoreSummary summaries={summaries} />
+        <div data-tour="results-summary"><ScoreSummary summaries={summaries} /></div>
         {openingDeal && (
-          <Section title="Your deal with Rohit" description={`Rohit's trust started at ${openingDeal.relationship} of 100.`}>
+          <Section tour="results-deal" title="Your deal with Rohit" description={`Rohit's trust started at ${openingDeal.relationship} of 100.`}>
             <ul className="space-y-1 text-sm text-foreground">{describeDeal(run.ctx, openingDeal.terms).map((l) => <li key={l}>{l}</li>)}</ul>
           </Section>
         )}
-        <Section title="Decision moments" description="Each time the data called for action, what you did and how it compared with the best move.">
+        <Section tour="results-moments" title="Decision moments" description="Each time the data called for action, what you did and how it compared with the best move.">
           <MomentList moments={score.moments} />
         </Section>
         <GoalTable goals={saved.goalRows} achievementPct={saved.achievementPct} />
-        <ScoreBreakdown lines={saved.lines} version={2} />
+        <div data-tour="results-breakdown"><ScoreBreakdown lines={saved.lines} version={2} /></div>
       </div>
     </>,
   );

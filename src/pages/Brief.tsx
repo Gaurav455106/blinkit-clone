@@ -21,6 +21,7 @@ import { PinnedNotes } from "@/components/brief/PinnedNotes";
 import { BriefQuiz } from "@/components/brief/BriefQuiz";
 import { BudgetSplit } from "@/components/brief/BudgetSplit";
 import { defaultConversionPct } from "@/components/brief/budgetPlan";
+import { useTour } from "@/components/tour/useTour";
 
 const TABS = [
   { value: "economics", label: "Economics" },
@@ -46,6 +47,7 @@ export default function Brief() {
   const market = scenario ? MARKET_DATA[scenario.profile.id] : undefined;
   const ctx = useMemo(() => (scenario && student ? marketContextFor(scenario, student.batch) : null), [scenario, student]);
   const rivals = useMemo(() => (scenario && market ? briefRivals(scenario.profile, market) : []), [scenario, market]);
+  useTour("brief", student?.email, !!student && !!scenario);
   const states = useMemo(() => (scenario && market ? stateDemandRows(scenario, market) : []), [scenario, market]);
   const hours = useMemo(() => (market ? shoppingHours(market.category) : null), [market]);
 
@@ -77,9 +79,9 @@ export default function Brief() {
 
           <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
             <div className="min-w-0 space-y-8">
-              <BriefSummary scenario={scenario} stocked={stocked} rivals={rivals} hours={hours} />
+              <div data-tour="brief-summary"><BriefSummary scenario={scenario} stocked={stocked} rivals={rivals} hours={hours} /></div>
 
-              <Tabs value={tab} onValueChange={(v) => setTab(v as BriefTab)}>
+              <Tabs data-tour="brief-tabs" value={tab} onValueChange={(v) => setTab(v as BriefTab)}>
                 <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary p-1">
                   {TABS.map((t) => (
                     <TabsTrigger
@@ -98,11 +100,11 @@ export default function Brief() {
                 <TabsContent value="stakeholders" className="mt-6"><StakeholdersTab profile={profile} /></TabsContent>
               </Tabs>
 
-              <BudgetSplit goalType={profile.goalType} budget={budget} convPct={convPct} onChange={setConvPct} />
+              <div data-tour="brief-budget"><BudgetSplit goalType={profile.goalType} budget={budget} convPct={convPct} onChange={setConvPct} /></div>
 
-              <BriefQuiz goalType={profile.goalType} primaryState={profile.primaryState} stock={cityStockMap} onStatusChange={setQuizDone} />
+              <div data-tour="brief-quiz"><BriefQuiz goalType={profile.goalType} primaryState={profile.primaryState} stock={cityStockMap} onStatusChange={setQuizDone} /></div>
 
-              <div className="flex flex-col gap-4 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+              <div data-tour="brief-continue" className="flex flex-col gap-4 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-accent-foreground">
                   {quizDone ? "Next: meet Rohit, the category manager, and pitch for shelf support." : "Answer both questions above to continue."}
                 </p>
@@ -112,7 +114,7 @@ export default function Brief() {
               </div>
             </div>
 
-            <div className="xl:sticky xl:top-6 xl:self-start">
+            <div data-tour="brief-notes" className="xl:sticky xl:top-6 xl:self-start">
               <PinnedNotes />
             </div>
           </div>

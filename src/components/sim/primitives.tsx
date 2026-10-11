@@ -14,14 +14,16 @@ export function SimPage({ children, className, wide = false }: { children: React
   );
 }
 
-export function PageHeader({ eyebrow, title, description, actions }: {
+export function PageHeader({ eyebrow, title, description, actions, tour }: {
   eyebrow?: string;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  /** Guided-tour anchor (data-tour). */
+  tour?: string;
 }) {
   return (
-    <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <header data-tour={tour} className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-[68ch]">
         {eyebrow && <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">{eyebrow}</p>}
         <h1 className="text-3xl font-semibold leading-tight text-foreground md:text-[2.15rem]">{title}</h1>
@@ -53,15 +55,17 @@ export function StatTile({ label, value, hint, tone = "neutral" }: { label: stri
   );
 }
 
-export function Section({ title, description, actions, children, className }: {
+export function Section({ title, description, actions, children, className, tour }: {
   title?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Guided-tour anchor (data-tour). */
+  tour?: string;
 }) {
   return (
-    <section className={cn("rounded-2xl bg-card p-6 shadow-[0_1px_0_hsl(var(--border)),0_12px_32px_-24px_hsl(24_30%_20%/0.3)]", className)}>
+    <section data-tour={tour} className={cn("rounded-2xl bg-card p-6 shadow-[0_1px_0_hsl(var(--border)),0_12px_32px_-24px_hsl(24_30%_20%/0.3)]", className)}>
       {(title || actions) && (
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-[70ch]">

@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Check, Home, ChevronLeft, ChevronRight, Eye, X } from "lucide-react";
 import { useSim } from "@/context/SimContext";
+import { TourButton } from "@/components/tour/TourButton";
 
 const FLOW = [
   { key: "brief", label: "Brief", path: "/brief" },
@@ -47,6 +48,7 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
       <div className="px-8 pt-3 pb-2 flex items-center justify-between gap-4">
         <div className="text-xs text-muted-foreground">Brand Central › {crumb}</div>
         <div className="flex items-center gap-1">
+          <TourButton className="h-7 px-2" />
           {backTo && step !== "simulation" && step !== "results" && (
             <Button variant="ghost" size="sm" onClick={() => nav(backTo)} className="gap-1 h-7 px-2">
               <ChevronLeft className="h-3.5 w-3.5" /> {backLabel ?? "Back"}
