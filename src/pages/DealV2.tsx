@@ -19,6 +19,7 @@ import { RelationshipMeter } from "@/components/rohit/RelationshipMeter";
 import { StockSplitEditor } from "@/components/deal/StockSplitEditor";
 import { AsksPicker, GivesPicker } from "@/components/deal/DealTermsPicker";
 import { describeDeal } from "@/components/deal/describeDeal";
+import { useTour } from "@/components/tour/useTour";
 import {
   allowedStates, briefStock, defaultDeal, stockPool, validateDeal,
   type DealTerms, type OpeningDeal,
@@ -43,6 +44,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
   const [talk, setTalk] = useState<NegotiationState | null>(null);
   const [done, setDone] = useState<OpeningDeal | null>(null);
   const problems = validateDeal(ctx, sheet);
+  useTour("deal", student.email, talk === null);
   const turn = talk ? rohitTurn(ctx, talk) : null;
 
   const send = () => {
@@ -87,7 +89,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
 
           {!talk && (
             <div className="space-y-6">
-              {intro}
+              <div data-tour="deal-rohit">{intro}</div>
               <StockSplitEditor
                 skus={profile.skus} states={states} demand={demand} pool={pool} value={sheet.stock}
                 onChange={(stock) => setSheet({ ...sheet, stock })}
@@ -95,7 +97,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
               />
               <AsksPicker states={states} asks={sheet.asks} onChange={(asks) => setSheet({ ...sheet, asks })} />
               <GivesPicker skus={profile.skus} states={states} gives={sheet.gives} onChange={(gives) => setSheet({ ...sheet, gives })} />
-              <div className="flex flex-col gap-3 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+              <div data-tour="deal-send" className="flex flex-col gap-3 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-accent-foreground">
                   {showErrors && problems.length > 0
                     ? <ul className="space-y-1 text-sim-bad">{problems.map((p) => <li key={p}>{p}</li>)}</ul>

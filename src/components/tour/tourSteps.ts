@@ -20,7 +20,7 @@ export interface TourDef {
 }
 
 export type TourId =
-  | "dashboard" | "brief" | "cmPitch" | "wizard" | "setupScore"
+  | "dashboard" | "brief" | "cmPitch" | "deal" | "wizard" | "setupScore"
   | "liveV1Setup" | "liveV1Run" | "liveV2Setup" | "liveV2Run"
   | "resultsV1" | "resultsV2";
 
@@ -55,6 +55,17 @@ export const TOURS: Readonly<Record<TourId, TourDef>> = {
       { target: "pitch-tokens", title: "Tokens", body: "A weak pitch costs a token, and so does pitching again. You can't earn more, so get it right.", side: "bottom" },
       { target: "pitch-skus", title: "Pick products and states", body: "For each product, say whether to include it, where to sell it and why. Pick reasons the brief backs up.", side: "top" },
       { target: "pitch-send", title: "Send your pitch", body: "Rohit replies with questions. Your answers decide your pitch score, out of 15.", side: "top" },
+    ],
+  },
+  deal: {
+    name: "Striking a deal with Rohit",
+    steps: [
+      { target: "#cm-relationship-section", title: "Rohit's trust", body: "This meter shows how much Rohit trusts you. A fair deal starts it higher, and a higher score gets you better treatment during the run.", side: "right" },
+      { target: "deal-rohit", title: "What Rohit can see", body: "Rohit knows where people search for your products. Use these numbers: he checks every part of your deal against them.", side: "bottom" },
+      { target: "deal-stock", title: "Where your stock goes", body: "Split each product's stock across the states. Ads only run where there is stock, so follow the searches.", side: "top" },
+      { target: "deal-asks", title: "What you ask for", body: "Up to two extras: more stores, a better shelf spot or a fast restock. Each one costs Rohit something.", side: "top" },
+      { target: "deal-gives", title: "What you offer back", body: "Ad spend, a discount or a stock promise. Promises are tracked during the run, so only offer what you can keep.", side: "top" },
+      { target: "deal-send", title: "Send it", body: "Rohit pushes back where your numbers don't add up. Every reply shows its cost, and you can always walk away.", side: "top" },
     ],
   },
   wizard: {
@@ -132,6 +143,7 @@ export const TOURS: Readonly<Record<TourId, TourDef>> = {
       { target: "results-header", title: "Your score", body: "Your total out of 100 and your grade.", side: "bottom" },
       { target: "results-mistakes", title: "Costliest mistakes", body: "The moments where a different move would have earned the most, in rupees. We worked it out by replaying those days.", side: "top" },
       { target: "results-summary", title: "Why you got it", body: "A short note per part of the score: what went well and what to do first next time.", side: "top" },
+      { target: "results-deal", title: "Your deal with Rohit", body: "What you agreed before the run. It decided where your stock started and what you promised.", side: "top" },
       { target: "results-moments", title: "Decision moments", body: "Each time the data called for action: what you did, and the best move.", side: "top" },
       { target: "results-breakdown", title: "Every point", body: "Open any line to see what was checked and what would have earned more.", side: "top" },
       { target: "results-download", title: "Take it with you", body: "Download your score, moments and all 12 reports as one Excel file.", side: "bottom" },

@@ -834,6 +834,15 @@ stock split replaces it: a SKU with no stock simply can't sell).
 4. Scoring line and debrief text; saved breakdown.
 5. Guided tour steps, plain-language copy, browser check on two brands.
 
+**Status (2026-10-11): built, behind the v2 flag.** `market/deal.ts` (pools, validation, deal → day-1 stock,
+Adjustments, Commitments), `market/dealRohit.ts` (valuation, objections, counters, relationship), `pages/DealV2.tsx` +
+`components/deal/*` (screen; `CmPitch` routes to it under v2), `lib/dealPitch.ts` (fills the pitch result so the
+frozen screens work unchanged), `SimContext.openingDeal`, `useDealRun` (live run and debrief), `dealLine` in
+`scoringV2.ts`, guided tour `deal`. Changes from the plan: Rohit's rebalance fixes every lopsided product, halved
+discounts round down to whole 5% steps, and the wizard keeps its product filter (products with no stock are hidden,
+which matches "a SKU with no stock can't sell"). Browser-checked on Henlo (stock, discount trap) and VitaBoost
+(prove demand first).
+
 ## 7. Live optimisation: actions
 
 All actions apply from the next day. Every control below lives in the **simulation layer**

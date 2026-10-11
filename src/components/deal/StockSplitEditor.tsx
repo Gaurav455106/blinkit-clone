@@ -25,6 +25,7 @@ export function StockSplitEditor({ skus, states, demand, pool, value, onChange, 
     onChange({ ...value, [sku]: { ...value[sku], [state]: Math.max(0, n) } });
   return (
     <Section
+      tour="deal-stock"
       title="1. Where your stock goes"
       description="Each product has a fixed amount of stock. Place it in the states Rohit serves. Ads only run where there is stock, so put it where people search. Units you don't place stay in the warehouse and don't sell."
       actions={<Button variant="ghost" size="sm" onClick={onReset}><RotateCcw className="mr-1 h-4 w-4" />Back to the brief's split</Button>}

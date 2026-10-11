@@ -47,7 +47,7 @@ export function AsksPicker({ states, asks, onChange }: AskProps) {
     </select>
   );
   return (
-    <Section title="2. What you ask Rohit for" description={`Pick up to ${MAX_ASKS}. Each one costs Rohit something, so he'll want something back.`}>
+    <Section tour="deal-asks" title="2. What you ask Rohit for" description={`Pick up to ${MAX_ASKS}. Each one costs Rohit something, so he'll want something back.`}>
       <div className="grid gap-3 lg:grid-cols-3">
         <Choice checked={has("moreStores")} disabled={full && !has("moreStores")} onToggle={() => toggle({ kind: "moreStores", state: storeState })}
           title="More stores" note={`Rohit adds ${pct(MORE_STORES_SHARE)} more of the stock you placed there, on day 1.`}>
@@ -80,7 +80,7 @@ export function GivesPicker({ skus, states, gives, onChange }: GiveProps) {
   const supplyGive: DealGive = { kind: "supply", ...supply };
 
   return (
-    <Section title="3. What you offer in return" description="Offers are promises. Rohit tracks them during the run, and breaking one costs his trust.">
+    <Section tour="deal-gives" title="3. What you offer in return" description="Offers are promises. Rohit tracks them during the run, and breaking one costs his trust.">
       <div className="space-y-3">
         <Choice checked={has("adSpend")} onToggle={() => toggle(spendGive)} title="Promise ad spend in his category"
           note="Blinkit earns from your ads, so Rohit values this. You must actually spend it.">
