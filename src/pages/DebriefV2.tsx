@@ -19,6 +19,7 @@ import { ScoreBreakdown } from "@/components/results/ScoreBreakdown";
 import { ScoreSummary } from "@/components/results/ScoreSummary";
 import { GradeScale } from "@/components/results/GradeScale";
 import { GoalTable } from "@/components/results/ResultTables";
+import { useDealRun } from "@/components/live/useDealRun";
 import { useLiveRun, RUN_DAYS } from "@/components/live/useLiveRun";
 import { useScoreV2 } from "@/market/useScoreV2";
 import type { ScoreRequest } from "@/market/scoreProtocol";
@@ -93,7 +94,8 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
 export default function DebriefV2({ student, scenario }: Props) {
   const nav = useNavigate();
   const { campaigns, activeRunId, cmRelationship, cmPitch, setLiveCmRelationship } = useSim();
-  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship);
+  const deal = useDealRun(scenario, student);
+  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship, deal);
   const ready = run.finished && !run.replaying && !!run.ctx;
 
   const formats = useMemo(

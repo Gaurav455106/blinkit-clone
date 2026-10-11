@@ -144,6 +144,16 @@ describe("objections use the brief's own numbers", () => {
     expect(turn.chips.map((c) => c.value)).toContain(pct(shares[worst]));
   });
 
+  it("rebalancing fixes every lopsided product, not just the worst one", () => {
+    const shares = demandShares(fuel);
+    const worst = Object.keys(shares).sort((a, b) => shares[a] - shares[b])[0];
+    const lopsided = Object.fromEntries(Object.entries(stockPool(fuel)).map(([sku, u]) => [sku, { [worst]: u }]));
+    const turn = rohitTurn(fuel, startNegotiation(fuel, { ...defaultDeal(fuel), stock: lopsided }))!;
+    expect(turn.line).toMatch(/2 other products/);
+    const after = chooseOption(fuel, startNegotiation(fuel, { ...defaultDeal(fuel), stock: lopsided }), turn.options.find((o) => o.id === "rebalance")!);
+    expect(stockFit(fuel, after.terms)).toBeCloseTo(1, 6);
+  });
+
   it("Henlo: a discount bigger than half the margin is flagged with the real margin", () => {
     const sku = henlo.scenario.profile.skus[0];
     const sheet: DealTerms = { ...defaultDeal(henlo), gives: [{ kind: "discount", skuIds: [sku.id], pct: 0.15 }] };
@@ -159,6 +169,17 @@ describe("objections use the brief's own numbers", () => {
     const turn = rohitTurn(vita, startNegotiation(vita, sheet))!;
     expect(turn.kind).toBe("objection:unproven");
     expect(turn.line).toContain(vita.scenario.profile.primaryState);
+  });
+
+  it("a halved discount is a whole 5% step, and Rohit only mentions promises when there are some", () => {
+    const sku = henlo.scenario.profile.skus[0];
+    const shares = demandShares(henlo);
+    const follow = Object.fromEntries(Object.entries(stockPool(henlo)).map(([id, u]) => [id, Object.fromEntries(Object.entries(shares).map(([st, w]) => [st, u * w]))]));
+    let s = startNegotiation(henlo, { ...defaultDeal(henlo), stock: follow, gives: [{ kind: "discount", skuIds: [sku.id], pct: 0.15 }] });
+    const t = rohitTurn(henlo, s)!;
+    expect(t.options.find((o) => o.id === "halveDiscount")!.label).toContain("5%");
+    s = chooseOption(henlo, s, t.options.find((o) => o.id === "keepDiscount")!);
+    expect(rohitTurn(henlo, s)!.line).not.toContain("promises");
   });
 
   it("an ad-spend promise bigger than 60% of the budget is questioned", () => {

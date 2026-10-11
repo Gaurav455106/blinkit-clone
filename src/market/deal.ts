@@ -166,3 +166,13 @@ export function dealToRun(ctx: MarketContext, d: DealTerms): DealRun {
 export function withStartStock(ctx: MarketContext, startStock: StockSplit): MarketContext {
   return { ...ctx, startStock };
 }
+
+// ── The agreed deal, as stored with the student's session ──────────────────
+
+export interface OpeningDeal {
+  terms: DealTerms;
+  /** Where Rohit's relationship meter starts (30 to 80; 50 after a walk-away). */
+  relationship: number;
+  /** The conversation, for the debrief. */
+  log: readonly { speaker: "rohit" | "student"; text: string }[];
+}

@@ -32,6 +32,9 @@ import { PitchSkuCard } from "@/components/rohit/PitchSkuCard";
 import { PitchVerdict } from "@/components/rohit/PitchVerdict";
 import type { ChipData } from "@/components/rohit/DataChips";
 import { commitmentRange, commitValidity, emptyPitchRow, type PitchRow } from "@/components/rohit/pitchForm";
+import { isEngineV2 } from "@/lib/engineFlag";
+import { marketContextFor } from "@/market/context";
+import DealV2 from "@/pages/DealV2";
 
 /** Short pauses so Rohit's replies read like a conversation. */
 const THINK_MS = 700;
@@ -55,6 +58,8 @@ export default function CmPitch() {
   }, [student, scenario, nav]);
 
   if (!student || !scenario) return null;
+  const dealCtx = isEngineV2() ? marketContextFor(scenario, student.batch) : null;
+  if (dealCtx) return <DealV2 student={student} scenario={scenario} ctx={dealCtx} />;
   return <CmPitchScreen studentName={student.name} scenario={scenario} />;
 }
 

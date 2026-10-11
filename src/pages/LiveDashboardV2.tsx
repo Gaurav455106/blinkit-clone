@@ -15,6 +15,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Section, SimPage, StatTile } from "@/components/sim/primitives";
+import { useDealRun } from "@/components/live/useDealRun";
 import { useLiveRun, RUN_DAYS } from "@/components/live/useLiveRun";
 import { ClockBar, AlertsFeed, CheckpointPanel, ReportsPanel, CompetitionPanel, SPEEDS } from "@/components/live/LivePanels";
 import { RoasChart, VisibilityChart, SovChart, HourHeatmap, PacingChart, StockPanel } from "@/components/live/LiveCharts";
@@ -35,7 +36,8 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
   const nav = useNavigate();
   const { campaigns, deleteCampaign, startRun, activeRunId, runHistory, cmRelationship, setLiveCmRelationship } = useSim();
   const completed = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "completed";
-  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship);
+  const deal = useDealRun(scenario, student);
+  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship, deal);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<SavedCampaign | undefined>(undefined);

@@ -161,29 +161,39 @@ const skuName = (ctx: MarketContext, id: string) => skuById(ctx).get(id)?.name ?
 
 // ── Objections (data-backed, each once) ─────────────────────────────────────
 
-function splitObjection(ctx: MarketContext, d: DealTerms): RohitDealTurn | null {
+/** Biggest overstock gap (stock share minus search share) per placed SKU, if it passes SPLIT_GAP. */
+function lopsided(ctx: MarketContext, d: DealTerms): { sku: string; state: string; stock: number; demand: number }[] {
   const shares = demandShares(ctx);
-  let worst: { sku: string; state: string; stock: number; demand: number } | null = null;
-  for (const [sku, row] of Object.entries(d.stock)) {
+  return Object.entries(d.stock).flatMap(([sku, row]) => {
     const units = unitsIn(row);
-    if (units <= 0) continue;
-    for (const st of Object.keys(shares)) {
-      const stock = (row[st] ?? 0) / units;
-      if (stock - shares[st] > SPLIT_GAP && (!worst || stock - shares[st] > worst.stock - worst.demand)) worst = { sku, state: st, stock, demand: shares[st] };
-    }
-  }
-  if (!worst) return null;
-  const units = unitsIn(d.stock[worst.sku]);
-  const rebalanced: StockSplit = { ...d.stock, [worst.sku]: Object.fromEntries(Object.entries(shares).map(([st, w]) => [st, units * w])) };
+    if (units <= 0) return [];
+    const worst = Object.keys(shares)
+      .map((st) => ({ sku, state: st, stock: (row[st] ?? 0) / units, demand: shares[st] }))
+      .sort((a, b) => (b.stock - b.demand) - (a.stock - a.demand))[0];
+    return worst && worst.stock - worst.demand > SPLIT_GAP ? [worst] : [];
+  }).sort((a, b) => (b.stock - b.demand) - (a.stock - a.demand));
+}
+
+function splitObjection(ctx: MarketContext, d: DealTerms): RohitDealTurn | null {
+  const off = lopsided(ctx, d);
+  if (off.length === 0) return null;
+  const worst = off[0];
+  const shares = demandShares(ctx);
+  const rebalanced: StockSplit = {
+    ...d.stock,
+    ...Object.fromEntries(off.map((o) => [o.sku, Object.fromEntries(Object.entries(shares).map(([st, w]) => [st, unitsIn(d.stock[o.sku]) * w]))])),
+  };
+  const others = off.length - 1;
+  const what = others > 0 ? "these products' stock" : `${skuName(ctx, worst.sku)} stock`;
   return {
     kind: "objection:split",
-    line: `You've put ${pct(worst.stock)} of ${skuName(ctx, worst.sku)} in ${worst.state}, but only ${pct(worst.demand)} of searches in your states come from there. Stock that doesn't sell blocks my shelf.`,
+    line: `You've put ${pct(worst.stock)} of ${skuName(ctx, worst.sku)} in ${worst.state}, but only ${pct(worst.demand)} of searches in your states come from there${others > 0 ? `, and ${others} other product${others > 1 ? "s are" : " is"} split the same way` : ""}. Stock that doesn't sell blocks my shelf.`,
     chips: [
       { label: `Searches from ${worst.state}`, value: pct(worst.demand), tone: "warn" },
       { label: `Your ${skuName(ctx, worst.sku)} stock in ${worst.state}`, value: pct(worst.stock), tone: "bad" },
     ],
     options: [
-      { id: "rebalance", label: `Move ${skuName(ctx, worst.sku)} stock to match where people search`, cost: trustCost(3), change: { kind: "resolve", objection: "split", terms: { ...d, stock: rebalanced }, trust: 3 } },
+      { id: "rebalance", label: `Move ${what} to match where people search`, cost: trustCost(3), change: { kind: "resolve", objection: "split", terms: { ...d, stock: rebalanced }, trust: 3 } },
       { id: "keepSplit", label: "Keep my split: I have a plan for that state", cost: trustCost(-3), change: { kind: "resolve", objection: "split", terms: d, trust: -3 } },
       walkAwayOption(ctx),
     ],
@@ -199,7 +209,8 @@ function discountObjection(ctx: MarketContext, d: DealTerms): RohitDealTurn | nu
   const sku = skus.get(hit)!;
   const perUnit = discountPerUnit(ctx, hit, g.pct);
   const without = { ...d, gives: d.gives.filter((x) => x !== g) };
-  const halved = { ...d, gives: d.gives.map((x) => (x === g ? { ...g, pct: g.pct / 2 } : x)) };
+  const halfPct = Math.floor((g.pct / 2) * 20) / 20;
+  const halved = { ...d, gives: d.gives.map((x) => (x === g ? { ...g, pct: halfPct } : x)) };
   return {
     kind: "objection:discount",
     line: `A ${pct(g.pct)} discount on ${sku.name} is ${inr(perUnit)} a unit. You only keep ${inr(sku.margin)} a unit. I'll take it, but are you sure you can afford it?`,
@@ -209,7 +220,7 @@ function discountObjection(ctx: MarketContext, d: DealTerms): RohitDealTurn | nu
     ],
     options: [
       { id: "withdrawDiscount", label: "Drop the discount", cost: `Saves about ${inr(discountCost(ctx, g))} of margin`, change: { kind: "resolve", objection: "discount", terms: without, trust: 0 } },
-      { id: "halveDiscount", label: `Make it ${pct(g.pct / 2)} instead`, cost: `Costs about ${inr(discountCost(ctx, { ...g, pct: g.pct / 2 }))} of margin`, change: { kind: "resolve", objection: "discount", terms: halved, trust: 0 } },
+      ...(halfPct >= 0.05 ? [{ id: "halveDiscount", label: `Make it ${pct(halfPct)} instead`, cost: `Costs about ${inr(discountCost(ctx, { ...g, pct: halfPct }))} of margin`, change: { kind: "resolve" as const, objection: "discount" as const, terms: halved, trust: 0 } }] : []),
       { id: "keepDiscount", label: "Keep it: I want the shoppers", cost: `Costs about ${inr(discountCost(ctx, g))} of margin`, change: { kind: "resolve", objection: "discount", terms: d, trust: 1 } },
       walkAwayOption(ctx),
     ],
@@ -321,15 +332,19 @@ function counterTurn(ctx: MarketContext, s: NegotiationState): RohitDealTurn {
   };
 }
 
+/** True when the deal includes promises Rohit will check during the run. */
+export const hasPromises = (d: DealTerms) => d.gives.some((g) => g.kind === "adSpend" || g.kind === "supply");
+
 function acceptTurn(ctx: MarketContext, s: NegotiationState): RohitDealTurn {
   const given = valueGiven(ctx, s.terms), asked = valueAsked(ctx, s.terms);
+  const hold = hasPromises(s.terms) ? " I'll hold you to your promises." : "";
   return {
     kind: "accept",
     line: asked === 0 && given === 0
       ? "Fair enough. I'll stock what you've placed, no extras either way."
       : asked === 0
-        ? `You're offering me ${inr(given)} and asking for nothing back. I'll happily take that. I'll hold you to your promises.`
-        : `Deal. You get ${inr(asked)} of value from me and I get ${inr(given)} from you. I'll hold you to your promises.`,
+        ? `You're offering me ${inr(given)} and asking for nothing back. I'll happily take that.${hold}`
+        : `Deal. You get ${inr(asked)} of value from me and I get ${inr(given)} from you.${hold}`,
     chips: [
       { label: "Stock where people search", value: pct(stockFit(ctx, s.terms)), tone: stockFit(ctx, s.terms) >= 0.8 ? "good" : "warn" },
     ],
