@@ -3,7 +3,7 @@
 // changes, and checks the scoring decisions from the 7-brand trainer run hold.
 
 import { describe, it, expect } from "vitest";
-import { scoreRunV2, wastedSpendShare } from "@/market/scoringV2";
+import { scoreRunV2, wastedSpendShare, wasteFloorFor } from "@/market/scoringV2";
 import { applyActions, recordAction } from "@/market/actions";
 import { initialMarketState } from "@/market/state";
 import { stepDay } from "@/market/step";
@@ -28,7 +28,7 @@ function scorePassive(ctx: MarketContext, launched: CampaignConfig[], adFormat: 
   }
   const formats = Object.fromEntries(launched.map((c) => [c.id, { adFormat, objective: null }]));
   const score = scoreRunV2({ ctx, launched, formats, actions: [], results, configsByDay, statesByDay, pitch: null, insights: [], describeAction: (a) => recordAction(launched, a).what });
-  return { score, wasted: wastedSpendShare(results) };
+  return { score, wasted: wastedSpendShare(results, wasteFloorFor(ctx.scenario.profile.goalType)) };
 }
 
 const LIVE_MAX = 35;

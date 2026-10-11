@@ -237,7 +237,7 @@ export function noMomentPoints(wastedShare: number, max: number): number {
 function liveLines(input: ScoreV2Input): { lines: ScoreLineV2[]; moments: MomentScore[] } {
   const detected = detectMoments({ ctx: input.ctx, results: input.results, configsByDay: input.configsByDay });
   if (detected.length === 0) {
-    const wasted = wastedSpendShare(input.results);
+    const wasted = wastedSpendShare(input.results, wasteFloorFor(input.ctx.scenario.profile.goalType));
     return {
       moments: [],
       lines: [insightLine(input, detected), line({
@@ -432,7 +432,13 @@ function profitLine(run: Metrics): ScoreLineV2 {
 }
 
 /** F14: spend in campaign × keyword × slot cells (whole run) whose ROAS was below break-even. */
-export function wastedSpendShare(results: readonly DayResult[]): number {
+/** Contribution ÷ spend below which spend counts as wasted, by goal (SPEC §14 F13): reach goals
+ *  may run below break-even, down to the floor where their own objective stops counting. */
+export function wasteFloorFor(goalType: string): number {
+  return goalType === "Awareness-First" ? 0.7 : goalType === "Category-Creation" ? 0.6 : 1;
+}
+
+export function wastedSpendShare(results: readonly DayResult[], floor = 1): number {
   const cells = new Map<string, { spend: number; revenue: number; contribution: number }>();
   let total = 0;
   for (const r of results) {
@@ -444,18 +450,21 @@ export function wastedSpendShare(results: readonly DayResult[]): number {
     }
   }
   let wasted = 0;
-  for (const c of cells.values()) if (c.contribution < c.spend) wasted += c.spend;
+  for (const c of cells.values()) if (c.contribution < c.spend * floor) wasted += c.spend;
   return total > 0 ? wasted / total : 0;
 }
 
-function wasteLine(results: readonly DayResult[]): ScoreLineV2 {
-  const share = wastedSpendShare(results);
+function wasteLine(results: readonly DayResult[], goalType: string): ScoreLineV2 {
+  const floor = wasteFloorFor(goalType);
+  const share = wastedSpendShare(results, floor);
   const earned = share <= 0.1 ? 5 : share <= 0.25 ? 3 : share <= 0.4 ? 1 : 0;
   return line({
     key: "v2_waste", category: "results", label: "Wasted spend", earned, max: 5,
     judgedOn: "How much of your money went to keywords and hours that lost money over the run. Spending less is fine; spending on losers is not.",
     tiers: [{ points: 5, rule: "≤ 10% wasted" }, { points: 3, rule: "≤ 25%" }, { points: 1, rule: "≤ 40%" }, { points: 0, rule: "More" }],
-    note: `${Math.round(share * 100)}% of spend went to keyword × hour combinations below break-even.`,
+    note: floor < 1
+      ? `${Math.round(share * 100)}% of spend went where ads earned back less than ${Math.round(floor * 100)}% of their cost (the limit for this brand's reach goal).`
+      : `${Math.round(share * 100)}% of spend went to keyword × hour combinations below break-even.`,
     howToImprove: "Use the keyword and hour-of-day reports to find spend below break-even and cut it.",
   });
 }
@@ -473,7 +482,7 @@ export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
     ...scoreSetupV2(input),
     ...live.lines,
     pacingLine(input), rohitLine(input), eventsLine(input), checkInsLine(input),
-    goalsLine(input, run), profitLine(run), wasteLine(input.results),
+    goalsLine(input, run), profitLine(run), wasteLine(input.results, input.ctx.scenario.profile.goalType),
   ];
   const totals = (Object.keys(SCORE_V2_MAX) as CategoryV2[]).reduce((acc, k) => ({
     ...acc, [k]: round1(lines.filter((l) => l.category === k).reduce((s, l) => s + l.earned, 0)),

@@ -40,3 +40,15 @@ describe("no moment detected (SPEC §13 #29b)", () => {
     expect(noMomentPoints(0.25, 30)).toBeCloseTo(22.5, 6);
   });
 });
+
+describe("wasted spend follows the brand's goal floor (F13)", () => {
+  it("spend at 0.8x break-even is waste for a ROAS brand but not for an awareness brand", async () => {
+    const { wastedSpendShare, wasteFloorFor } = await import("@/market/scoringV2");
+    const { cell, dayResult } = await import("./liveFixtures");
+    const results = [dayResult(1, { cells: [cell({ spend: 1000, contribution: 800 })] })];
+    expect(wastedSpendShare(results, wasteFloorFor("ROAS-First"))).toBe(1);
+    expect(wastedSpendShare(results, wasteFloorFor("Awareness-First"))).toBe(0);
+    expect(wastedSpendShare(results, wasteFloorFor("Category-Creation"))).toBe(0);
+    expect(wastedSpendShare(results)).toBe(1);
+  });
+});
