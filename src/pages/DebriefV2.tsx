@@ -29,6 +29,7 @@ import { qualitativeSummary } from "@/lib/rubrics";
 import { debriefFilename, debriefSheets, VERDICT_LABEL } from "@/lib/debriefV2Export";
 import { REPORT_README } from "@/market/reports";
 import { downloadWorkbook } from "@/lib/excel";
+import { describeDeal } from "@/components/deal/describeDeal";
 
 const PITCH_MAX = 15;
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
@@ -93,7 +94,7 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
 
 export default function DebriefV2({ student, scenario }: Props) {
   const nav = useNavigate();
-  const { campaigns, activeRunId, cmRelationship, cmPitch, setLiveCmRelationship } = useSim();
+  const { campaigns, activeRunId, cmRelationship, cmPitch, setLiveCmRelationship, openingDeal } = useSim();
   const deal = useDealRun(scenario, student);
   const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship, deal);
   const ready = run.finished && !run.replaying && !!run.ctx;
@@ -107,6 +108,7 @@ export default function DebriefV2({ student, scenario }: Props) {
     ctx: run.ctx, launched: run.launched, formats, actions: run.actions, results: run.results,
     configsByDay: run.configsByDay, statesByDay: run.statesByDay,
     pitch: cmPitch ? { score: cmPitch.pitchScore, max: PITCH_MAX } : null,
+    deal: openingDeal,
     insights: run.insights, stepOptions: run.stepOptions,
     alerts: run.activations.filter((a) => pausing.has(a.key)),
     rohit: { replies: run.rohit.replies, commitments: run.commitmentResults },
@@ -186,6 +188,11 @@ export default function DebriefV2({ student, scenario }: Props) {
           </Section>
         )}
         <ScoreSummary summaries={summaries} />
+        {openingDeal && (
+          <Section title="Your deal with Rohit" description={`Rohit's trust started at ${openingDeal.relationship} of 100.`}>
+            <ul className="space-y-1 text-sm text-foreground">{describeDeal(run.ctx, openingDeal.terms).map((l) => <li key={l}>{l}</li>)}</ul>
+          </Section>
+        )}
         <Section title="Decision moments" description="Each time the data called for action, what you did and how it compared with the best move.">
           <MomentList moments={score.moments} />
         </Section>
