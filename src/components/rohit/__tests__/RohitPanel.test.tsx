@@ -20,9 +20,10 @@ const ask: RohitAsk = {
 };
 
 describe("RohitPanel", () => {
-  it("shows Rohit's line, the data chips and every reply's cost before a choice", { timeout: 20000 }, () => {
+  it("shows Rohit typing, then his line, the data chips and every reply's cost before a choice", { timeout: 20000 }, async () => {
     render(<RohitPanel ask={ask} onChoose={() => {}} isClockPaused relationship={52} day={8} />);
-    expect(screen.getByText(ask.line)).toBeInTheDocument();
+    expect(screen.getAllByRole("status", { name: "Rohit is typing" }).length).toBeGreaterThan(0);
+    expect(await screen.findByText(ask.line, {}, { timeout: 2000 })).toBeInTheDocument();
     expect(screen.getByText("Stores with stock (OSA), Karnataka")).toBeInTheDocument();
     expect(screen.getByText("Costs ₹5,000 now. Stock arrives in 2 days.")).toBeInTheDocument();
     expect(screen.getByText("You promise:")).toBeInTheDocument();
@@ -38,11 +39,11 @@ describe("RohitPanel", () => {
     expect(onChoose).toHaveBeenCalledWith(ask.options[0]);
   });
 
-  it("after a choice, shows the reply, the relationship change and a way back", { timeout: 20000 }, () => {
+  it("after a choice, shows the reply, the relationship change and a way back", { timeout: 20000 }, async () => {
     const onClose = vi.fn();
     render(<RohitPanel ask={ask} onChoose={() => {}} chosenOptionId="expedite" relationship={56} rohitReply="Good. I'll watch the delivery." onClose={onClose} />);
     expect(screen.queryByRole("button", { name: /Stop ads in Karnataka/ })).toBeNull();
-    expect(screen.getByText("Good. I'll watch the delivery.")).toBeInTheDocument();
+    expect(await screen.findByText("Good. I'll watch the delivery.", {}, { timeout: 2000 })).toBeInTheDocument();
     expect(screen.getByText("+4")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Back to the dashboard" }));
     expect(onClose).toHaveBeenCalled();

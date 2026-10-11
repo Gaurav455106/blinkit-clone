@@ -45,7 +45,7 @@ export function RelationshipMeter({ value, delta, className }: Props) {
         <p className="text-sm font-medium text-foreground">Relationship with Rohit</p>
         <p className="sim-num text-sm text-muted-foreground">
           {delta !== undefined && delta !== 0 && (
-            <span className={cn("mr-1.5 font-medium", delta > 0 ? "text-sim-good" : "text-sim-bad")}>
+            <span key={`${delta}-${clamped}`} className={cn("sim-pop-in mr-1.5 inline-block font-medium", delta > 0 ? "text-sim-good" : "text-sim-bad")}>
               {delta > 0 ? `+${delta}` : delta}
             </span>
           )}

@@ -2,6 +2,7 @@
 // The alert that stopped the clock, the feed of everything raised so far, the
 // brand's calendar, and Rohit's commitments. Presentational only.
 
+import "@/components/game/game.css";
 import { AlertTriangle, CalendarDays, Handshake } from "lucide-react";
 import type { EventActivation } from "@/market/events";
 import type { CalendarEntry } from "@/market/calendar";
@@ -21,10 +22,11 @@ export function AlertCard({ alert, onDismiss }: AlertCardProps) {
     <section
       role="alert"
       aria-label={`Alert: ${alert.alert.headline}`}
-      className="mb-6 rounded-2xl border-2 border-sim-warn bg-card p-5 shadow-[0_12px_40px_-24px_hsl(24_30%_20%/0.5)]"
+      key={alert.key}
+      className="sim-slide-in mb-6 rounded-2xl border-2 border-sim-warn bg-card p-5 shadow-[0_12px_40px_-24px_hsl(24_30%_20%/0.5)]"
     >
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-sim-warn" aria-hidden />
+        <AlertTriangle className="sim-shake mt-0.5 h-5 w-5 shrink-0 text-sim-warn" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">The clock is stopped</p>
           <h2 className="mt-1 text-lg font-semibold text-foreground">{alert.alert.headline}</h2>

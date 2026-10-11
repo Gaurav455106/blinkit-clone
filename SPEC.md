@@ -1274,7 +1274,32 @@ Build order: 32 (stock) → 33 (calibrate) → 29 → 30 + 31 → 34; each with 
 
 ### Later (requested 2026-10-11)
 
-- **Game feel for the sim layer.** Gaurav: the non-frozen screens are very text-heavy; add animation and fun interactive elements so starting feels like a game and stays engaging. Scope: brief, deal with Rohit, live dashboard, alerts and check-ins, results. The platform UI stays frozen (§0.1). To be specced as its own phase after the scoring fixes ship.
+- **Game feel for the sim layer** (built 2026-10-12, see §15).
+
+## 15. Game feel (sim layer only)
+
+Gaurav: the sim screens are very text-heavy; starting should feel like a game and stay engaging. The platform UI stays frozen (§0.1).
+
+**Kit (`src/components/game/`), no new dependencies:**
+- `useCountUp` / `CountUp`: numbers tick to their new value (KPIs, score).
+- `FloatDelta`: a "+₹4,120" or "+4 trust" that floats up and fades when a number changes.
+- `achievements.ts` + `AchievementToast`: badges unlocked from what the student actually did (derived from the run, not stored): first change made, dead hours off, a loser cut, a bid raised on a winner, Rohit answered, a week completed, the account above break-even, a checkpoint insight logged.
+- `confetti.ts`: a small canvas burst for big moments.
+- CSS motion in `.sim-ui` (pop-in, float-up, shake, slide-in, pulse). **Every animation is off under `prefers-reduced-motion`**, and numbers then show their final value at once.
+
+**Where:**
+| Screen | What moves |
+|---|---|
+| Dashboard | The 4 steps become a mission path; the current step pulses, done steps check off |
+| Brief quiz | Right answer pops with a small burst; wrong answer shakes |
+| Deal with Rohit | Rohit "types" before each reply; the trust meter shows the change as a floating +/- |
+| Live dashboard | KPIs count up each day; the day's sales float up; alerts slide in; achievements pop as toasts; a week checkpoint shows a "Week N done" moment |
+| Results | Score counts up from 0, the grade badge pops, confetti from 60 up; category bars fill one after another |
+
+Rules: animation never blocks input or the clock; guided-tour anchors stay the same; copy stays plain, no em dashes.
+
+**Built 2026-10-12** (branch `feat/game-feel`): kit plus all five screens. Achievement toasts sit bottom-centre so they never cover Rohit's panel. Also fixed on the way: the brief quiz's "most stock" answer is the state that really has the most (a secondary state can beat the primary), and its wrong answers are the other stocked states instead of always "Andhra Pradesh" and "Assam"; the dashboard and tour say "make a deal with Rohit" instead of "pitch the category manager".
+
 
 ### Still open
 

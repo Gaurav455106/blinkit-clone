@@ -1,0 +1,63 @@
+/* ── Game feel (SPEC §15): sim layer only, never inside frozen platform screens ──
+   Every animation here is switched off under prefers-reduced-motion. */
+
+@keyframes sim-pop-in {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes sim-float-up {
+  0% { transform: translateY(4px); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(-28px); opacity: 0; }
+}
+@keyframes sim-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+@keyframes sim-slide-in {
+  0% { transform: translateY(-10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes sim-toast-in {
+  0% { transform: translateY(140%); opacity: 0; }
+  12% { transform: translateY(-6%); opacity: 1; }
+  18% { transform: translateY(0); }
+  85% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(140%); opacity: 0; }
+}
+@keyframes sim-pulse-ring {
+  0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45); }
+  70% { box-shadow: 0 0 0 10px hsl(var(--primary) / 0); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+}
+@keyframes sim-typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+@keyframes sim-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.sim-ui .sim-pop-in { animation: sim-pop-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.sim-ui .sim-float-up { animation: sim-float-up 1400ms ease-out forwards; pointer-events: none; }
+.sim-ui .sim-shake { animation: sim-shake 420ms ease-in-out; }
+.sim-ui .sim-slide-in { animation: sim-slide-in 320ms ease-out both; }
+.sim-ui .sim-toast { animation: sim-toast-in 4200ms ease-in-out forwards; }
+.sim-ui .sim-pulse { animation: sim-pulse-ring 1.8s ease-out infinite; }
+.sim-ui .sim-typing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 9999px; background: currentColor; animation: sim-typing 1s ease-in-out infinite; }
+.sim-ui .sim-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.sim-ui .sim-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+.sim-ui .sim-fill { transform-origin: left; animation: sim-fill 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-ui .sim-pop-in, .sim-ui .sim-float-up, .sim-ui .sim-shake, .sim-ui .sim-slide-in,
+  .sim-ui .sim-toast, .sim-ui .sim-pulse, .sim-ui .sim-typing-dot, .sim-ui .sim-fill {
+    animation: none !important;
+  }
+  .sim-ui .sim-float-up { display: none; }
+}
