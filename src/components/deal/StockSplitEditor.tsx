@@ -8,25 +8,6 @@ import { Button } from "@/components/ui/button";
 import { stagger } from "@/components/game/GameBits";
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
-/** Stock share within this many points of the search share counts as a match. */
-const MATCH_GAP = 0.1;
-
-/** This state's share of the product's stock against its share of searches (SPEC §15). */
-function FitBar({ stockShare, searchShare, state }: { stockShare: number; searchShare: number; state: string }) {
-  const match = Math.abs(stockShare - searchShare) <= MATCH_GAP;
-  return (
-    <span className="mt-2 block" aria-label={`${state}: ${pct(stockShare)} of this stock, ${pct(searchShare)} of searches`}>
-      <span className="relative block h-2 overflow-hidden rounded-full bg-secondary">
-        <span className={`sim-bar absolute inset-y-0 left-0 rounded-full ${match ? "bg-sim-good" : "bg-sim-warn"}`} style={{ width: `${Math.min(100, stockShare * 100)}%` }} />
-        <span aria-hidden className="absolute inset-y-[-2px] w-0.5 bg-foreground/70" style={{ left: `${Math.min(100, searchShare * 100)}%` }} />
-      </span>
-      <span className="mt-1 flex justify-between text-[11px]">
-        <span className={match ? "text-sim-good" : "text-sim-warn"}>{pct(stockShare)} of stock</span>
-        <span>{match ? "Matches searches" : stockShare > searchShare ? "More than searches" : "Less than searches"}</span>
-      </span>
-    </span>
-  );
-}
 const units = (n: number) => Math.round(n).toLocaleString("en-IN");
 
 type Props = {
@@ -77,24 +58,13 @@ export function StockSplitEditor({ skus, states, demand, pool, value, onChange, 
                     <input
                       type="number"
                       min={0}
-                      step={10}
+                      step={1}
                       inputMode="numeric"
                       aria-label={`${sku.name} units in ${st}`}
                       className="mt-1 block w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm text-foreground"
                       value={Math.round(row[st] ?? 0)}
                       onChange={(e) => set(sku.id, st, Number(e.target.value) || 0)}
                     />
-                    <input
-                      type="range"
-                      min={0}
-                      max={Math.max(1, Math.round(pool[sku.id] ?? 0))}
-                      step={1}
-                      aria-label={`Drag ${sku.name} units in ${st}`}
-                      className="mt-2 block w-full accent-[hsl(var(--primary))]"
-                      value={Math.round(row[st] ?? 0)}
-                      onChange={(e) => set(sku.id, st, Number(e.target.value) || 0)}
-                    />
-                    <FitBar state={st} stockShare={placed > 0 ? (row[st] ?? 0) / placed : 0} searchShare={demand[st] ?? 0} />
                   </label>
                 ))}
               </div>
