@@ -199,16 +199,27 @@ function insightLine(input: ScoreV2Input, detected: ReturnType<typeof detectMome
   });
 }
 
+/** Moment points when no moment was detected (SPEC §13 #29b): only a run that wasted little
+ *  earns them, so a quiet run that lost money doesn't get them free. */
+export function noMomentPoints(wastedShare: number, max: number): number {
+  return max * (1 - Math.min(1, Math.max(0, wastedShare)));
+}
+
 function liveLines(input: ScoreV2Input): { lines: ScoreLineV2[]; moments: MomentScore[] } {
   const detected = detectMoments({ ctx: input.ctx, results: input.results, configsByDay: input.configsByDay });
   if (detected.length === 0) {
+    const wasted = wastedSpendShare(input.results);
     return {
       moments: [],
       lines: [insightLine(input, detected), line({
-        key: "v2_moments", category: "live", label: "Decision moments", earned: MOMENT_POINTS, max: MOMENT_POINTS,
-        judgedOn: "How well you responded each time the data called for action.",
-        tiers: [{ points: SCORE_V2_MAX.live, rule: "No moment needed action" }],
-        note: "The run never reached a point where a change would have helped.", howToImprove: "Nothing to fix here.",
+        key: "v2_moments", category: "live", label: "Decision moments", earned: noMomentPoints(wasted, MOMENT_POINTS), max: MOMENT_POINTS,
+        judgedOn: "How well you responded each time the data called for action. With no moment to answer, how little of your spend was wasted (spent where ads lost money).",
+        tiers: [
+          { points: MOMENT_POINTS, rule: "No moment needed action and no spend was wasted" },
+          { points: 0, rule: "No moment needed action but all spend was wasted" },
+        ],
+        note: `No single moment called for a change. ${Math.round(wasted * 100)}% of your spend went where ads lost money.`,
+        howToImprove: wasted > 0.1 ? "Check the Keywords tab every few days: lower or pause anything whose ROAS sits below break-even." : "Nothing to fix here.",
       })],
     };
   }
