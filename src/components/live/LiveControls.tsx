@@ -189,6 +189,31 @@ function BudgetEditor({ cfg, act }: { cfg: CampaignConfig; act: Act }) {
   );
 }
 
+/** Add a keyword from the market list (brand-term defence, long-tail). Starts tomorrow. */
+function KeywordAdder({ ctx, cfg, act }: { ctx: MarketContext; cfg: CampaignConfig; act: Act }) {
+  const options = ctx.market.keywords.filter((k) => !cfg.keywords.some((x) => x.term === k.term));
+  const [term, setTerm] = useState(options[0]?.term ?? "");
+  const [bid, setBid] = useState("250");
+  const n = Number(bid);
+  const valid = term !== "" && Number.isFinite(n) && n >= 200;
+  if (options.length === 0) return null;
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (valid) act(cfg.id, { kind: "addKeyword", term, bid: Math.round(n) }); }}>
+      <label className="text-xs font-medium text-muted-foreground">
+        Add a keyword
+        <select className="mt-1 block max-w-[14rem] rounded-md border border-input bg-card px-2 py-1 text-sm text-foreground" value={term} onChange={(e) => setTerm(e.target.value)}>
+          {options.map((k) => <option key={k.term} value={k.term}>{k.term}{k.isBrandTerm ? " (your brand)" : ""}</option>)}
+        </select>
+      </label>
+      <label className="text-xs font-medium text-muted-foreground">
+        Bid (₹ CPM, min 200)
+        <input inputMode="numeric" className="mt-1 block w-24 rounded-md border border-input bg-card px-2 py-1 text-sm text-foreground" value={bid} onChange={(e) => setBid(e.target.value.replace(/[^\d]/g, ""))} />
+      </label>
+      <Button type="submit" size="sm" variant="outline" className="h-8 text-xs" disabled={!valid}>Add</Button>
+    </form>
+  );
+}
+
 export function CampaignPanel({ ctx, configs, campaignNames, act }: CampaignProps) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -205,6 +230,7 @@ export function CampaignPanel({ ctx, configs, campaignNames, act }: CampaignProp
         >
           <div className="space-y-5">
             <BudgetEditor cfg={cfg} act={act} />
+            {cfg.keywords.length > 0 && <KeywordAdder ctx={ctx} cfg={cfg} act={act} />}
             <ScheduleEditor cfg={cfg} act={act} />
             <StatesEditor ctx={ctx} cfg={cfg} act={act} />
           </div>

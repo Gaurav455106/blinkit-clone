@@ -57,7 +57,7 @@ interface LineDetailProps {
 export function LineDetail({ line, showUnreachable = false, defaultOpen }: LineDetailProps) {
   const guide = lineGuide(line);
   const current = lineTier(line);
-  const lost = line.max - line.earned;
+  const lost = Math.round((line.max - line.earned) * 10) / 10;
   const open = defaultOpen ?? lost > 0;
   const tone = scoreTone(line.earned, line.max);
   return (

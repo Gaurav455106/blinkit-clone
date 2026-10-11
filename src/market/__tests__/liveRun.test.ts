@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  afterDay, actionLevers, scoreEventResponses, dropStatesActions, relationshipNow, ROHIT_QUALITY_SHARE,
+  afterDay, checkInDue, actionLevers, scoreEventResponses, dropStatesActions, relationshipNow, ROHIT_QUALITY_SHARE,
 } from "@/market/liveRun";
 import type { EventActivation, LeverId } from "@/market/events";
 import { MAX_PAUSING_PER_RUN } from "@/market/events";
@@ -47,7 +47,16 @@ describe("afterDay", () => {
     expect(out.pausing).toBeNull();
   });
 
-  it("offers Rohit only on a check-in day", () => {
+  it("a check-in with nothing to ask rolls forward to the next day something applies", () => {
+    expect(checkInDue(5, [])).toBe(false);
+    expect(checkInDue(6, [])).toBe(true);
+    expect(checkInDue(9, [])).toBe(true);
+    expect(checkInDue(9, ["restock"])).toBe(false);
+    expect(checkInDue(13, ["restock"])).toBe(true);
+    expect(checkInDue(29, ["restock", "sov_threat", "cofund_banner"])).toBe(false);
+  });
+
+  it("offers Rohit only from a check-in day on", () => {
     const common = { ctx: fuel, history: [], campaigns: [campaign()], calendar: [], existing: [], pausingShown: 0, asked: [], relationship: 50 };
     expect(afterDay({ ...common, state: stateAt(fuel, 5) }).ask).toBeNull();
   });

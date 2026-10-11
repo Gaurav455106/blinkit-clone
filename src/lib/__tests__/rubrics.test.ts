@@ -248,3 +248,12 @@ describe("qualitativeSummary", () => {
     expect(summary).toHaveLength(4);
   });
 });
+
+describe("summary rounding", () => {
+  it("never shows floating-point noise in lost points", () => {
+    const lines = [{ key: "v2_rohit", label: "Pitch to Rohit", category: "eventsRohit", earned: 3.3, max: 5, note: "Pitch score 10 of 15." }];
+    const [, , events] = qualitativeSummary(lines, 2);
+    expect(events.paragraph).toContain("lost 1.7 points");
+    expect(events.paragraph).not.toMatch(/\d\.\d{3,}/);
+  });
+});

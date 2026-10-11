@@ -1120,6 +1120,21 @@ the same reason.
 
 ---
 
+### 12.2 Status of phases 2 to 5 (2026-10-11, all behind the engine flag)
+
+v1 stays the default. `?engine=v2` (or `VITE_ENGINE_V2=true`) switches a browser or a deployment.
+
+| Phase | Status | Where |
+|---|---|---|
+| 2 Live dashboard v2 | **Done.** Clock (auto-play, pause, next day, speed), alert card, Rohit panel, day 7/14/21 checkpoints with insight logging, tabs: Overview, Keywords, Campaigns, Competition, Stock, Reports. New campaigns open the unchanged wizard in the side sheet. Add-keyword control added (brand-term defence, long-tail). | `pages/LiveDashboardV2.tsx`, `components/live/*` |
+| 3 Events + Rohit | **Done.** `stepDay(ctx, prev, campaigns, { events, adjustments })`: demand, rival bid, rival exit and CVR effects; Rohit replies change stock, fees (count against ₹2 lakh), discounts and shelf placement. Alerts pick 1 pausing alert a day, 8 a run. Missed check-ins roll forward to the next day something applies (max 3). | `market/step.ts`, `market/adjustments.ts`, `market/liveRun.ts` |
+| 4 Brief v2 | **Done** (earlier). Brief shows calibrated v2 goals under the flag. | `components/brief/*` |
+| 5 Scoring v2 + debrief | **Done.** Events + Rohit (20) = budget pacing 5, pitch 5, response to alerts 5, Rohit check-ins 5. Scoring runs in a Web Worker. Debrief shows moments, costliest mistakes in ₹, goal table, every line with its rubric, an Excel workbook (score, moments, mistakes, goals, R1 to R12), and saves `score_breakdown.version = 2`. Setup score card shows the v2 setup lines. | `market/scoringV2.ts`, `pages/DebriefV2.tsx`, `lib/debriefV2Export.ts` |
+
+Checked in the browser on PawLife: go live, alert on day 1 (rival on the brand term), add the brand keyword, checkpoint, refresh mid-run (replay resumes on the same day), three Rohit check-ins, four alerts, day 30, results scored and saved (save blocked in the test).
+
+Known gaps: the v1 sidebar "CM relationship" widget doesn't show the v2 meter; switching engines in one browser mid-run shows mixed v1 state; the main bundle is 2.3 MB (code-split the heavy pages per §2.1).
+
 ## 13. Decisions and open questions
 
 ### Decided (2026-10-10; second batch 2026-10-11)

@@ -11,7 +11,7 @@ import {
   type CalendarEntry, type EventActivation, type LeverId,
 } from "@/market/events";
 import {
-  pickCheckIns, isCheckInDay, clampRelationship, relationshipChange,
+  pickCheckIns, clampRelationship, relationshipChange, CHECK_IN_DAYS, MAX_CHECKINS_PER_RUN,
   type AskId, type CommitmentResult, type ReplyQuality, type RohitAsk,
 } from "@/market/rohit";
 
@@ -45,10 +45,19 @@ export function afterDay(input: AfterDayInput): AfterDayOutcome {
   const { ctx, state, history, campaigns, calendar, campaignNames } = input;
   const fresh = evaluateEvents({ ctx, state, history, campaigns, calendar, campaignNames }, input.existing);
   const { pausing } = selectAlerts(fresh, 0, input.pausingShown);
-  const ask = state.day > 0 && isCheckInDay(state.day, input.asked)
+  const ask = checkInDue(state.day, input.asked)
     ? pickCheckIns({ ctx, state, history, campaigns, relationship: input.relationship }, input.asked)
     : null;
   return { fresh, pausing, ask };
+}
+
+/**
+ * True when the next check-in is due: from its suggested day (6, 13, 20) until
+ * one is actually asked, so a day with nothing to ask doesn't lose it.
+ */
+export function checkInDue(day: number, asked: readonly AskId[]): boolean {
+  const due = CHECK_IN_DAYS[asked.length];
+  return asked.length < MAX_CHECKINS_PER_RUN && due !== undefined && day >= due;
 }
 
 // ── Which levers an action pulls ─────────────────────────────────────────────

@@ -392,11 +392,11 @@ function writeParagraph(s: Omit<CategorySummary, "paragraph">): string {
 
 function summariseCategory(spec: CategorySpec, lines: readonly LineResult[]): CategorySummary {
   const mine = lines.filter((l) => l.category === spec.key);
-  const earned = mine.reduce((s, l) => s + l.earned, 0);
+  const earned = Math.round(mine.reduce((s, l) => s + l.earned, 0) * 10) / 10;
   const wentWell = mine.filter((l) => l.max > 0 && l.earned >= l.max * 0.7);
   const lost = mine
     .filter((l) => l.earned < l.max)
-    .map((l) => ({ ...l, lostPoints: l.max - l.earned }))
+    .map((l) => ({ ...l, lostPoints: Math.round((l.max - l.earned) * 10) / 10 }))
     .sort((a, b) => b.lostPoints - a.lostPoints);
   const fixes = lost
     .slice(0, MAX_FIXES)
