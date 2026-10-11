@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /** Scope wrapper + readable max width. Put it on the content column, next to BlinkitSidebar. */
 export function SimPage({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
   return (
-    <main className={cn("sim-ui min-h-full flex-1", className)}>
+    <main className={cn("sim-ui relative min-h-full flex-1", className)}>
       <div className={cn("mx-auto w-full px-6 py-8 md:px-10", wide ? "max-w-[1400px]" : "max-w-[1180px]")}>{children}</div>
     </main>
   );
