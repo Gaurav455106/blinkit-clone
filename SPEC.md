@@ -1243,9 +1243,26 @@ Known gaps: the v1 sidebar "CM relationship" widget doesn't show the v2 meter; s
 | 24 | Hero product | **Student infers it** from the brief and reports; the brief doesn't label it |
 | 25 | Organic sales | **Modelled** (deplete stock, shown in R9); no cannibalisation / incrementality scoring for now |
 
+### Decided after the 7-brand trainer run (2026-10-11, third batch)
+
+Found by playing every brand on v2 in the browser. Scores seen: MunchBox 86.5 and Henlo 83.7
+(Product Booster, ROAS about 3x break-even with no changes, about 25% of budget spent);
+FuelUp 35.5; TinyBuddy 55.8; VitaBoost 52.3; PawLife 24.7 (profitable); Glow 21.6.
+
+| # | Question | Decision |
+|---|---|---|
+| 29 | No decision moment detected gave a free 30 of 35 live points (VitaBoost lost ₹75k and scored 35/35) | **No free points.** (a) Detection covers every inventory type: "losing money" and "lost visibility" run on category, Spotlight, Stories and Rec placements as well as keywords; add the spec'd creative-CTR moment (§3.8) and a stock moment (ads running in a state below 30% OSA for 2 days: stop the state or restock). (b) If a run still has no moment, the 30 points scale by **1 − wasted-spend share** (₹ spent below break-even ÷ total spend). Unspent budget is still not scored directly (§3.3.5 #3); it shows in the goals. |
+| 30 | Setup took 11 points ("no keyword bids / campaigns") from reach brands that followed their brief | **Bid discipline judges every bid the student set** (keyword, category, Rec Ads, Stories), against max profitable CPM; Spotlight auto-bids are left out. **Keyword choice is "not needed"** (full marks) when the brand's acceptable formats have no keywords; a ROAS-First or Volume-First brand with no keyword campaign still scores 0 there. |
+| 31 | PawLife could not reach full format marks (wizard puts Rec Ads under Performance); VitaBoost was marked down for Stories, which its brief recommends | **Format fit scores the format; the objective follows from it** as the wizard pairs them. Each brand gets a short list of good formats: first one full marks, others 6 of 8. Glow: Spotlight, Brand Booster. VitaBoost: Spotlight, Stories. TinyBuddy: Brand Booster, Rec Ads. PawLife: Rec Ads, Brand Booster. Henlo, MunchBox, FuelUp: Product Booster. **The brief's "lead with" line is built from this list**, so brief and score can't disagree. |
+| 32 | The stock label never reached the engine: start stock came from OSA % only, so every brand ran out in week 1 (FuelUp "Overstocked" was out by day 2 to 6) | **Start stock = targetCoverDays (§14 F6: Healthy 21, Shaky 10, Critical 4, Overstocked 45) × expected daily units in each stocked state**, the same rule as restocks; the state OSA % only decides which states have stock. When stock is **Overstocked, format fit needs a selling format** (Product Booster or Rec Ads) whatever the goal type, matching the brief's "skip awareness ads". |
+| 33 | Calibration: Product Booster ran at ~3x break-even on ~25% of the budget; Spotlight at its auto-bid returned ROAS 1.0 and half the views goal on ₹75k | **Re-calibrate after #32, with two new `npm run calibrate` checks per brand:** (a) a competent default setup (bids inside the suggested range, brief's split) lands at **1.2 to 2x break-even** and spends **60 to 90% of ₹2L** (decision #12, §3.3.5 #2: the budget should be tight); (b) the recommended awareness format at its auto-bid reaches **≥ 0.7x break-even** (the F13 floor) and about 80% of the views goal on the brief's reach share. **Q27 closed:** Spotlight keeps the automatic p50 bid; tune its price and CTR, not the rule. |
+| 34 | Rohit offered "stop the keywords that lose money" to accounts with no keywords, and it became a broken promise; his restocks didn't count as answers to stock alerts | **Every reply Rohit offers must be doable on the live account:** the "losing money" options name the losing items (keyword, placement or campaign) and offer lowering that bid or cutting that budget. A reply that can't be carried out is never offered. **A Rohit action that matches an open alert counts as the response** (a rush restock answers the stock alert for that SKU and state; extra spend answers a rival or launch alert in that state). |
+
+Build order: 32 (stock) → 33 (calibrate) → 29 → 30 + 31 → 34; each with tests first and a headless run of all 7 brands.
+
 ### Still open
 
-27. **Listing Spotlight has no bid in the wizard** (and no placement choice, despite CLAUDE.md
+27. **Closed by #33: Spotlight keeps the automatic p50 bid.** **Listing Spotlight has no bid in the wizard** (and no placement choice, despite CLAUDE.md
     describing one). The engine needs a bid. *Recommendation: the platform bids automatically
     at the suggested range's p50 (§3.2.1) for all three Spotlight placements; the student's
     levers are budget, schedule and the creative (whose CTR raises relevance and lowers price).*
