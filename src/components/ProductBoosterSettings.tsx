@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info, Search, ChevronDown } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { DEFAULT_CAMPAIGN_START } from "@/lib/wizardSave";
 import { useSim } from "@/context/SimContext";
 import { BLINKIT_STATES, STATE_TO_CITIES } from "@/data/scenarios";
 
@@ -36,7 +37,7 @@ const PRESETS = {
 
 export function ProductBoosterSettings({ onRegionValid, showAdSchedule = false, portalContainer }: ProductBoosterSettingsProps) {
   const { scenario, cmPitch } = useSim();
-  const [startDate, setStartDate] = useLocalStorage("sim_campaign_start_date", "2026-02-09");
+  const [startDate, setStartDate] = useLocalStorage("sim_campaign_start_date", DEFAULT_CAMPAIGN_START);
   const [noEndDate, setNoEndDate] = useState(true);
   const [endDate, setEndDate] = useLocalStorage("sim_campaign_end_date", "");
   const [regionType, setRegionType] = useLocalStorage<"pan_india" | "select_cities" | null>("sim_geography", null);
