@@ -374,15 +374,17 @@ function settleStock(
       const ads = adUnits.get(key) ?? 0;
       const totalVI = stateTotalVI.get(st) ?? 0;
       const sov = totalVI > 0 ? (stateStudentVI.get(st) ?? 0) / totalVI : 0;
-      const organic = opening > 0
-        ? organicDemand(market.organicDailyUnits[sku.id] ?? 0, shares[st] ?? 0, DOW_MULT[weekday], seasonMult, sov)
-        : 0;
+      const organicPotential = organicDemand(market.organicDailyUnits[sku.id] ?? 0, shares[st] ?? 0, DOW_MULT[weekday], seasonMult, sov);
+      const organic = opening > 0 ? organicPotential : 0;
       const wanted = ads + organic;
       const { sold } = sellFrom(opening, wanted);
       const ratio = wanted > 0 ? sold / wanted : 1;
       if (ratio < 1) unitRatio.set(key, ratio);
-      const window = pushWindow(prev.salesWindow[key], sold, SALES_WINDOW_DAYS);
-      if (sold > 0 || prev.salesWindow[key]) nextSales[key] = window;
+      // The window tracks demand, not sales: sized from sales, a state that ran out would
+      // get ever-smaller restocks and stay empty. Only states that have held stock count.
+      const everStocked = opening > 0 || prev.salesWindow[key] !== undefined;
+      const window = pushWindow(prev.salesWindow[key], everStocked ? ads + organicPotential : 0, SALES_WINDOW_DAYS);
+      if (everStocked) nextSales[key] = window;
       const restocked = isRestockDay(day) ? restockAmount(opening - sold, sum(window) / window.length, scenario.inventory.tone) : 0;
       const closing = opening - sold + restocked;
       const stores = CITY_STORE_COUNT[st] ?? 0;

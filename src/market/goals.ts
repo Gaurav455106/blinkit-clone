@@ -16,13 +16,13 @@ export interface GoalBenchmark {
 
 /** Re-checked by src/market/calibration/benchmarks.calibration.ts (fails if the engine drifts > 10%). */
 export const GOAL_BENCHMARKS: Readonly<Record<string, GoalBenchmark>> = {
-  henlo:     { breakEven: 7.1,  units: 4387, views: 516134, ctrPct: 6.78 },
-  glow:      { breakEven: 4.48, units: 832,  views: 404282, ctrPct: 3.1 },
-  vitaboost: { breakEven: 4.01, units: 408,  views: 518067, ctrPct: 1.62 },
-  tinybuddy: { breakEven: 3.68, units: 2940, views: 487087, ctrPct: 4.22 },
-  munchbox:  { breakEven: 3.79, units: 7496, views: 611545, ctrPct: 7.83 },
-  pawlife:   { breakEven: 3.36, units: 669,  views: 498457, ctrPct: 3.52 },
-  fuelup:    { breakEven: 3.29, units: 895,  views: 516661, ctrPct: 2.17 },
+  henlo:     { breakEven: 7.11, units: 4697, views: 513913, ctrPct: 6.84 },
+  glow:      { breakEven: 4.48, units: 866,  views: 413994, ctrPct: 2.56 },
+  vitaboost: { breakEven: 4.01, units: 627,  views: 658705, ctrPct: 1.33 },
+  tinybuddy: { breakEven: 3.72, units: 3246, views: 500473, ctrPct: 4.23 },
+  munchbox:  { breakEven: 3.85, units: 8789, views: 638650, ctrPct: 7.86 },
+  pawlife:   { breakEven: 3.36, units: 825,  views: 507853, ctrPct: 2.88 },
+  fuelup:    { breakEven: 3.3,  units: 940,  views: 530762, ctrPct: 2.18 },
 };
 
 const STRETCH = 0.85;

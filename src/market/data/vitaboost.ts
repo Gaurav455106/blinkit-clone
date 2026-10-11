@@ -27,7 +27,8 @@ export const VITABOOST: BrandMarket = {
     { term: "iron folic acid tablets pregnancy", tier: "long", dailyVolume: 2500,  cluster: "iron",    fit: { "vita-1": 0.10, "vita-2": 0.10, "vita-3": 1.30 } },
     { term: "vitaboost multivitamin",            tier: "long", dailyVolume: 150,   cluster: "brand",   fit: { "vita-1": 1.30, "vita-2": 0.20, "vita-3": 0.20 }, isBrandTerm: true },
   ],
-  placements: standardPlacements(["Health & Wellness", "Supplements"], { "vita-1": 1.0, "vita-2": 0.9, "vita-3": 0.9 }),
+  // Few people search for this yet, so browsing placements fit it better than search (SPEC §13 #33)
+  placements: standardPlacements(["Health & Wellness", "Supplements"], { "vita-1": 1.35, "vita-2": 1.25, "vita-3": 1.25 }),
   stateCVR:      { Maharashtra: 1.00, Karnataka: 1.10, Telangana: 0.95 },
   stateAffinity: { Maharashtra: 1.20, Karnataka: 1.20, Telangana: 1.10 },
   rivals: [

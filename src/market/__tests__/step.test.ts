@@ -199,7 +199,8 @@ describe("stock and geography (F6, §3.4)", () => {
   });
 
   it("sales reduce stock, and stock is topped up on restock days", () => {
-    const ctx = makeCtx();
+    // A small opening stock, so a week of sales leaves it below its target cover
+    const ctx = { ...makeCtx(), startStock: { "fuel-1": { Karnataka: 40 } } };
     const { results } = runDays(ctx, [camp()], RESTOCK_INTERVAL_DAYS);
     const day1 = results[0].stock.find((s) => s.skuId === "fuel-1" && s.state === "Karnataka")!;
     expect(day1.closing).toBeCloseTo(day1.opening - day1.adUnits - day1.organicUnits, 6);

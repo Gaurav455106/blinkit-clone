@@ -29,7 +29,7 @@ export const MUNCHBOX: BrandMarket = {
     { term: "munchbox makhana",                   tier: "long", dailyVolume: 300,   cluster: "brand",   fit: { "munch-1": 1.30, "munch-2": 0.20, "munch-3": 0.20 }, isBrandTerm: true },
   ],
   placements: standardPlacements(["Snacks", "Packaged Foods"], { "munch-1": 1.0, "munch-2": 0.9, "munch-3": 0.9 }),
-  stateCVR:      { Maharashtra: 1.00, Gujarat: 1.05, Karnataka: 1.00 },
+  stateCVR:      { Maharashtra: 1.04, Gujarat: 1.09, Karnataka: 1.04 },
   stateAffinity: { Maharashtra: 1.20, Gujarat: 1.10, Karnataka: 1.10 },
   rivals: [
     {

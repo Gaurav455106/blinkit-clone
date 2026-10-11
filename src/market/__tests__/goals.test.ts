@@ -11,7 +11,7 @@ describe("v2 client goals (calibrated to the engine)", () => {
   it("ROAS-first targets are 1.15× break-even, so hitting them means making money", () => {
     const g = clientGoalsV2(testContext("fuelup").scenario);
     expect(g.metrics.find((m) => m.label === "ROAS")?.target).toBeCloseTo(3.8, 6);
-    expect(g.metrics.find((m) => m.label === "Units sold")?.target).toBe(760);
+    expect(g.metrics.find((m) => m.label === "Units sold")?.target).toBe(800);
   });
 
   it("only uses goals the v2 engine can measure", () => {
