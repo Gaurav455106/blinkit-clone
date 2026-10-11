@@ -27,6 +27,14 @@ const ROAS_BANDS: Partial<Record<string, [number, number]>> = {
   "Category-Creation": [0.4, 1.0],
 };
 const BUDGET_USED = 0.95;
+/** SPEC §13 #33: a competent default (good keywords + category pages, mid-range bids) for a
+ *  sales-led brand sits around break-even (decision #12), never far above it, and the budget stays tight. */
+const COMPETENT_BAND: [number, number] = [0.9, 2.0];
+const COMPETENT_BUDGET_USED = 0.6;
+const SALES_GOALS = new Set(["ROAS-First", "Volume-First"]);
+/** The F13 ROAS gates: below these the brand's own goal scores nothing. */
+const REACH_FLOOR: Partial<Record<string, number>> = { "Awareness-First": 0.7, "Category-Creation": 0.6 };
+const OSA_FLOOR_BEFORE_RESTOCK = 0.2;
 const CHALLENGER_BURNOUT: [number, number] = [12, 28];
 const RUN_MS_LIMIT = 1500;
 
@@ -131,6 +139,33 @@ for (const brandId of Object.keys(MARKET_DATA)) {
         const good = revenue(1.1), weak = revenue(0.8);
         report.push(`  Spotlight revenue: clean ₹${Math.round(good)} vs weak ₹${Math.round(weak)}`);
         expect(good).toBeGreaterThanOrEqual(weak * 1.2);
+      });
+    }
+
+    it("healthy stock lasts to the first restock: no stocked state below 20% OSA before day 7 (§13 #32)", () => {
+      const early = naive.results.filter((r) => r.day < 7).flatMap((r) => r.stock).filter((x) => x.opening > 0);
+      expect(early.every((x) => x.osa >= OSA_FLOOR_BEFORE_RESTOCK)).toBe(true);
+    });
+
+    if (SALES_GOALS.has(ctx.scenario.profile.goalType)) {
+      it(`a competent default sits at ${COMPETENT_BAND.join("–")}× break-even and spends ≥ 60% of the budget (§13 #33a)`, () => {
+        const run = runHeadless(ctx, S.competent(ctx));
+        const ratio = run.totals.roas / run.totals.breakEvenRoas;
+        report.push(`  competent default ${ratio.toFixed(2)}× break-even, ${Math.round((run.totals.spend / ctx.scenario.budget) * 100)}% of budget`);
+        expect(ratio).toBeGreaterThanOrEqual(COMPETENT_BAND[0]);
+        expect(ratio).toBeLessThanOrEqual(COMPETENT_BAND[1]);
+        expect(run.totals.spend / ctx.scenario.budget).toBeGreaterThanOrEqual(COMPETENT_BUDGET_USED);
+      });
+    }
+
+    const floor = REACH_FLOOR[ctx.scenario.profile.goalType];
+    const reach = S.awarenessDefault(ctx);
+    if (floor !== undefined && reach) {
+      it(`the recommended reach format at its default bid reaches ≥ ${floor}× break-even (§13 #33b)`, () => {
+        const run = runHeadless(ctx, reach);
+        const ratio = run.totals.roas / run.totals.breakEvenRoas;
+        report.push(`  ${ctx.scenario.profile.optimalAdFormat} default ${ratio.toFixed(2)}× break-even`);
+        expect(ratio).toBeGreaterThanOrEqual(floor);
       });
     }
 

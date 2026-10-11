@@ -18,7 +18,7 @@ export function BudgetSplit({ goalType, budget, convPct, onChange }: Props) {
   const inRange = convPct >= rec.min && convPct <= rec.max;
   const midpoint = Math.round((rec.min + rec.max) / 2 / 5) * 5;
   const hint = inRange
-    ? `A sensible split for a ${goalType} brand.`
+    ? `A sensible split for ${/^[AEIOU]/i.test(goalType) ? "an" : "a"} ${goalType} brand.`
     : convPct > rec.max ? `A lot on sales ads. ${rec.reason}.` : `Not much on sales ads. ${rec.reason}.`;
 
   return (

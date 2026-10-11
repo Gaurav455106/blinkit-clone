@@ -570,10 +570,12 @@ function lossStreak(history: readonly DayResult[]): boolean {
   });
 }
 
-function worstKeyword(cells: readonly DayResult["cells"][number][]): { term: string; totals: CellTotals } | undefined {
-  const terms = Array.from(new Set(cells.filter((c) => c.inventory === "keyword").map((c) => c.term)));
+/** The keyword or placement losing the most money, across every inventory the account runs
+ *  (SPEC §13 #34: a placement-only account must not be told to stop keywords). */
+function worstUnit(cells: readonly DayResult["cells"][number][]): { term: string; isKeyword: boolean; totals: CellTotals } | undefined {
+  const terms = Array.from(new Set(cells.map((c) => c.term)));
   return terms
-    .map((term) => ({ term, totals: sumCells(cells, (c) => c.term === term) }))
+    .map((term) => ({ term, isKeyword: cells.some((c) => c.term === term && c.inventory === "keyword"), totals: sumCells(cells, (c) => c.term === term) }))
     .sort((a, b) => (a.totals.contribution - a.totals.spend) - (b.totals.contribution - b.totals.spend))[0];
 }
 
@@ -583,7 +585,8 @@ const roasBelowBreakEven: AskDef = {
   build: (input) => {
     const cells = recentCells(input.history, LOSS_STREAK_DAYS);
     const t = sumCells(cells);
-    const worst = worstKeyword(cells);
+    const worst = worstUnit(cells);
+    const worstName = worst && (worst.isKeyword ? `"${worst.term}"` : input.ctx.market.placements.find((p) => p.id === worst.term)?.label ?? worst.term);
     const day = today(input);
     const reachGoal = ["Awareness-First", "Category-Creation"].includes(input.ctx.scenario.profile.goalType);
     return {
@@ -592,11 +595,13 @@ const roasBelowBreakEven: AskDef = {
       chips: [
         roasChip(`last ${LOSS_STREAK_DAYS} days`, t),
         { label: `Money lost on ads, last ${LOSS_STREAK_DAYS} days`, value: inr(t.spend - t.contribution), tone: "bad" },
-        ...(worst && worst.totals.spend > 0 ? [{ label: `Worst keyword: "${worst.term}"`, value: `${fmtRoas(roas(worst.totals))} sales per ₹1`, tone: "bad" as ChipTone }] : []),
+        ...(worst && worst.totals.spend > 0 ? [{ label: `${worst.isKeyword ? "Worst keyword" : "Worst placement"}: ${worstName}`, value: `${fmtRoas(roas(worst.totals))} sales per ₹1`, tone: "bad" as ChipTone }] : []),
       ],
       options: [
         {
-          id: "diagnose", label: worst ? `Stop "${worst.term}" and lower bids on keywords that lose money` : "Stop the keywords that lose money and lower bids",
+          id: "diagnose", label: !worst ? "Lower the bids that lose money and cut the budget behind them"
+            : worst.isKeyword ? `Stop ${worstName} and lower bids on keywords that lose money`
+            : `Lower the bid on ${worstName} and cut the budget behind what loses money`,
           cost: "Fewer sales. You promise ads pay for themselves within 5 days.",
           effect: { relationshipDelta: 5 },
           quality: "strong",

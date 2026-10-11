@@ -133,3 +133,28 @@ export function spotlightCampaign(ctx: MarketContext, creativeMult: number): Str
   const placements = ctx.market.placements.filter((p) => p.kind === "spotlight").map((p) => ({ id: p.id, bid: suggestPlacementRange(ctx, p.id).hi }));
   return fixed([base(ctx, { placements, creativeMult })]);
 }
+
+const midOf = (r: { lo: number; hi: number }) => Math.round((r.lo + r.hi) / 2);
+
+/** A competent student (SPEC §13 #33a): only the brief's good keywords and the brand's
+ *  category pages, every bid at the middle of its suggested range, the full daily budget. */
+export function competent(ctx: MarketContext): Strategy {
+  const good = new Set(ctx.scenario.profile.goodKeywords);
+  const keywords = ctx.market.keywords.filter((k) => good.has(k.term)).map((k) => ({ term: k.term, exactBid: midOf(suggestKeywordRange(ctx, k.term)) }));
+  const placements = ctx.market.placements.filter((p) => p.kind === "category").map((p) => ({ id: p.id, bid: midOf(suggestPlacementRange(ctx, p.id)) }));
+  return fixed([base(ctx, { keywords, placements })]);
+}
+
+/** Ad formats whose inventory kind a brand's recommended reach format buys. */
+const FORMAT_KIND: Readonly<Record<string, string>> = {
+  listing_spotlight: "spotlight", stories: "stories", recommendation_ads: "recommendation", brand_booster: "category",
+};
+
+/** The brand's recommended reach format at its automatic / mid bid, on the brief's reach share
+ *  of the budget (SPEC §13 #33b). Undefined for brands whose recommended format is search. */
+export function awarenessDefault(ctx: MarketContext, reachShare = 0.7): Strategy | undefined {
+  const kind = FORMAT_KIND[ctx.scenario.profile.optimalAdFormat];
+  if (!kind) return undefined;
+  const placements = ctx.market.placements.filter((p) => p.kind === kind).map((p) => ({ id: p.id, bid: midOf(suggestPlacementRange(ctx, p.id)) }));
+  return fixed([base(ctx, { placements, budget: (ctx.scenario.budget / RUN_DAYS) * reachShare })]);
+}

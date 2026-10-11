@@ -18,6 +18,7 @@ import { sumMetrics, type Metrics } from "@/market/aggregate";
 import { suggestKeywordRange } from "@/market/suggest";
 import { maxProfitableCPM } from "@/market/shoppers";
 import { isAwarenessFormat, isConversionFormat, requiredBuckets } from "@/lib/scoring";
+import { FORMAT_NAMES, KEYWORD_FORMATS, SELLING_FORMATS, goodFormatsFor } from "@/market/formats";
 
 export const SCORE_V2_MAX = { setup: 25, live: 35, eventsRohit: 20, results: 20 } as const;
 export type CategoryV2 = keyof typeof SCORE_V2_MAX;
@@ -91,29 +92,37 @@ function line(l: ScoreLineV2): ScoreLineV2 {
 
 // ── Setup (25) ────────────────────────────────────────────────────────────────
 
+const article = (word: string) => (/^[AEIOU]/i.test(word) ? "an" : "a");
+
+/** Format fit (SPEC §13 #31): the format decides it; the objective follows from the format as
+ *  the wizard pairs them. Best format 8, another good one 6, right family 3. Overstocked brands
+ *  need a selling format (#32). */
 function formatFit(input: SetupInputV2): ScoreLineV2 {
-  const p = input.ctx.scenario.profile;
-  const fmts = Object.values(input.formats);
-  const objective = fmts.some((f) => f.objective === p.optimalObjective);
-  const format = fmts.some((f) => f.adFormat === p.optimalAdFormat);
-  const bucket = requiredBuckets(p.goalType);
-  const covered = bucket === "awareness" ? fmts.some((f) => isAwarenessFormat(f.adFormat))
-    : bucket === "conversion" ? fmts.some((f) => isConversionFormat(f.adFormat))
-    : fmts.some((f) => isAwarenessFormat(f.adFormat)) && fmts.some((f) => isConversionFormat(f.adFormat));
-  const earned = objective && format ? 8 : objective && covered ? 5 : format ? 3 : covered ? 2 : 0;
+  const { scenario } = input.ctx;
+  const p = scenario.profile;
+  const used = Object.values(input.formats).map((f) => f.adFormat).filter((f): f is string => !!f);
+  const good = goodFormatsFor(scenario);
+  const overstocked = scenario.inventory.tone === "overstocked";
+  const bucket = overstocked ? "conversion" : requiredBuckets(p.goalType);
+  const covered = bucket === "awareness" ? used.some((f) => isAwarenessFormat(f))
+    : bucket === "conversion" ? used.some((f) => isConversionFormat(f) || SELLING_FORMATS.includes(f))
+    : used.some((f) => isAwarenessFormat(f)) && used.some((f) => isConversionFormat(f));
+  const best = used.includes(good[0]);
+  const other = good.slice(1).some((f) => used.includes(f));
+  const earned = best ? 8 : other ? 6 : covered ? 3 : 0;
+  const names = good.map((f) => FORMAT_NAMES[f] ?? f);
+  const why = overstocked ? "while stock is overstocked" : `for ${article(p.goalType)} ${p.goalType} brand`;
   return line({
-    key: "v2_format", category: "setup", label: "Objective and format fit", earned, max: 8,
-    judgedOn: "Whether your campaigns use the objective and ad format that suit the brand's goal.",
+    key: "v2_format", category: "setup", label: "Objective and format fit", earned: overstocked && !covered ? Math.min(earned, 2) : earned, max: 8,
+    judgedOn: "Whether your campaigns use the ad formats that suit this brand right now. The objective comes with the format, as the wizard pairs them.",
     tiers: [
-      { points: 8, rule: "Right objective and the brand's best format" },
-      { points: 5, rule: "Right objective, format from the right family" },
-      { points: 3, rule: "Best format, wrong objective" },
-      { points: 2, rule: "Format family right, objective wrong" },
-      { points: 0, rule: "Neither" },
+      { points: 8, rule: `The best format: ${names[0]}` },
+      ...(names.length > 1 ? [{ points: 6, rule: `Another good format: ${names.slice(1).join(", ")}` }] : []),
+      { points: 3, rule: "A format from the right family" },
+      { points: 0, rule: "None of these" },
     ],
-    note: objective && format ? `${p.optimalObjective} objective with ${p.optimalAdFormat}: right for a ${p.goalType} brand.`
-      : `For a ${p.goalType} brand, ${p.optimalObjective} with ${p.optimalAdFormat} works best.`,
-    howToImprove: "Read the client goal first: ROAS-first brands need performance formats; awareness and category-creation brands need reach formats.",
+    note: best ? `${names[0]}: right ${why}.` : `Best ${why}: ${names.join(", then ")}.`,
+    howToImprove: "Read the brief's \"Lead with\" line: it names the formats that suit this brand right now.",
   });
 }
 
@@ -134,26 +143,46 @@ function keywordChoice(input: SetupInputV2): ScoreLineV2 {
   const canProfit = known.filter((k) => keywordMaxCpm(input, k.term, k.skus) > suggestKeywordRange(input.ctx, k.term).lo);
   const share = known.length ? canProfit.length / known.length : 0;
   const traps = known.filter((k) => !canProfit.includes(k)).map((k) => k.term);
+  // SPEC §13 #30: no keywords is right when none of the brand's good formats uses them
+  const keywordsNeeded = goodFormatsFor(input.ctx.scenario).some((f) => KEYWORD_FORMATS.includes(f));
   return line({
-    key: "v2_keywords", category: "setup", label: "Keyword choice", earned: chosen.length ? 5 * share : 0, max: 5,
+    key: "v2_keywords", category: "setup", label: "Keyword choice", earned: chosen.length ? 5 * share : keywordsNeeded ? 0 : 5, max: 5,
     judgedOn: "How many of your keywords can make money. A keyword can make money if a click on it is worth more to you than the price you must pay to win the ad slot.",
-    tiers: [{ points: 5, rule: "Every keyword can be profitable" }, { points: 0, rule: "None can (or no keywords)" }],
-    note: chosen.length === 0 ? "No keyword campaigns." : traps.length ? `${canProfit.length} of ${known.length} keywords can pay; ${traps.slice(0, 3).join(", ")} cost more than they can earn.` : "Every keyword you picked can be profitable.",
+    tiers: [{ points: 5, rule: "Every keyword can be profitable (or this brand doesn't need keywords)" }, { points: 0, rule: "None can (or no keywords where the brand needs them)" }],
+    note: chosen.length === 0 ? (keywordsNeeded ? "No keyword campaigns, and this brand needs search." : "Not needed: this brand's best formats don't use keywords.") : traps.length ? `${canProfit.length} of ${known.length} keywords can pay; ${traps.slice(0, 3).join(", ")} cost more than they can earn.` : "Every keyword you picked can be profitable.",
     howToImprove: "Compare each keyword's suggested range with what a click is worth to you (max profitable CPM) and drop the ones that can't pay.",
   });
 }
 
+/** Max profitable CPM for a placement (category page, Stories feed, Rec Ads slot), mirroring
+ *  the engine's placement maths in step.ts, at average intent and state. */
+function placementMaxCpm(input: Pick<ScoreV2Input, "ctx">, placementId: string, skuIds: readonly string[]): number {
+  const pl = input.ctx.market.placements.find((x) => x.id === placementId);
+  if (!pl) return 0;
+  const cat = input.ctx.market.category;
+  return Math.max(0, ...input.ctx.scenario.profile.skus.filter((s) => skuIds.includes(s.id)).map((sku) => maxProfitableCPM({
+    baseCTR: cat.baseCTR * pl.ctrMult, creativeMult: 1, affinity: 1, fatigueMult: 1,
+    baseCVR: cat.baseCVR * pl.cvrMult, fit: pl.fit[sku.id] ?? 0, intent: 1, stateCVR: 1, priceEffect: 1,
+    sellingPrice: sku.mrp, contributionPerUnit: sku.margin,
+  })));
+}
+
+/** Bid discipline (SPEC §13 #30): every bid the student set, keywords and placements.
+ *  Spotlight is left out: the platform bids for it. */
 function bidDiscipline(input: SetupInputV2): ScoreLineV2 {
-  const bids = input.launched.flatMap((c) => c.keywords.map((k) => ({ term: k.term, bid: k.exactBid * (1 + (c.boostPct ?? 0)), max: keywordMaxCpm(input, k.term, c.skuIds) })))
-    .filter((b) => b.max > 0);
+  const keywordBids = input.launched.flatMap((c) => c.keywords.map((k) => ({ term: k.term, bid: k.exactBid * (1 + (c.boostPct ?? 0)), max: keywordMaxCpm(input, k.term, c.skuIds) })));
+  const placementBids = input.launched.flatMap((c) => (c.placements ?? [])
+    .filter((pl) => input.ctx.market.placements.find((x) => x.id === pl.id)?.kind !== "spotlight")
+    .map((pl) => ({ term: input.ctx.market.placements.find((x) => x.id === pl.id)?.label ?? pl.id, bid: pl.bid, max: placementMaxCpm(input, pl.id, c.skuIds) })));
+  const bids = [...keywordBids, ...placementBids].filter((b) => b.max > 0);
   const within = bids.filter((b) => b.bid <= b.max * 1.05);
-  const share = bids.length ? within.length / bids.length : 0;
+  const share = bids.length ? within.length / bids.length : 1;
   const worst = bids.filter((b) => b.bid > b.max * 1.05).sort((a, b) => b.bid / b.max - a.bid / a.max)[0];
   return line({
-    key: "v2_bids", category: "setup", label: "Bid discipline", earned: bids.length ? 6 * share : 0, max: 6,
-    judgedOn: "Whether your bids (including any boost) stay at or below the most you can pay and still make money on that keyword (max profitable CPM).",
-    tiers: [{ points: 6, rule: "All bids at or below max profitable CPM" }, { points: 0, rule: "None (or no keyword bids)" }],
-    note: !bids.length ? "No keyword bids to judge." : worst ? `${within.length} of ${bids.length} bids are safe; "${worst.term}" at ₹${Math.round(worst.bid)} is above its ₹${Math.round(worst.max)} max profitable CPM.` : "Every bid is at or below what a click is worth.",
+    key: "v2_bids", category: "setup", label: "Bid discipline", earned: 6 * share, max: 6,
+    judgedOn: "Whether your bids (keywords, category pages, Stories feeds, Rec Ads slots, including any boost) stay at or below the most you can pay and still make money there (max profitable CPM). Spotlight is bid by the platform, so it isn't judged.",
+    tiers: [{ points: 6, rule: "All bids at or below max profitable CPM (or nothing to judge)" }, { points: 0, rule: "None" }],
+    note: !bids.length ? "No bids of yours to judge (Spotlight is bid by the platform)." : worst ? `${within.length} of ${bids.length} bids are safe; "${worst.term}" at ₹${Math.round(worst.bid)} is above its ₹${Math.round(worst.max)} max profitable CPM.` : "Every bid is at or below what a view is worth.",
     howToImprove: "Keep bid × (1 + boost) at or below max profitable CPM. You never pay more than your bid, so this keeps every ad sale profitable.",
   });
 }
@@ -199,16 +228,27 @@ function insightLine(input: ScoreV2Input, detected: ReturnType<typeof detectMome
   });
 }
 
+/** Moment points when no moment was detected (SPEC §13 #29b): only a run that wasted little
+ *  earns them, so a quiet run that lost money doesn't get them free. */
+export function noMomentPoints(wastedShare: number, max: number): number {
+  return max * (1 - Math.min(1, Math.max(0, wastedShare)));
+}
+
 function liveLines(input: ScoreV2Input): { lines: ScoreLineV2[]; moments: MomentScore[] } {
   const detected = detectMoments({ ctx: input.ctx, results: input.results, configsByDay: input.configsByDay });
   if (detected.length === 0) {
+    const wasted = wastedSpendShare(input.results, wasteFloorFor(input.ctx.scenario.profile.goalType));
     return {
       moments: [],
       lines: [insightLine(input, detected), line({
-        key: "v2_moments", category: "live", label: "Decision moments", earned: MOMENT_POINTS, max: MOMENT_POINTS,
-        judgedOn: "How well you responded each time the data called for action.",
-        tiers: [{ points: SCORE_V2_MAX.live, rule: "No moment needed action" }],
-        note: "The run never reached a point where a change would have helped.", howToImprove: "Nothing to fix here.",
+        key: "v2_moments", category: "live", label: "Decision moments", earned: noMomentPoints(wasted, MOMENT_POINTS), max: MOMENT_POINTS,
+        judgedOn: "How well you responded each time the data called for action. With no moment to answer, how little of your spend was wasted (spent where ads lost money).",
+        tiers: [
+          { points: MOMENT_POINTS, rule: "No moment needed action and no spend was wasted" },
+          { points: 0, rule: "No moment needed action but all spend was wasted" },
+        ],
+        note: `No single moment called for a change. ${Math.round(wasted * 100)}% of your spend went where ads lost money.`,
+        howToImprove: wasted > 0.1 ? "Check the Keywords tab every few days: lower or pause anything whose ROAS sits below break-even." : "Nothing to fix here.",
       })],
     };
   }
@@ -310,7 +350,7 @@ const VERDICT_TEXT = { right: "right move", held: "held steady (right here)", ot
 
 function eventsLine(input: ScoreV2Input): ScoreLineV2 {
   const alerts = input.alerts ?? [];
-  const { items, share } = scoreEventResponses(alerts, input.actions, input.launched, input.ctx);
+  const { items, share } = scoreEventResponses(alerts, input.actions, input.launched, input.ctx, input.stepOptions?.adjustments);
   return line({
     key: "v2_events", category: "eventsRohit", label: "Response to alerts", earned: 5 * share, max: 5,
     judgedOn: "Each alert that stopped the clock had a few right moves. Did you make one before its decision window closed?",
@@ -392,7 +432,13 @@ function profitLine(run: Metrics): ScoreLineV2 {
 }
 
 /** F14: spend in campaign × keyword × slot cells (whole run) whose ROAS was below break-even. */
-export function wastedSpendShare(results: readonly DayResult[]): number {
+/** Contribution ÷ spend below which spend counts as wasted, by goal (SPEC §14 F13): reach goals
+ *  may run below break-even, down to the floor where their own objective stops counting. */
+export function wasteFloorFor(goalType: string): number {
+  return goalType === "Awareness-First" ? 0.7 : goalType === "Category-Creation" ? 0.6 : 1;
+}
+
+export function wastedSpendShare(results: readonly DayResult[], floor = 1): number {
   const cells = new Map<string, { spend: number; revenue: number; contribution: number }>();
   let total = 0;
   for (const r of results) {
@@ -404,18 +450,21 @@ export function wastedSpendShare(results: readonly DayResult[]): number {
     }
   }
   let wasted = 0;
-  for (const c of cells.values()) if (c.contribution < c.spend) wasted += c.spend;
+  for (const c of cells.values()) if (c.contribution < c.spend * floor) wasted += c.spend;
   return total > 0 ? wasted / total : 0;
 }
 
-function wasteLine(results: readonly DayResult[]): ScoreLineV2 {
-  const share = wastedSpendShare(results);
+function wasteLine(results: readonly DayResult[], goalType: string): ScoreLineV2 {
+  const floor = wasteFloorFor(goalType);
+  const share = wastedSpendShare(results, floor);
   const earned = share <= 0.1 ? 5 : share <= 0.25 ? 3 : share <= 0.4 ? 1 : 0;
   return line({
     key: "v2_waste", category: "results", label: "Wasted spend", earned, max: 5,
     judgedOn: "How much of your money went to keywords and hours that lost money over the run. Spending less is fine; spending on losers is not.",
     tiers: [{ points: 5, rule: "≤ 10% wasted" }, { points: 3, rule: "≤ 25%" }, { points: 1, rule: "≤ 40%" }, { points: 0, rule: "More" }],
-    note: `${Math.round(share * 100)}% of spend went to keyword × hour combinations below break-even.`,
+    note: floor < 1
+      ? `${Math.round(share * 100)}% of spend went where ads earned back less than ${Math.round(floor * 100)}% of their cost (the limit for this brand's reach goal).`
+      : `${Math.round(share * 100)}% of spend went to keyword × hour combinations below break-even.`,
     howToImprove: "Use the keyword and hour-of-day reports to find spend below break-even and cut it.",
   });
 }
@@ -433,7 +482,7 @@ export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
     ...scoreSetupV2(input),
     ...live.lines,
     pacingLine(input), rohitLine(input), eventsLine(input), checkInsLine(input),
-    goalsLine(input, run), profitLine(run), wasteLine(input.results),
+    goalsLine(input, run), profitLine(run), wasteLine(input.results, input.ctx.scenario.profile.goalType),
   ];
   const totals = (Object.keys(SCORE_V2_MAX) as CategoryV2[]).reduce((acc, k) => ({
     ...acc, [k]: round1(lines.filter((l) => l.category === k).reduce((s, l) => s + l.earned, 0)),

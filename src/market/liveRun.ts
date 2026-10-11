@@ -6,6 +6,7 @@
 
 import type { CampaignConfig, DayResult, MarketContext, MarketState } from "@/market/engineTypes";
 import { applyActions, type LiveAction } from "@/market/actions";
+import { EMPTY_ADJUSTMENTS, type Adjustments } from "@/market/adjustments";
 import {
   evaluateEvents, selectAlerts, servedStates,
   type CalendarEntry, type EventActivation, type LeverId,
@@ -124,20 +125,37 @@ export interface EventResponse {
   pulled: readonly LeverId[];
 }
 
+/** Days a Rohit delivery can take after the reply (rush restock arrives 2 days later). */
+const ROHIT_DELIVERY_SLACK = 3;
+
+/** Levers pulled through Rohit inside an alert's window (SPEC §13 #34): stock arriving for the
+ *  alert's state (and product, if it names one) is a restock; a funded discount or shelf boost is a co-fund. */
+function rohitLevers(a: EventActivation, adj: Adjustments): LeverId[] {
+  const from = a.raisedAfterDay;
+  const last = from + a.decisionWindowDays;
+  const state = typeof a.data.state === "string" ? a.data.state : undefined;
+  const sku = typeof a.data.skuId === "string" ? a.data.skuId : undefined;
+  const restocked = adj.stockAdds.some((x) => x.day > from && x.day <= last + ROHIT_DELIVERY_SLACK
+    && (!state || x.state === state) && (!sku || x.skuId === sku));
+  const cofunded = [...adj.priceCuts, ...adj.shelfBoosts].some((x) => x.fromDay > from && x.fromDay <= last);
+  return [...(restocked ? ["ask_rohit_restock" as const] : []), ...(cofunded ? ["ask_rohit_cofund" as const] : [])];
+}
+
 export function scoreEventResponses(
   alerts: readonly EventActivation[],
   actions: readonly LiveAction[],
   launched: readonly CampaignConfig[],
   ctx: MarketContext,
+  adjustments: Adjustments = EMPTY_ADJUSTMENTS,
 ): { items: readonly EventResponse[]; share: number } {
   if (alerts.length === 0) return { items: [], share: 1 };
   const items = alerts.map((a): EventResponse => {
     const from = a.raisedAfterDay;
     const inWindow = actions.filter((x) => x.dayMade >= from && x.dayMade < from + a.decisionWindowDays);
-    const pulled = Array.from(new Set(inWindow.flatMap((x) => {
+    const pulled = Array.from(new Set([...inWindow.flatMap((x) => {
       const before = applyBefore(launched, actions, x);
       return actionLevers(x, before, ctx);
-    })));
+    }), ...rohitLevers(a, adjustments)]));
     const right = pulled.some((l) => a.rightLevers.includes(l));
     const verdict: EventVerdict = right ? "right"
       : pulled.length === 0 && a.rightLevers.includes("hold") ? "held"

@@ -20,6 +20,11 @@ export const SAFETY_UNITS_PER_STORE: Readonly<Record<Velocity, number>> = {
 /** Starting OSA is capped here so starting units stay finite. */
 const MAX_START_OSA = 0.99;
 
+/** Ad units sold per organic unit, assumed when sizing starting stock. Headless runs of
+ *  every brand put it between 0.4 and 2.4 in week 1 (median ~1.8); 2 keeps a typical
+ *  account near its target cover without starving the heavy-ad brands. */
+export const START_AD_DEMAND_RATIO = 2;
+
 /** Days of cover each restock tops up to, by scenario inventory tone. */
 export const TARGET_COVER_DAYS: Readonly<Record<InventoryState["tone"], number>> = {
   healthy: 21,

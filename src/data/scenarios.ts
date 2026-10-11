@@ -297,8 +297,10 @@ export const BRAND_PROFILES: BrandProfile[] = [
       { id: "fuel-2", name: "FuelUp Plant Protein Vanilla 400g", mrp: 999, margin: 300, velocity: "Very Low" },
       { id: "fuel-3", name: "FuelUp Protein Bar Choco Fudge 60g", mrp: 99, margin: 15, velocity: "Medium" },
     ],
-    goodKeywords: ["whey protein", "protein supplement", "protein bar", "plant protein", "fitness supplement"],
-    riskyKeywords: ["fuelup", "gym protein"],
+    // "protein bar" and "fitness supplement" can't pay at their suggested bids (max profitable CPM
+    // far below the range), so they are traps, not good keywords (SPEC §13 #33)
+    goodKeywords: ["whey protein", "protein supplement", "plant protein", "whey protein chocolate", "whey isolate unflavoured 1kg"],
+    riskyKeywords: ["fuelup", "gym protein", "protein bar", "fitness supplement"],
     optimalObjective: "performance", optimalAdFormat: "product_booster",
     trap: "Demand sits in a few big cities, where the gym-goers are. Broad fitness terms and the ₹99 bar eat budget at thin margins",
     unitEconomics: "Avg MRP ₹799 · Avg Margin ₹238 · Hyperlocal demand",

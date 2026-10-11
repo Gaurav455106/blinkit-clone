@@ -94,6 +94,40 @@ function detectForDay(input: DetectInput, day: number): Candidate[] {
       }
     }
 
+    // The same two checks on placements: category pages, Spotlight, Stories, Rec Ads (SPEC §13 #29)
+    for (const pl of cfg.placements ?? []) {
+      const label = ctx.market.placements.find((x) => x.id === pl.id)?.label ?? pl.id;
+      const now = sumMetrics(recentCells.filter((c) => c.term === pl.id));
+      const before = sumMetrics(prior3.filter((c) => c.term === pl.id));
+      if (now.searches > 0 && before.searches > 0) {
+        const rankLossNow = now.lostToRank / now.searches;
+        const rankLossBefore = before.lostToRank / before.searches;
+        if (rankLossNow - rankLossBefore >= 0.2 && before.roas >= before.breakEvenRoas && before.spend > 0) {
+          const target = Math.round(Math.max(pl.bid * 1.2, Math.min(before.maxProfitableCpm, pl.bid * 1.5)));
+          found.push({
+            type: "sovDrop", day, campaignId: cfg.id, subject: pl.id,
+            title: `Lost visibility on ${label}`,
+            evidence: `IS lost to rank rose from ${pct(rankLossBefore)} to ${pct(rankLossNow)}; ROAS had been ${before.roas.toFixed(2)} vs break-even ${before.breakEvenRoas.toFixed(2)}.`,
+            levers: [
+              { label: `Raise the bid to ${rupees(target)}`, change: { kind: "placementBid", id: pl.id, bid: target } },
+              { label: "Raise the bid 25%", change: { kind: "placementBid", id: pl.id, bid: Math.round(pl.bid * 1.25) } },
+            ],
+          });
+        }
+      }
+      if (now.spend / 3 >= MIN_DAILY_SPEND && now.contribution < now.spend) {
+        found.push({
+          type: "belowBreakEven", day, campaignId: cfg.id, subject: pl.id,
+          title: `${label} is losing money`,
+          evidence: `3-day ROAS ${now.roas.toFixed(2)} vs break-even ${now.breakEvenRoas.toFixed(2)} on ${rupees(now.spend)} spend; max profitable CPM ${rupees(now.maxProfitableCpm)} vs paid ${rupees(now.cpm)}.`,
+          levers: [
+            { label: `Lower the bid to ${rupees(Math.max(200, now.maxProfitableCpm * 0.9))}`, change: { kind: "placementBid", id: pl.id, bid: Math.max(200, Math.round(now.maxProfitableCpm * 0.9)) } },
+            { label: "Cut the budget 30%", change: { kind: "budget", budget: Math.round(cfg.budget * 0.7) } },
+          ],
+        });
+      }
+    }
+
     // Budget running out before the category's peak slot, two days running
     const peak = peakSlotOf(ctx);
     const peakDays = lastN(results, day, 2).map((r) => sumMetrics(cellsOf(r, cfg.id).filter((c) => c.slot === peak)));

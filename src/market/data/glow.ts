@@ -27,7 +27,7 @@ export const GLOW: BrandMarket = {
     { term: "glow republic serum",              tier: "long", dailyVolume: 400,   cluster: "brand",     fit: { "glow-1": 1.30, "glow-2": 0.20, "glow-3": 0.40 }, isBrandTerm: true },
   ],
   placements: standardPlacements(["Beauty & Personal Care", "Skincare"], { "glow-1": 1.0, "glow-2": 0.9, "glow-3": 0.9 }),
-  stateCVR:      { Maharashtra: 0.85, Delhi: 1.25, Karnataka: 1.00 },
+  stateCVR:      { Maharashtra: 0.85, Delhi: 1.32, Karnataka: 1.00 },
   stateAffinity: { Maharashtra: 1.30, Delhi: 1.20, Karnataka: 1.10 },
   rivals: [
     {
