@@ -27,6 +27,8 @@ import { RohitPanel } from "@/components/rohit/RohitPanel";
 import { detectMoments } from "@/market/moments";
 import { sumMetrics } from "@/market/aggregate";
 import type { ReportInput } from "@/market/reports";
+import { AchievementToasts, CountUp, FloatDelta } from "@/components/game/GameBits";
+import { earnedAchievements } from "@/components/game/achievements";
 
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 const DEFAULT_SPEED = SPEEDS[1].ms;
@@ -68,6 +70,10 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
     [run.ctx, run.results, run.configsByDay],
   );
   const totals = useMemo(() => sumMetrics(run.results.flatMap((r) => r.cells)), [run.results]);
+  const achievements = useMemo(() => earnedAchievements({
+    launched: run.launched, actions: run.actions, insights: run.insights.length,
+    rohitReplies: run.rohit.replies.length, day: run.day, results: run.results,
+  }), [run.launched, run.actions, run.insights.length, run.rohit.replies.length, run.day, run.results]);
   const reportInput: ReportInput | null = run.ctx
     ? { ctx: run.ctx, results: run.results, configsByDay: run.configsByDay, campaignNames: run.campaignNames, changeLog: run.changeLog }
     : null;
@@ -156,6 +162,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
         </div>
       )}
 
+      <AchievementToasts earned={achievements} />
       <PageHeader
         eyebrow={`${scenario.profile.name} · day ${run.day} of ${RUN_DAYS}`}
         title="Live campaigns"
@@ -164,11 +171,15 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
       />
 
       <div data-tour="v2-stats" className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatTile label="Spent" value={rupees(spent)} hint={`of ${rupees(scenario.budget)}${run.extraSpend > 0 ? `, incl. ${rupees(run.extraSpend)} paid to Rohit` : ""}`} />
-        <StatTile label="Sales from ads" value={rupees(totals.revenue)} />
-        <StatTile label="ROAS" value={totals.spend > 0 ? totals.roas.toFixed(2) : "–"} hint={totals.breakEvenRoas > 0 ? `Break-even ${totals.breakEvenRoas.toFixed(2)}` : "Sales for every ₹1 of ads"} tone={totals.spend > 0 ? (totals.roas >= totals.breakEvenRoas ? "good" : "bad") : "neutral"} />
-        <StatTile label="Profit after ads" value={rupees(totals.profit)} tone={totals.profit >= 0 ? "good" : "bad"} />
-        <StatTile label="Units sold" value={Math.round(totals.units).toLocaleString("en-IN")} />
+        <StatTile label="Spent" value={<CountUp value={spent} format={rupees} />} hint={`of ${rupees(scenario.budget)}${run.extraSpend > 0 ? `, incl. ${rupees(run.extraSpend)} paid to Rohit` : ""}`} />
+        <StatTile label="Sales from ads" value={<CountUp value={totals.revenue} format={rupees} />}>
+          <FloatDelta value={totals.revenue} format={(d) => `${d >= 0 ? "+" : "−"}${rupees(Math.abs(d))}`} />
+        </StatTile>
+        <StatTile label="ROAS" value={totals.spend > 0 ? <CountUp value={totals.roas} format={(n) => n.toFixed(2)} /> : "–"} hint={totals.breakEvenRoas > 0 ? `Break-even ${totals.breakEvenRoas.toFixed(2)}` : "Sales for every ₹1 of ads"} tone={totals.spend > 0 ? (totals.roas >= totals.breakEvenRoas ? "good" : "bad") : "neutral"} />
+        <StatTile label="Profit after ads" value={<CountUp value={totals.profit} format={rupees} />} tone={totals.profit >= 0 ? "good" : "bad"} />
+        <StatTile label="Units sold" value={<CountUp value={totals.units} format={(n) => Math.round(n).toLocaleString("en-IN")} />}>
+          <FloatDelta value={Math.round(totals.units)} format={(d) => `${d >= 0 ? "+" : "−"}${Math.abs(d)} units`} />
+        </StatTile>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>

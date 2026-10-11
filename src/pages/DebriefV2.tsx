@@ -31,6 +31,12 @@ import { REPORT_README } from "@/market/reports";
 import { downloadWorkbook } from "@/lib/excel";
 import { describeDeal } from "@/components/deal/describeDeal";
 import { useTour } from "@/components/tour/useTour";
+import { CountUp } from "@/components/game/GameBits";
+import { fireConfetti } from "@/components/game/confetti";
+
+/** Confetti for "Growing Fast" (60) and up, once the score has counted up. */
+const CONFETTI_FROM = 60;
+const CONFETTI_DELAY_MS = 1400;
 
 const PITCH_MAX = 15;
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
@@ -119,6 +125,12 @@ export default function DebriefV2({ student, scenario }: Props) {
   const summaries = useMemo(() => (saved ? qualitativeSummary(saved.lines, 2) : []), [saved]);
   useSaveAttempt(student, scenario, saved, campaigns.filter((c) => !c.isDraft).length);
   useTour("resultsV2", student.email, !!score);
+  const grand = score?.grandTotal ?? 0;
+  useEffect(() => {
+    if (grand < CONFETTI_FROM) return;
+    const t = window.setTimeout(fireConfetti, CONFETTI_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [grand]);
 
   const shell = (content: React.ReactNode) => (
     <div className="flex h-screen w-full overflow-hidden">
@@ -152,6 +164,7 @@ export default function DebriefV2({ student, scenario }: Props) {
   }
 
   const reportInput = { ctx: run.ctx, results: run.results, configsByDay: run.configsByDay, campaignNames: run.campaignNames, changeLog: run.changeLog };
+
   const exportAll = () => downloadWorkbook(debriefFilename(student.name, scenario.profile.name), debriefSheets(score, reportInput), REPORT_README);
 
   return shell(
@@ -159,7 +172,7 @@ export default function DebriefV2({ student, scenario }: Props) {
       <PageHeader
         tour="results-header"
         eyebrow={`${scenario.profile.name} · 30 days`}
-        title={`${score.grandTotal} / 100 · ${saved.gradeLabel}`}
+        title={<><CountUp value={score.grandTotal} from={0} ms={1400} format={(n) => (Math.round(n * 10) / 10).toString()} /> / 100 · <span className="sim-pop-in inline-block [animation-delay:1.3s]">{saved.gradeLabel}</span></>}
         description="Every point below says what we looked at, what you did and what would have earned more."
         actions={
           <>

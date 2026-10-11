@@ -117,8 +117,8 @@ export default function DealV2({ student, scenario, ctx }: Props) {
                   : <StudentLine key={i} text={l.text} />))}
                 {turn && (
                   <>
-                    <RohitLine text={turn.line} chips={turn.chips} chipsCaption="Rohit's numbers" />
-                    <fieldset className="space-y-2 sm:pl-12">
+                    <RohitLine key={turn.line} typeIn text={turn.line} chips={turn.chips} chipsCaption="Rohit's numbers" />
+                    <fieldset key={`opts-${turn.line}`} className="sim-slide-in space-y-2 sm:pl-12 [animation-delay:750ms]">
                       <legend className="mb-2 text-sm font-medium text-foreground">Your reply. Each one shows what it costs you.</legend>
                       {turn.options.map((o) => <ReplyChoice key={o.id} label={o.label} cost={o.cost} onSelect={() => pick(o)} />)}
                     </fieldset>

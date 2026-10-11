@@ -75,12 +75,12 @@ export function RohitPanel({ ask, onChoose, chosenOptionId = null, rohitReply, r
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-        <RohitLine text={ask.line} chips={ask.chips} chipsCaption="The numbers he is looking at" />
+        <RohitLine key={ask.line} typeIn text={ask.line} chips={ask.chips} chipsCaption="The numbers he is looking at" />
 
         {chosen ? (
           <>
             <StudentLine text={chosen.label} cost={chosen.cost} />
-            {rohitReply && <RohitLine text={rohitReply} isContinuation={false} />}
+            {rohitReply && <RohitLine typeIn text={rohitReply} isContinuation={false} />}
           </>
         ) : (
           <fieldset className="space-y-2 pl-12">

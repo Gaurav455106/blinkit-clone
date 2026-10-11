@@ -4,6 +4,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import "@/components/game/game.css";
 
 /** Scope wrapper + readable max width. Put it on the content column, next to BlinkitSidebar. */
 export function SimPage({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
@@ -45,9 +46,10 @@ const TONE_TEXT: Record<Tone, string> = {
   bad: "text-sim-bad",
 };
 
-export function StatTile({ label, value, hint, tone = "neutral" }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
+export function StatTile({ label, value, hint, tone = "neutral", children }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone; children?: ReactNode }) {
   return (
-    <div className="rounded-xl bg-card px-5 py-4 shadow-[0_1px_0_hsl(var(--border)),0_8px_24px_-16px_hsl(24_30%_20%/0.25)]">
+    <div className="relative rounded-xl bg-card px-5 py-4 shadow-[0_1px_0_hsl(var(--border)),0_8px_24px_-16px_hsl(24_30%_20%/0.25)]">
+      {children}
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className={cn("sim-num mt-1 text-2xl font-semibold tracking-tight", TONE_TEXT[tone])}>{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
@@ -99,7 +101,7 @@ export function ScoreBar({ earned, max, className, label }: { earned: number; ma
         aria-valuenow={earned}
         aria-label={label ?? "Score"}
       >
-        <div className={cn("h-full rounded-full transition-[width] duration-500", TONE_BG[scoreTone(earned, max)])} style={{ width: `${pct}%` }} />
+        <div className={cn("sim-fill h-full rounded-full transition-[width] duration-500", TONE_BG[scoreTone(earned, max)])} style={{ width: `${pct}%` }} />
       </div>
       <span className="sim-num w-14 text-right text-sm font-medium text-foreground">{earned}/{max}</span>
     </div>

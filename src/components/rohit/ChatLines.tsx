@@ -1,7 +1,12 @@
 // Chat lines for Rohit conversations: his lines (with data chips) and the
 // student's replies (with what they cost or committed).
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { TypingDots } from "@/components/game/GameBits";
+import { prefersReducedMotion } from "@/components/game/motion";
+
+/** How long Rohit "types" before a new line appears (SPEC §15). */
+export const TYPING_MS = 700;
 import { cn } from "@/lib/utils";
 import { DataChips, type ChipData } from "@/components/rohit/DataChips";
 
@@ -24,11 +29,27 @@ type RohitLineProps = {
   chipsCaption?: string;
   /** Hide the name row for consecutive lines. */
   isContinuation?: boolean;
+  /** Show typing dots first (use on his newest line only). */
+  typeIn?: boolean;
   children?: ReactNode;
   className?: string;
 };
 
-export function RohitLine({ text, chips, chipsCaption, isContinuation = false, children, className }: RohitLineProps) {
+export function RohitLine({ text, chips, chipsCaption, isContinuation = false, typeIn = false, children, className }: RohitLineProps) {
+  const [typing, setTyping] = useState(() => typeIn && !prefersReducedMotion());
+  useEffect(() => {
+    if (!typing) return;
+    const t = window.setTimeout(() => setTyping(false), TYPING_MS);
+    return () => window.clearTimeout(t);
+  }, [typing]);
+  if (typing) {
+    return (
+      <div className={cn("flex items-start gap-3", ENTER, className)}>
+        {isContinuation ? <span className="w-9 shrink-0" aria-hidden /> : <RohitAvatar />}
+        <div className="rounded-2xl rounded-tl-md bg-card px-4 py-3 shadow-[0_1px_0_hsl(var(--border))]"><TypingDots label="Rohit is typing" /></div>
+      </div>
+    );
+  }
   return (
     <div className={cn("flex items-start gap-3", ENTER, className)}>
       {isContinuation ? <span className="w-9 shrink-0" aria-hidden /> : <RohitAvatar />}

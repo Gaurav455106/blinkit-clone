@@ -56,13 +56,14 @@ describe("Deal with Rohit page", () => {
     expect(screen.queryByRole("button", { name: /Shake on it/ })).toBeNull();
   });
 
-  it("asking for a lot without offering anything gets a counter, and walking away saves the brief's terms", { timeout: 20000 }, () => {
+  it("asking for a lot without offering anything gets a counter, and walking away saves the brief's terms", { timeout: 20000 }, async () => {
     renderPage();
     followDemand();
     fireEvent.click(screen.getByLabelText(/A better shelf spot/));
     fireEvent.click(screen.getByLabelText(/A fast restock/));
     fireEvent.click(screen.getByRole("button", { name: /Send the deal to Rohit/ }));
-    expect(screen.getByText(/You're asking for ₹/)).toBeInTheDocument();
+    // Rohit types for a moment before his counter appears (SPEC §15)
+    expect(await screen.findByText(/You're asking for ₹/, {}, { timeout: 2000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Walk away/ }));
     expect(setOpeningDeal.mock.calls[0][0]).toMatchObject({ relationship: 50, terms: { walkedAway: true } });
     expect(screen.getByText("No deal")).toBeInTheDocument();
