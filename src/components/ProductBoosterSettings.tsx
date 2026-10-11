@@ -311,6 +311,8 @@ export function ProductBoosterSettings({ onRegionValid, showAdSchedule = false, 
             <Checkbox
               checked={timeSlotEnabled}
               onCheckedChange={(v) => setTimeSlotEnabled(!!v)}
+              // The row's onClick toggles too; without this a click on the box toggles twice (no change)
+              onClick={(e) => e.stopPropagation()}
               className="h-4 w-4 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
             />
             <span className="text-sm font-medium text-foreground">Time-slot</span>

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, ChevronLeft, BarChart2, Megaphone, Bookmark, Package, Menu, X } from "lucide-react";
 import { useTour } from "@/components/tour/useTour";
-import { DEFAULT_CAMPAIGN_START, enabledCategories } from "@/lib/wizardSave";
+import { DEFAULT_CAMPAIGN_START, campaignSkuIds, enabledCategories } from "@/lib/wizardSave";
 
 type PlatformView = "brand_collections" | "catalogue" | null;
 
@@ -42,6 +42,7 @@ const WIZARD_KEYS = [
   "sim_audience_cohorts", "sim_audience_action", "sim_audience_period",
   "sim_audience_cats", "sim_audience_brands", "campaign_draft_id",
   "sim_keyword_boost", "sim_keyword_boost_pct", "sim_rec_checked", "sim_rec_bids",
+  "sim_spotlight_mode", "sim_spotlight_products",
 ];
 
 export interface SavedCampaignRef {
@@ -247,7 +248,13 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
       objective,
       adFormat: adAsset,
       cities: get<string[]>("sim_selected_cities", []), // STATE names (legacy key)
-      skuIds: get<string[]>("sim_selected_skus", []),
+      skuIds: campaignSkuIds(adAsset, {
+        selectedSkus: get<string[]>("sim_selected_skus", []),
+        storyVariant: get<"single" | "collection" | null>("sim_story_variant", null),
+        storySku: get<string | null>("sim_story_sku", null),
+        spotlightMode: get<string | null>("sim_spotlight_mode", null),
+        spotlightProducts: get<string[]>("sim_spotlight_products", []),
+      }),
       keywords: get<string[]>("sim_selected_keywords", []),
       categories: categories.length > 0 ? categories : undefined,
       feeds: feeds.length > 0 ? feeds : undefined,

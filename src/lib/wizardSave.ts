@@ -16,3 +16,26 @@ export function enabledCategories(
 
 /** The wizard's default start date. Shared so every step that reads it agrees. */
 export const DEFAULT_CAMPAIGN_START = "2026-02-09";
+
+/** The wizard values that decide which products a campaign advertises. */
+export interface SkuSources {
+  selectedSkus: readonly string[];
+  storyVariant: "single" | "collection" | null;
+  storySku: string | null;
+  spotlightMode: string | null;
+  spotlightProducts: readonly string[];
+}
+
+/**
+ * Products the campaign advertises. Stories and Listing Spotlight pick products
+ * in their own step, not the shared product step. An empty list means every SKU.
+ */
+export function campaignSkuIds(adAsset: string | null, src: SkuSources): string[] {
+  if (adAsset === "stories") {
+    return src.storyVariant === "single" && src.storySku ? [src.storySku] : [];
+  }
+  if (adAsset === "listing_spotlight") {
+    return src.spotlightMode === "manual" ? [...src.spotlightProducts] : [];
+  }
+  return [...src.selectedSkus];
+}

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, CheckCircle2, XCircle, ChevronDown, Star } from "lucide-react";
 import { useSim } from "@/context/SimContext";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 const GUIDELINES_PDF =
   "https://cdn-brands.blinkit.com/banners/1773739886011__Listing_Spotlight_Guidelines.pdf";
@@ -211,7 +212,8 @@ export function ListingSpotlightProducts({ onProductsValid, onCollectionCreated 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Collection state ──
-  const [mode, setMode] = useState<CollectionMode>("existing");
+  // Persisted so the saved campaign advertises the manual collection (wizardSave.campaignSkuIds)
+  const [mode, setMode] = useLocalStorage<CollectionMode>("sim_spotlight_mode", "existing");
   const [existingSearch, setExistingSearch] = useState("");
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
 
@@ -223,7 +225,7 @@ export function ListingSpotlightProducts({ onProductsValid, onCollectionCreated 
 
   const [manualName, setManualName] = useState("");
   const [manualSort, setManualSort] = useState("");
-  const [manualProducts, setManualProducts] = useState<string[]>([]);
+  const [manualProducts, setManualProducts] = useLocalStorage<string[]>("sim_spotlight_products", []);
   const [showCollectionError, setShowCollectionError] = useState(false);
 
   // collectionCreated = user clicked "Create Collection"; resets when inputs change
