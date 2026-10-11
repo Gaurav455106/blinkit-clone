@@ -1260,6 +1260,18 @@ FuelUp 35.5; TinyBuddy 55.8; VitaBoost 52.3; PawLife 24.7 (profitable); Glow 21.
 
 Build order: 32 (stock) → 33 (calibrate) → 29 → 30 + 31 → 34; each with tests first and a headless run of all 7 brands.
 
+**Built 2026-10-11** (branch `feat/trainer-run-decisions`):
+- #32: start stock and restocks follow the label (`state.ts`, `step.ts`); demand, not sales, sizes restocks. Overstocked brands need a selling format.
+- #33: Spotlight and Stories click and convert rates raised; VitaBoost placements fit better; FuelUp's "protein bar" and "fitness supplement" moved to risky. **Changed while building:** the competent band is **0.9 to 2x** break-even, not 1.2 to 2x, because decision #12 already sets typical ROAS around break-even; a competent default spends the whole budget, so the budget is tight. Results: competent 0.96 to 1.75x, reach formats Glow 0.84x, VitaBoost 0.78x, PawLife 1.21x.
+- #29: losing-money and lost-visibility moments run on placements; no free points. **Changed while building:** no creative-CTR moment yet (there is no "replace creative" action for the replay to test) and no stock moment (the engine already stops ads where shelves are empty, so it would almost always score "nothing needed"; restocking is Rohit's lever, credited by #34).
+- #30, #31: `market/formats.ts` holds the good-format lists and builds the brief's "Lead with" line.
+- #34: the losing-money check-in names the worst keyword or placement; Rohit restocks and co-funding count as alert responses.
+- Checks: `npm run calibrate` adds the competent band, reach floor, stock to day 7, and a score sanity run per brand (passive play now scores 32 to 68; it was 84 to 87 for Product Booster brands).
+
+### Later (requested 2026-10-11)
+
+- **Game feel for the sim layer.** Gaurav: the non-frozen screens are very text-heavy; add animation and fun interactive elements so starting feels like a game and stays engaging. Scope: brief, deal with Rohit, live dashboard, alerts and check-ins, results. The platform UI stays frozen (§0.1). To be specced as its own phase after the scoring fixes ship.
+
 ### Still open
 
 27. **Closed by #33: Spotlight keeps the automatic p50 bid.** **Listing Spotlight has no bid in the wizard** (and no placement choice, despite CLAUDE.md
