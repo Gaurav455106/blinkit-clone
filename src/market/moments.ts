@@ -48,11 +48,25 @@ interface DetectInput {
 
 type Candidate = Omit<Moment, "id" | "window">;
 
+/** Contribution ÷ spend below which spend loses on the brand's own goal (SPEC §14 F13):
+ *  break-even for sales goals; reach goals may run down to 0.7x / 0.6x break-even. */
+export function lossFloorFor(goalType: string): number {
+  return goalType === "Awareness-First" ? 0.7 : goalType === "Category-Creation" ? 0.6 : 1;
+}
+
 function detectForDay(input: DetectInput, day: number): Candidate[] {
   const { ctx, results, configsByDay } = input;
+  const floor = lossFloorFor(ctx.scenario.profile.goalType);
+  // Reach goals count views while the account stays above the floor, so a weak keyword or
+  // placement is only a problem when the account is below it (else cutting it just loses
+  // views, and the replay would rightly score that as worse).
+  const reachGoal = floor < 1;
   const configs = configsByDay[day - 1] ?? [];
   const recent3 = lastN(results, day, 3);
   if (recent3.length < 3) return [];
+  // The replay scores the whole account on the goal, so the reach gate looks at the account too
+  const account = sumMetrics(recent3.flatMap((r) => r.cells));
+  const accountBelowFloor = account.contribution < account.spend * floor;
   const found: Candidate[] = [];
 
   for (const cfg of configs) {
@@ -60,6 +74,8 @@ function detectForDay(input: DetectInput, day: number): Candidate[] {
     if (recentCells.length === 0) continue;
     const campaign = sumMetrics(recentCells);
     const capped = campaign.searches > 0 && campaign.lostToBudget / campaign.searches > 0.3;
+    const losing = (m: Metrics) => m.spend / 3 >= MIN_DAILY_SPEND && m.contribution < m.spend * floor
+      && (!reachGoal || accountBelowFloor);
 
     // Profitable keyword losing its slot: IS lost to rank jumped vs the 3 days before
     const prior3 = lastN(results, day - 3, 3).flatMap((r) => cellsOf(r, cfg.id));
@@ -81,7 +97,7 @@ function detectForDay(input: DetectInput, day: number): Candidate[] {
           ],
         });
       }
-      if (now.spend / 3 >= MIN_DAILY_SPEND && now.contribution < now.spend) {
+      if (losing(now)) {
         found.push({
           type: "belowBreakEven", day, campaignId: cfg.id, subject: k.term,
           title: `"${k.term}" is losing money`,
@@ -115,7 +131,7 @@ function detectForDay(input: DetectInput, day: number): Candidate[] {
           });
         }
       }
-      if (now.spend / 3 >= MIN_DAILY_SPEND && now.contribution < now.spend) {
+      if (losing(now)) {
         found.push({
           type: "belowBreakEven", day, campaignId: cfg.id, subject: pl.id,
           title: `${label} is losing money`,

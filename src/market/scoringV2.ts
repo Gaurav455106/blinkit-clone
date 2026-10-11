@@ -11,7 +11,7 @@ import type { CommitmentResult, ReplyQuality } from "@/market/rohit";
 import { scoreEventResponses, ROHIT_QUALITY_SHARE } from "@/market/liveRun";
 import { briefStock, type OpeningDeal } from "@/market/deal";
 import { stockFit, valueAsked, valueGiven } from "@/market/dealRohit";
-import { detectMoments, scoreMoment, type MomentScore } from "@/market/moments";
+import { detectMoments, lossFloorFor, scoreMoment, type MomentScore } from "@/market/moments";
 import { scoreInsights, type Insight } from "@/market/insights";
 import { clientGoalsV2 } from "@/market/goals";
 import { sumMetrics, type Metrics } from "@/market/aggregate";
@@ -435,7 +435,7 @@ function profitLine(run: Metrics): ScoreLineV2 {
 /** Contribution ÷ spend below which spend counts as wasted, by goal (SPEC §14 F13): reach goals
  *  may run below break-even, down to the floor where their own objective stops counting. */
 export function wasteFloorFor(goalType: string): number {
-  return goalType === "Awareness-First" ? 0.7 : goalType === "Category-Creation" ? 0.6 : 1;
+  return lossFloorFor(goalType);
 }
 
 export function wastedSpendShare(results: readonly DayResult[], floor = 1): number {

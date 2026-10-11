@@ -40,6 +40,15 @@ const ACTION_CREDIT = 0.4;
 const TARGET_MOMENTS = 3;
 
 const norm = (s: string) => s.trim().toLowerCase();
+/** Letters and digits only, so "Spotlight search results" matches "spotlight:search" or the
+ *  moment title "Lost visibility on Spotlight: search results". */
+const loose = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function subjectMatches(insightSubject: string, m: Moment): boolean {
+  const said = loose(insightSubject);
+  if (said === "") return true;
+  const subject = loose(m.subject);
+  return subject.includes(said) || said.includes(subject) || loose(m.title).includes(said);
+}
 
 export interface InsightMatch {
   insight: Insight;
@@ -51,8 +60,7 @@ export function matchInsights(insights: readonly Insight[], moments: readonly Mo
   const used = new Set<string>();
   return insights.map((insight) => {
     const moment = moments.find((m) =>
-      !used.has(m.id) && m.type === insight.type && Math.abs(m.day - insight.day) <= MATCH_DAYS &&
-      (norm(insight.subject) === "" || norm(m.subject).includes(norm(insight.subject)) || norm(insight.subject).includes(norm(m.subject))));
+      !used.has(m.id) && m.type === insight.type && Math.abs(m.day - insight.day) <= MATCH_DAYS && subjectMatches(insight.subject, m));
     if (moment) used.add(moment.id);
     const acted = !!moment && actions.some((a) => a.campaignId === moment.campaignId && a.dayMade >= insight.day && a.dayMade <= insight.day + ACT_DAYS);
     return { insight, moment: moment ?? null, acted };
