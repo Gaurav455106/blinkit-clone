@@ -216,8 +216,10 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
       alert(`This campaign's budget would exceed your remaining ₹${(totalBudget - totalAllocated).toLocaleString("en-IN")}.`);
       return;
     }
-    // Remove draft being edited (will be replaced with a real campaign)
-    if (editCampaign?.isDraft) deleteCampaign(editCampaign.id);
+    // Replace the campaign being edited (a draft, or a saved one edited before go-live).
+    // Only removing drafts made "edit, save" add a second copy of a saved campaign.
+    if (editCampaign) deleteCampaign(editCampaign.id);
+    const keepIdentity = editCampaign && !editCampaign.isDraft;
 
     // Capture enabled categories (PB, BB). Untouched categories show as ticked, so they count.
     const categories = adAsset === "product_booster" || adAsset === "brand_booster"
@@ -243,7 +245,8 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
     }
 
     addCampaign({
-      id: `c-${Date.now()}`,
+      id: keepIdentity ? editCampaign.id : `c-${Date.now()}`,
+      ...(keepIdentity && editCampaign.launchDay !== undefined ? { launchDay: editCampaign.launchDay } : {}),
       name: campaignName || "Untitled campaign",
       objective,
       adFormat: adAsset,
