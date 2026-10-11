@@ -1,25 +1,28 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { TrainerHeader } from "@/components/TrainerHeader";
-import { FlowHeader } from "@/components/FlowHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
+import { SimPage, PageHeader, Section, Tag, EmptyState } from "@/components/sim/primitives";
+import { scoreTone } from "@/components/sim/tone";
+import { biggestLoss, mostFrequent, type AttemptRow } from "@/lib/attemptAnalysis";
+import { cn } from "@/lib/utils";
 
-interface Attempt {
-  email: string; name: string; batch_code: string; score_total: number; badge: string | null;
-  profile_id: string; score_breakdown: any;
-}
+type Attempt = Pick<AttemptRow, "email" | "name" | "batch_code" | "score_total" | "badge" | "profile_id" | "score_breakdown" | "id" | "created_at">;
+
+const MAX_ALL_STUDENTS = 50;
+const BADGE_TEXT: Record<string, string> = { gold: "Gold", silver: "Silver", bronze: "Bronze" };
 
 export default function Leaderboard() {
   const nav = useNavigate();
   const { student } = useSim();
   const [rows, setRows] = useState<Attempt[]>([]);
   const [batchRows, setBatchRows] = useState<{ batch_code: string; score_total: number }[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [isTrainer, setIsTrainer] = useState(false);
 
@@ -30,13 +33,17 @@ export default function Leaderboard() {
   useEffect(() => {
     supabase.from("attempts").select("*").order("score_total", { ascending: false }).limit(1000)
       .then(({ data, error }) => {
-        if (error) console.error("[leaderboard] attempts load failed", error);
-        setRows((data as any) ?? []);
+        if (error) {
+          console.error("[leaderboard] attempts load failed", error);
+          setLoadError(error.message);
+        }
+        setRows((data ?? []) as unknown as Attempt[]);
+        setLoading(false);
       });
     supabase.from("batch_scores").select("batch_code,score_total").limit(5000)
       .then(({ data, error }) => {
         if (error) console.error("[leaderboard] batch_scores load failed", error);
-        setBatchRows((data as any) ?? []);
+        setBatchRows(data ?? []);
       });
   }, []);
 
@@ -52,129 +59,115 @@ export default function Leaderboard() {
   const myBatch = student ? allBest.filter((r) => r.batch_code === student.batch) : [];
 
   // Batch aggregates — sourced from batch_scores so they survive student cleanup.
-  const batchMap = new Map<string, { batch: string; scores: number[] }>();
-  for (const r of batchRows) {
-    if (!batchMap.has(r.batch_code)) batchMap.set(r.batch_code, { batch: r.batch_code, scores: [] });
-    batchMap.get(r.batch_code)!.scores.push(r.score_total);
-  }
-  // Most-common-mistake still needs score_breakdown, only available on live attempts.
-  const mistakeByBatch = new Map<string, string>();
-  for (const [batch, b] of batchMap) {
-    const recent = rows.filter((r) => r.batch_code === batch);
-    const labels: string[] = [];
-    for (const r of recent) {
-      const breakdown: any[] = Array.isArray(r.score_breakdown) ? r.score_breakdown : [];
-      const worst = breakdown.slice().sort((a, b) => (a.earned / a.max) - (b.earned / b.max))[0];
-      if (worst) labels.push(worst.label);
-    }
-    mistakeByBatch.set(batch, mode(labels) || "—");
-  }
-  const batches = Array.from(batchMap.values()).map((b) => {
-    const avg = b.scores.reduce((s, x) => s + x, 0) / b.scores.length;
-    const top = Math.max(...b.scores);
-    return { batch: b.batch, avg: Math.round(avg), count: b.scores.length, top, mistake: mistakeByBatch.get(b.batch) ?? "—" };
-  }).sort((a, b) => b.avg - a.avg);
+  const batchMap = new Map<string, number[]>();
+  for (const r of batchRows) batchMap.set(r.batch_code, [...(batchMap.get(r.batch_code) ?? []), r.score_total]);
+  const batches = Array.from(batchMap.entries()).map(([batch, scores]) => ({
+    batch,
+    avg: Math.round(scores.reduce((s, x) => s + x, 0) / scores.length),
+    count: scores.length,
+    top: Math.max(...scores),
+    // Needs score_breakdown, only available on saved attempts.
+    mistake: mostFrequent(rows.filter((r) => r.batch_code === batch).map((r) => biggestLoss(r as AttemptRow))) ?? "Nothing stands out",
+  })).sort((a, b) => b.avg - a.avg);
+
+  const header = isTrainer ? <TrainerHeader /> : (
+    <div className="sticky top-0 z-30 border-b border-border bg-card">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6 md:px-10">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-primary">
+            <span className="text-xs font-bold text-primary-foreground">B</span>
+          </div>
+          <span className="text-sm font-semibold text-foreground">Leaderboard</span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => nav(-1)} className="gap-1.5 text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen w-full bg-background">
-      {isTrainer ? <TrainerHeader /> : (
-        <div className="sticky top-0 z-30 bg-card border-b border-border">
-          <div className="max-w-6xl mx-auto px-8 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground text-xs font-bold">B</span>
-              </div>
-              <span className="font-semibold text-sm text-foreground">Leaderboard</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => nav(-1)} className="gap-1.5 text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-4 w-4" /> Back
-            </Button>
-          </div>
-        </div>
-      )}
-      <div className="flex-1">
-        <div className="px-8 py-6 max-w-6xl mx-auto">
-          {isTrainer && <h1 className="text-xl font-semibold text-foreground mb-1">Leaderboard</h1>}
-          {isTrainer && <p className="text-xs text-muted-foreground mb-6">Best score per student across all attempts</p>}
-          {!isTrainer && <p className="text-xs text-muted-foreground mb-6">Best score per student across all attempts</p>}
+      {header}
+      <SimPage>
+        <PageHeader title="Leaderboard" description="Best score per student across all runs." />
+        {loadError && (
+          <p className="mb-4 rounded-lg bg-sim-bad/10 px-3 py-2 text-sm text-sim-bad">We couldn't load the leaderboard: {loadError}</p>
+        )}
+        <Tabs defaultValue="batch">
+          <TabsList>
+            <TabsTrigger value="batch">My batch</TabsTrigger>
+            <TabsTrigger value="vs">Batch vs batch</TabsTrigger>
+            <TabsTrigger value="all">All students</TabsTrigger>
+          </TabsList>
 
-          <Tabs defaultValue="batch" className="mt-6">
-            <TabsList>
-              <TabsTrigger value="batch">My Batch</TabsTrigger>
-              <TabsTrigger value="vs">Batch vs Batch</TabsTrigger>
-              <TabsTrigger value="all">All Students</TabsTrigger>
-            </TabsList>
+          <TabsContent value="batch" className="mt-4">
+            <Section>
+              <RankTable rows={myBatch} meEmail={student?.email} loading={loading} empty={student ? "Nobody in your batch has finished a run yet." : "Sign in as a student to see your batch."} />
+            </Section>
+          </TabsContent>
 
-            <TabsContent value="batch">
-              <Card className="p-0 mt-4 overflow-hidden">
-                <Table head={["#", "Name", "Batch", "Best Score", "Badge"]}>
-                  {myBatch.map((r, i) => (
-                    <tr key={r.email} className={`border-b border-border ${student?.email === r.email ? "bg-accent" : ""}`}>
-                      <td className="p-3 text-sm">{i + 1}</td>
-                      <td className="p-3 text-sm font-medium">{r.name}</td>
-                      <td className="p-3 text-sm">{r.batch_code}</td>
-                      <td className="p-3 text-sm font-semibold">{r.score_total}</td>
-                      <td className="p-3 text-sm"><Badge variant="outline">{r.badge ?? "—"}</Badge></td>
-                    </tr>
-                  ))}
-                </Table>
-              </Card>
-            </TabsContent>
+          <TabsContent value="vs" className="mt-4">
+            <Section>
+              {batches.length === 0 ? <EmptyState title="No batch scores yet" /> : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead className="border-b border-border">
+                      <tr>{["#", "Batch", "Average", "Students", "Top score", "Where most points were lost"].map((h) => <th key={h} className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>)}</tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {batches.map((b, i) => (
+                        <tr key={b.batch} className="hover:bg-secondary/50">
+                          <td className="sim-num px-3 py-2.5 text-sm text-muted-foreground">{i + 1}</td>
+                          <td className="px-3 py-2.5 text-sm font-medium">{b.batch}</td>
+                          <td className="px-3 py-2.5"><Tag tone={scoreTone(b.avg, 100)}><span className="sim-num">{b.avg}</span></Tag></td>
+                          <td className="sim-num px-3 py-2.5 text-sm">{b.count}</td>
+                          <td className="sim-num px-3 py-2.5 text-sm">{b.top}</td>
+                          <td className="px-3 py-2.5 text-sm text-muted-foreground">{b.mistake}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Section>
+          </TabsContent>
 
-            <TabsContent value="vs">
-              <Card className="p-0 mt-4 overflow-hidden">
-                <Table head={["#", "Batch", "Avg Score", "Students", "Top Score", "Most Common Mistake"]}>
-                  {batches.map((b, i) => (
-                    <tr key={b.batch} className="border-b border-border">
-                      <td className="p-3 text-sm">{i + 1}</td>
-                      <td className="p-3 text-sm font-medium">{b.batch}</td>
-                      <td className="p-3 text-sm font-semibold">{b.avg}</td>
-                      <td className="p-3 text-sm">{b.count}</td>
-                      <td className="p-3 text-sm">{b.top}</td>
-                      <td className="p-3 text-sm text-muted-foreground">{b.mistake}</td>
-                    </tr>
-                  ))}
-                </Table>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="all">
-              <Card className="p-0 mt-4 overflow-hidden">
-                <Table head={["#", "Name", "Batch", "Best Score", "Badge"]}>
-                  {allBest.slice(0, 50).map((r, i) => (
-                    <tr key={r.email} className={`border-b border-border ${student?.email === r.email ? "bg-accent" : ""}`}>
-                      <td className="p-3 text-sm">{i + 1}</td>
-                      <td className="p-3 text-sm font-medium">{r.name}</td>
-                      <td className="p-3 text-sm">{r.batch_code}</td>
-                      <td className="p-3 text-sm font-semibold">{r.score_total}</td>
-                      <td className="p-3 text-sm"><Badge variant="outline">{r.badge ?? "—"}</Badge></td>
-                    </tr>
-                  ))}
-                </Table>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+          <TabsContent value="all" className="mt-4">
+            <Section>
+              <RankTable rows={allBest.slice(0, MAX_ALL_STUDENTS)} meEmail={student?.email} loading={loading} empty="No finished runs yet." />
+            </Section>
+          </TabsContent>
+        </Tabs>
+      </SimPage>
     </div>
   );
 }
 
-function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
+function RankTable({ rows, meEmail, loading, empty }: { rows: Attempt[]; meEmail?: string; loading: boolean; empty: string }) {
+  if (loading) return <p className="text-sm text-muted-foreground" aria-busy="true">Loading…</p>;
+  if (rows.length === 0) return <EmptyState title={empty} />;
   return (
-    <table className="w-full">
-      <thead className="bg-muted/50">
-        <tr>{head.map((h) => <th key={h} className="p-3 text-left text-xs font-medium text-muted-foreground">{h}</th>)}</tr>
-      </thead>
-      <tbody>{children}</tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px]">
+        <thead className="border-b border-border">
+          <tr>{["#", "Name", "Batch", "Best score", "Badge"].map((h) => <th key={h} className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>)}</tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((r, i) => {
+            const me = meEmail === r.email;
+            return (
+              <tr key={r.email} className={cn("hover:bg-secondary/50", me && "bg-accent")}>
+                <td className="sim-num px-3 py-2.5 text-sm text-muted-foreground">{i + 1}</td>
+                <td className="px-3 py-2.5 text-sm font-medium">{r.name}{me && <span className="ml-2"><Tag tone="good">You</Tag></span>}</td>
+                <td className="px-3 py-2.5 text-sm">{r.batch_code}</td>
+                <td className="px-3 py-2.5"><Tag tone={scoreTone(r.score_total, 100)}><span className="sim-num">{r.score_total}</span></Tag></td>
+                <td className="px-3 py-2.5 text-sm">{r.badge ? BADGE_TEXT[r.badge] ?? r.badge : <span className="text-muted-foreground">None</span>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
-}
-
-function mode(arr: string[]) {
-  const m = new Map<string, number>();
-  for (const x of arr) m.set(x, (m.get(x) ?? 0) + 1);
-  let best = ""; let n = 0;
-  for (const [k, v] of m) if (v > n) { best = k; n = v; }
-  return best;
 }

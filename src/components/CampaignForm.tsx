@@ -39,6 +39,7 @@ const WIZARD_KEYS = [
   "sim_story_feeds", "sim_cpm_overrides", "sim_audience_open", "sim_audience_type",
   "sim_audience_cohorts", "sim_audience_action", "sim_audience_period",
   "sim_audience_cats", "sim_audience_brands", "campaign_draft_id",
+  "sim_keyword_boost", "sim_keyword_boost_pct", "sim_rec_checked", "sim_rec_bids",
 ];
 
 export interface SavedCampaignRef {

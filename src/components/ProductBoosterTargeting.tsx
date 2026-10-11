@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Download, TrendingUp, Inbox, Upload, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { keywordSearches, keywordRange, smartRange, categoryRange, categoryVisits } from "@/market/wizardData";
 import { useSim } from "@/context/SimContext";
 
 // Shared reusable components (usable by any campaign targeting component)
@@ -14,11 +15,7 @@ import { BidRangeBox } from "@/components/targeting/BidRangeBox";
 import {
   inFmt,
   kwType,
-  kwSearches,
   kwTrending,
-  kwBidRange,
-  catBidRange,
-  catVisits,
   entryPoint,
 } from "@/lib/targetingUtils";
 
@@ -55,7 +52,8 @@ export function ProductBoosterTargeting({
   onTargetingValid?: (v: boolean) => void;
   showCategoryTargeting?: boolean;
 } = {}) {
-  const { scenario } = useSim();
+  const { scenario, student } = useSim();
+  const batch = student?.batch ?? "";
 
   // Section toggles
   const [keywordTargeting,  setKeywordTargeting]  = useState(true);
@@ -70,11 +68,12 @@ export function ProductBoosterTargeting({
   const [negKwTags,  setNegKwTags]  = useState<string[]>([]);
 
   // Keyword-level bid state (keyed by keyword name)
-  const [kwExactBids,   setKwExactBids]   = useState<Record<string, string>>({});
-  const [kwSmartBids,   setKwSmartBids]   = useState<Record<string, string>>({});
-  const [kwSmartEnabled,setKwSmartEnabled]= useState<Record<string, boolean>>({});
-  const [kwBoost,       setKwBoost]       = useState<Record<string, boolean>>({});
-  const [kwBoostPct,    setKwBoostPct]    = useState<Record<string, string>>({});
+  // Persisted so bids are saved with the campaign (wizardSnapshot) and reach the engine
+  const [kwExactBids,   setKwExactBids]   = useLocalStorage<Record<string, string>>("sim_keyword_exact_bids", {});
+  const [kwSmartBids,   setKwSmartBids]   = useLocalStorage<Record<string, string>>("sim_keyword_smart_bids", {});
+  const [kwSmartEnabled,setKwSmartEnabled]= useLocalStorage<Record<string, boolean>>("sim_keyword_smart_enabled", {});
+  const [kwBoost,       setKwBoost]       = useLocalStorage<Record<string, boolean>>("sim_keyword_boost", {});
+  const [kwBoostPct,    setKwBoostPct]    = useLocalStorage<Record<string, string>>("sim_keyword_boost_pct", {});
 
   // Bid booster header toggle
   const [bidBooster, setBidBooster] = useState(false);
@@ -83,8 +82,8 @@ export function ProductBoosterTargeting({
   const [filters, setFilters] = useState({ branded: true, generic: true, event: true });
 
   // Category bid state (keyed by category name)
-  const [catBids,    setCatBids]    = useState<Record<string, string>>({});
-  const [catEnabled, setCatEnabled] = useState<Record<string, boolean>>({});
+  const [catBids,    setCatBids]    = useLocalStorage<Record<string, string>>("sim_cat_bids", {});
+  const [catEnabled, setCatEnabled] = useLocalStorage<Record<string, boolean>>("sim_cat_enabled", {});
   const [showCpmErrors, setShowCpmErrors] = useState(false);
 
   // Bulk upload modal
@@ -102,13 +101,13 @@ export function ProductBoosterTargeting({
     return [
       ...profile.goodKeywords.map((k, i) => ({
         name: k, good: true,
-        searches: kwSearches(k, i, true),
+        searches: keywordSearches(scenario!, batch, k), // scenario is set: profile came from it
         trending: kwTrending(k, true),
         type: kwType(k, profile.name),
       })),
       ...profile.riskyKeywords.map((k, i) => ({
         name: k, good: false,
-        searches: kwSearches(k, i, false),
+        searches: keywordSearches(scenario!, batch, k), // scenario is set: profile came from it
         trending: kwTrending(k, false),
         type: kwType(k, profile.name),
       })),
@@ -409,7 +408,8 @@ export function ProductBoosterTargeting({
                   {selectedKeywords.map((k) => {
                     const meta    = allKeywords.find((x) => x.name === k);
                     const searches = meta?.searches ?? 5000;
-                    const [bidLo, bidHi] = kwBidRange(searches);
+                    const { lo: bidLo, hi: bidHi } = scenario ? keywordRange(scenario, batch, k) : { lo: 200, hi: 400 };
+                    const smart = scenario ? smartRange(scenario, batch, k) : { lo: 200, hi: 400 };
                     const boosted = kwBoost[k] ?? false;
                     const smartOn = kwSmartEnabled[k] ?? false;
 
@@ -499,8 +499,8 @@ export function ProductBoosterTargeting({
                           )}
                           {smartOn && (
                             <BidRangeBox
-                              lo={Math.round(bidLo * 0.077)}
-                              hi={Math.round(bidHi * 0.077)}
+                              lo={smart.lo}
+                              hi={smart.hi}
                             />
                           )}
                         </div>
@@ -593,8 +593,8 @@ export function ProductBoosterTargeting({
             {/* Category rows */}
             {cats.map((cat) => {
               const enabled = getCatEnabled(cat);
-              const [lo, hi] = catBidRange(cat);
-              const visits   = catVisits(cat);
+              const { lo, hi } = scenario ? categoryRange(scenario, batch, cat) : { lo: 200, hi: 400 };
+              const visits   = scenario ? categoryVisits(scenario, batch, cat) : 0;
               return (
                 <div
                   key={cat}
@@ -631,7 +631,7 @@ export function ProductBoosterTargeting({
                   {/* Entry point */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-600 leading-tight">
-                      {entryPoint(cat, scenario?.category ?? "")}
+                      {entryPoint(cat, scenario?.profile.category ?? "")}
                     </span>
                     <InfoTooltip
                       content="The category path where customers discover your product listing."

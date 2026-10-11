@@ -98,3 +98,51 @@
 .ticker-track:hover {
   animation-play-state: paused;
 }
+
+/* ── Simulation-layer design system (SPEC §0.1) ──────────────────────────────
+   Wrap simulation screens (brief, Rohit, live dashboard, results, profile,
+   trainer, admin) in .sim-ui. It re-tokens shadcn for those screens only; the
+   frozen Blinkit platform screens (sidebar, campaign wizard, catalogue, brand
+   collections) never sit inside it, so they stay pixel-identical. */
+@layer base {
+  .sim-ui {
+    --background: 40 20% 98%;
+    --foreground: 24 12% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 12% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 12% 11%;
+    --primary: 146 52% 27%;
+    --primary-foreground: 40 20% 98%;
+    --secondary: 40 14% 94%;
+    --secondary-foreground: 24 12% 15%;
+    --muted: 40 14% 94%;
+    --muted-foreground: 28 6% 42%;
+    --accent: 146 30% 93%;
+    --accent-foreground: 146 52% 22%;
+    --destructive: 4 62% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 36 12% 88%;
+    --input: 36 12% 86%;
+    --ring: 146 52% 27%;
+    --radius: 0.75rem;
+    /* Status tones used by score bars and tiles */
+    --sim-good: 146 52% 32%;
+    --sim-warn: 36 78% 42%;
+    --sim-bad: 4 62% 47%;
+    --sim-highlight: 46 92% 60%;
+
+    font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "ss01";
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+  }
+  .sim-ui h1, .sim-ui h2, .sim-ui h3 { text-wrap: balance; letter-spacing: -0.015em; }
+  .sim-ui p { text-wrap: pretty; }
+  .sim-ui table, .sim-ui .sim-num { font-variant-numeric: tabular-nums; }
+  .sim-ui .sim-mono { font-family: "Geist Mono", ui-monospace, monospace; }
+  .sim-ui :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .sim-ui button, .sim-ui a { transition: background-color 180ms ease, color 180ms ease, transform 120ms ease, box-shadow 180ms ease; }
+  .sim-ui button:active:not(:disabled) { transform: translateY(1px); }
+}

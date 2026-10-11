@@ -140,7 +140,7 @@ export function CampaignDetails({ campaign, onBack }: Props) {
       const atcs       = isReach ? 0 : Math.round(perf.atcs * frac * (0.75 + pseudoRand(kw, 4) * 0.5));
       const units      = isReach ? 0 : Math.round(perf.units * frac * (0.75 + pseudoRand(kw, 5) * 0.5));
       const revenue    = isReach ? 0 : Math.round(perf.revenue * frac);
-      const roas       = spend > 0 && revenue > 0 ? (revenue / spend).toFixed(2) : "—";
+      const roas       = spend > 0 && revenue > 0 ? (revenue / spend).toFixed(2) : "–";
 
       return {
         keyword: kw, spend, cpm: kwCpm, impressions, reach: reachKw,
@@ -167,7 +167,7 @@ export function CampaignDetails({ campaign, onBack }: Props) {
       const atcs       = isReach ? 0 : Math.round(perf.atcs * frac);
       const units      = isReach ? 0 : Math.round(perf.units * frac);
       const revenue    = isReach ? 0 : Math.round(perf.revenue * frac);
-      const roas       = spend > 0 && revenue > 0 ? (revenue / spend).toFixed(2) : "—";
+      const roas       = spend > 0 && revenue > 0 ? (revenue / spend).toFixed(2) : "–";
 
       return {
         category: cat, spend, cpm: catCpm, impressions, reach: reachCat,
@@ -257,10 +257,10 @@ export function CampaignDetails({ campaign, onBack }: Props) {
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              <span className="capitalize">{campaign.objective ?? "—"}</span> campaign
+              <span className="capitalize">{campaign.objective ?? "–"}</span> campaign
               {" | "}
               <span style={{ color: FORMAT_COLOR[campaign.adFormat ?? ""] }}>
-                {FORMAT_LABEL[campaign.adFormat ?? ""] ?? campaign.adFormat ?? "—"}
+                {FORMAT_LABEL[campaign.adFormat ?? ""] ?? campaign.adFormat ?? "–"}
               </span>
             </p>
           </div>
@@ -413,7 +413,7 @@ export function CampaignDetails({ campaign, onBack }: Props) {
                   <p className="text-[10px] text-muted-foreground">Off-peak hours run at ₹1 bid</p>
                 </>
               ) : (
-                <p className="text-sm text-foreground">24/7 — all hours</p>
+                <p className="text-sm text-foreground">24/7: all hours</p>
               )}
             </Card>
           </div>

@@ -46,12 +46,15 @@ export default function Login() {
   // Spinner while deciding, and while the hub redirect is in flight
   if (!checked || !master) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-muted-foreground">Redirecting to Kraftshala Hub…</p>
+      <main className="sim-ui flex min-h-[100dvh] items-center justify-center px-6">
+        <div className="flex flex-col items-center gap-4 text-center" role="status" aria-live="polite">
+          <BrandMark />
+          <div className="h-1 w-32 overflow-hidden rounded-full bg-secondary">
+            <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
+          </div>
+          <p className="text-sm text-muted-foreground">Taking you to the Kraftshala Hub to sign in…</p>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -66,59 +69,65 @@ export default function Login() {
 
   // ── Master role picker (internal only) ────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <div className="w-full max-w-xs space-y-3">
-        <div className="text-center mb-5">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center mx-auto mb-2">
-            <span className="text-white text-lg font-bold">⚡</span>
-          </div>
-          <p className="text-sm font-semibold text-foreground">Master Access</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Internal use only · this browser is remembered
-          </p>
+    <main className="sim-ui flex min-h-[100dvh] items-center justify-center px-6 py-10">
+      <div className="w-full max-w-sm rounded-2xl bg-card p-7 shadow-[0_1px_0_hsl(var(--border)),0_12px_32px_-24px_hsl(24_30%_20%/0.3)]">
+        <BrandMark />
+        <h1 className="mt-6 text-xl font-semibold text-foreground">Master access</h1>
+        <p className="mt-1 text-sm text-muted-foreground">For the Kraftshala team only. This browser stays unlocked until you turn it off.</p>
+
+        <div className="mt-6 space-y-2">
+          <Button className="w-full" onClick={enterAsStudent}>Enter as student</Button>
+          <Button variant="outline" className="w-full" onClick={() => { localStorage.setItem("sim_role", "trainer"); nav("/trainer"); }}>
+            Enter as trainer
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => { localStorage.setItem("sim_role", "admin"); nav("/admin"); }}>
+            Enter as admin
+          </Button>
         </div>
 
-        <Button className="w-full" onClick={enterAsStudent}>
-          Enter as Student
-        </Button>
-
-        <Button
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-0"
-          onClick={() => { localStorage.setItem("sim_role", "trainer"); nav("/trainer"); }}
-        >
-          Enter as Trainer
-        </Button>
-
-        <Button
-          className="w-full bg-amber-500 hover:bg-amber-600 text-white border-0"
-          onClick={() => { localStorage.setItem("sim_role", "admin"); nav("/admin"); }}
-        >
-          Enter as Admin
-        </Button>
-
-        {/* Custom identity — handy for checking that per-student isolation works:
-            enter as one email, build a campaign, then switch to another. */}
+        {/* Custom identity: handy for checking that per-student isolation works.
+            Enter as one email, build a campaign, then switch to another. */}
         {custom ? (
-          <div className="space-y-2 pt-2 border-t border-border mt-3">
-            <Input value={testName}  onChange={(e) => setTestName(e.target.value)}  placeholder="Name"  className="h-8 text-xs" />
-            <Input value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="Email" className="h-8 text-xs" />
-            <Input value={testBatch} onChange={(e) => setTestBatch(e.target.value)} placeholder="Batch" className="h-8 text-xs" />
-            <p className="text-[10px] text-muted-foreground">
-              Entering as a different email wipes the previous student's local session.
-            </p>
+          <div className="mt-5 space-y-3 border-t border-border pt-5">
+            <div className="space-y-1.5">
+              <label htmlFor="master-name" className="text-xs font-medium text-muted-foreground">Student name</label>
+              <Input id="master-name" value={testName} onChange={(e) => setTestName(e.target.value)} className="h-9 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="master-email" className="text-xs font-medium text-muted-foreground">Email</label>
+              <Input id="master-email" type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="h-9 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="master-batch" className="text-xs font-medium text-muted-foreground">Batch code</label>
+              <Input id="master-batch" value={testBatch} onChange={(e) => setTestBatch(e.target.value)} className="h-9 text-sm" />
+            </div>
+            <p className="text-xs text-muted-foreground">Signing in with a different email clears the last student's saved progress on this browser.</p>
           </div>
         ) : (
           <button
+            type="button"
             onClick={() => setCustom(true)}
-            className="w-full text-[11px] text-muted-foreground hover:text-foreground pt-1"
+            className="mt-4 w-full rounded-md py-1 text-xs text-muted-foreground hover:text-foreground"
           >
-            Student identity: {testEmail} · change
+            Student: {testEmail}. Change
           </button>
         )}
 
-        <p className="text-[10px] text-muted-foreground/70 text-center pt-3">
-          Add <span className="font-mono">?master=off</span> to remove access from this browser.
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          To lock this browser again, add <span className="sim-mono">?master=off</span> to the address.
         </p>
+      </div>
+    </main>
+  );
+}
+
+function BrandMark() {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div aria-hidden className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F8CB2E] text-sm font-black text-[#1a1a1a]">b</div>
+      <div className="text-left leading-tight">
+        <p className="text-sm font-bold text-foreground">blinkit</p>
+        <p className="text-[11px] text-muted-foreground">Ads Simulation</p>
       </div>
     </div>
   );

@@ -53,9 +53,9 @@ function buildCrisis1(scenario: Scenario): CrisisSpecFull {
   if (eventId === "stock_crisis") {
     return {
       num: 1, icon: "🚨", tone: "red",
-      title: "Supply Alert — Fill Rate Dropping",
+      title: "Supply Alert. Fill Rate Dropping",
       subtitle: `${topState} dark stores`,
-      message: `Fill rate dropped to 62% in ${topState}. Your highest-performing dark stores are critically low on ${heroSku}. Ads are still running — but impressions are starting to under-deliver. You have a 48-hour window.`,
+      message: `Fill rate dropped to 62% in ${topState}. Your highest-performing dark stores are critically low on ${heroSku}. Ads are still running, but impressions are starting to under-deliver. You have a 48-hour window.`,
       options: [
         {
           key: "c", label: "Pause ads in affected state + request emergency restock", best: true,
@@ -111,7 +111,7 @@ function buildCrisis1(scenario: Scenario): CrisisSpecFull {
           },
         },
         {
-          key: "a", label: "Match their bids — hold position",
+          key: "a", label: "Match their bids: hold position",
           effect: "CPMs stay elevated but impressions hold. Expensive but visible.",
           score: 6,
           engineEffect: {
@@ -123,7 +123,7 @@ function buildCrisis1(scenario: Scenario): CrisisSpecFull {
         },
         {
           key: "b", label: "Double spend to outbid them",
-          effect: "Massive CPM spike. ROAS drops sharply — you're in a bidding war.",
+          effect: "Massive CPM spike. ROAS drops sharply: you're in a bidding war.",
           score: 0,
           engineEffect: {
             crisisNum: 1,
@@ -141,7 +141,7 @@ function buildCrisis1(scenario: Scenario): CrisisSpecFull {
     num: 1, icon: "🔍", tone: "red",
     title: "Pin-Code Cluster Signal",
     subtitle: `${topState} performance spike`,
-    message: `3 pin-code clusters in ${topState} are showing 4x the average ROAS — gym-dense, high-intent zones. Should you concentrate spend here?`,
+    message: `3 pin-code clusters in ${topState} are showing 4x the average ROAS: gym-dense, high-intent zones. Should you concentrate spend here?`,
     options: [
       {
         key: "c", label: "Shift 40% of budget to these 3 pin-code clusters", best: true,
@@ -160,7 +160,7 @@ function buildCrisis1(scenario: Scenario): CrisisSpecFull {
         engineEffect: { crisisNum: 1, geoQualityMult: 1.0, cpmMult: 1.0, ctrMult: 1.0, stockDrainPerDay: 0 },
       },
       {
-        key: "b", label: "Ignore — these are probably anomalies",
+        key: "b", label: "Ignore: these are probably anomalies",
         effect: "Cluster decays. You miss a high-ROAS window that won't reopen.",
         score: 0,
         engineEffect: { crisisNum: 1, geoQualityMult: 0.95, cpmMult: 1.0, ctrMult: 0.9, stockDrainPerDay: 0 },
@@ -179,11 +179,11 @@ function buildCrisis2(scenario: Scenario): CrisisSpecFull {
       num: 2, icon: "📞", tone: "orange",
       title: "Category Manager Warning",
       subtitle: "Shelf space under threat",
-      message: `"Your ${secondarySku} has 14% sell-through — I have 3 other brands waiting for that shelf slot. Give me a plan in 24 hours or I'm pulling it."`,
+      message: `"Your ${secondarySku} has 14% sell-through. I have 3 other brands waiting for that shelf slot. Give me a plan in 24 hours or I'm pulling it."`,
       options: [
         {
           key: "c", label: `Swap in the higher-velocity ${heroSku} and concentrate ads there`, best: true,
-          effect: `${secondarySku} replaced. Ads concentrate on ${heroSku} — sell-through jumps 60%.`,
+          effect: `${secondarySku} replaced. Ads concentrate on ${heroSku}: sell-through jumps 60%.`,
           score: 10,
           engineEffect: {
             crisisNum: 2,
@@ -205,7 +205,7 @@ function buildCrisis2(scenario: Scenario): CrisisSpecFull {
         },
         {
           key: "b", label: "Promise improvement, ask for a one-week extension",
-          effect: "Buys time but nothing changes — CM pulls the listing at next check-in.",
+          effect: "Buys time but nothing changes. CM pulls the listing at next check-in.",
           score: 0,
           engineEffect: {
             crisisNum: 2,
@@ -237,7 +237,7 @@ function buildCrisis2(scenario: Scenario): CrisisSpecFull {
       },
       {
         key: "a", label: "Reduce ${secondarySku} budget by 50%, keep it live",
-        effect: "Partial improvement — ${secondarySku} stops burning, but still underperforms.",
+        effect: "Partial improvement: ${secondarySku} stops burning, but still underperforms.",
         score: 6,
         engineEffect: {
           crisisNum: 2,
@@ -247,7 +247,7 @@ function buildCrisis2(scenario: Scenario): CrisisSpecFull {
         },
       },
       {
-        key: "b", label: "Stay the course — it will improve",
+        key: "b", label: "Stay the course: it will improve",
         effect: "It doesn't. ${secondarySku} continues to drag ROAS for the rest of the run.",
         score: 0,
         engineEffect: {
@@ -269,9 +269,9 @@ function buildCrisis3(scenario: Scenario): CrisisSpecFull {
   if (/festival/i.test(season)) {
     return {
       num: 3, icon: "⚡", tone: "blue",
-      title: "Festival Surge — Final 5 Days",
+      title: "Festival Surge. Final 5 Days",
       subtitle: "Demand spike incoming",
-      message: `Festival is 5 days away. Demand expected to spike 60%. CPMs are rising fast — but peak-day conversions could be 2x normal. How do you allocate your final remaining budget?`,
+      message: `Festival is 5 days away. Demand expected to spike 60%. CPMs are rising fast, but peak-day conversions could be 2x normal. How do you allocate your final remaining budget?`,
       options: [
         {
           key: "c", label: "Save 50% of remaining budget for the 3 peak days", best: true,
@@ -316,9 +316,9 @@ function buildCrisis3(scenario: Scenario): CrisisSpecFull {
   if (/aggressive/i.test(market) || /competitor/i.test(market)) {
     return {
       num: 3, icon: "⚡", tone: "blue",
-      title: "Competitor Price Cut — Final Week",
+      title: "Competitor Price Cut. Final Week",
       subtitle: "Conversion rate falling",
-      message: `Your top competitor just slashed prices 22%. Your conversion rate dropped 35% in the last 4 hours. You have your final remaining budget — what's the move?`,
+      message: `Your top competitor just slashed prices 22%. Your conversion rate dropped 35% in the last 4 hours. You have your final remaining budget: what's the move?`,
       options: [
         {
           key: "c", label: "Pivot to long-tail keywords the competitor isn't bidding on",
@@ -334,7 +334,7 @@ function buildCrisis3(scenario: Scenario): CrisisSpecFull {
           },
         },
         {
-          key: "a", label: "Match their price — stop the ROAS bleed",
+          key: "a", label: "Match their price: stop the ROAS bleed",
           effect: "Conversions stabilise but margin takes a 20% hit.",
           score: 6,
           engineEffect: {
@@ -364,12 +364,12 @@ function buildCrisis3(scenario: Scenario): CrisisSpecFull {
   // Default: organic ranking opportunity
   return {
     num: 3, icon: "⚡", tone: "blue",
-    title: "Organic Rank Push — Final Stretch",
+    title: "Organic Rank Push. Final Stretch",
     subtitle: `${heroSku} at rank #11`,
-    message: `${heroSku} is sitting at organic rank #11. With an aggressive final push, top-5 is achievable — and top-5 rankings compound after the campaign ends. How do you close out?`,
+    message: `${heroSku} is sitting at organic rank #11. With an aggressive final push, top-5 is achievable, and top-5 rankings compound after the campaign ends. How do you close out?`,
     options: [
       {
-        key: "a", label: `Push hard — 40% of remaining budget on ${heroSku} in top states`, best: true,
+        key: "a", label: `Push hard: 40% of remaining budget on ${heroSku} in top states`, best: true,
         effect: "Achieves top-5 rank. Sales sustain post-campaign.",
         score: 10,
         engineEffect: {
@@ -381,7 +381,7 @@ function buildCrisis3(scenario: Scenario): CrisisSpecFull {
         },
       },
       {
-        key: "b", label: "Moderate push — balanced spend across all campaigns",
+        key: "b", label: "Moderate push: balanced spend across all campaigns",
         effect: "Reaches rank #8. Modest gain, no post-campaign lift.",
         score: 6,
         engineEffect: {
@@ -392,7 +392,7 @@ function buildCrisis3(scenario: Scenario): CrisisSpecFull {
         },
       },
       {
-        key: "c", label: "Hold current spend — let organic growth happen naturally",
+        key: "c", label: "Hold current spend: let organic growth happen naturally",
         effect: "Rank stays at #11. No improvement.",
         score: 0,
         engineEffect: {

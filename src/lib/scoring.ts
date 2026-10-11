@@ -76,13 +76,13 @@ const inventoryDecisionScore = (scen: Scenario, c: CampaignChoices): ScoreLine =
       ? { key: "inv", label: "Inventory Decision", earned: 15, max: 15, note: "Trimmed SKU focus to clear aging stock." }
       : { key: "inv", label: "Inventory Decision", earned: 6, max: 15, note: "Spread too wide given overstocked SKUs." };
   }
-  return { key: "inv", label: "Inventory Decision", earned: 12, max: 15, note: "Healthy inventory — reasonable plan." };
+  return { key: "inv", label: "Inventory Decision", earned: 12, max: 15, note: "Healthy inventory: reasonable plan." };
 };
 
 const objectiveScore = (scen: Scenario, c: CampaignChoices): ScoreLine =>
   c.objective === scen.profile.optimalObjective
     ? { key: "obj", label: "Campaign Objective", earned: 10, max: 10, note: `${scen.profile.optimalObjective} was the right call for this brand.` }
-    : { key: "obj", label: "Campaign Objective", earned: 0, max: 10, note: `Wrong objective — ${scen.profile.optimalObjective} was the right pick.` };
+    : { key: "obj", label: "Campaign Objective", earned: 0, max: 10, note: `Wrong objective: ${scen.profile.optimalObjective} was the right pick.` };
 
 const formatScore = (scen: Scenario, c: CampaignChoices): ScoreLine => {
   const goal = scen.profile.goalType;
@@ -99,14 +99,14 @@ const formatScore = (scen: Scenario, c: CampaignChoices): ScoreLine => {
   const inConversion = isConversionFormat(fmt);
 
   if (bucket === "awareness" && inAwareness) {
-    return { key: "fmt", label: "Ad Format", earned: 10, max: 15, note: `${fmt} is an awareness format — right direction for ${goal}, but ${scen.profile.optimalAdFormat} would be stronger.` };
+    return { key: "fmt", label: "Ad Format", earned: 10, max: 15, note: `${fmt} is an awareness format: right direction for ${goal}, but ${scen.profile.optimalAdFormat} would be stronger.` };
   }
   if ((bucket === "conversion" || bucket === "both") && inConversion) {
-    return { key: "fmt", label: "Ad Format", earned: 10, max: 15, note: `${fmt} is a conversion format — right direction for ${goal}, but ${scen.profile.optimalAdFormat} would be stronger.` };
+    return { key: "fmt", label: "Ad Format", earned: 10, max: 15, note: `${fmt} is a conversion format: right direction for ${goal}, but ${scen.profile.optimalAdFormat} would be stronger.` };
   }
   if (bucket === "both" && inAwareness) {
     // Volume-First brand — awareness format is acceptable if paired with a conversion campaign.
-    return { key: "fmt", label: "Ad Format", earned: 8, max: 15, note: `Awareness format for a Volume-First brand — valid if paired with a conversion campaign to close sales.` };
+    return { key: "fmt", label: "Ad Format", earned: 8, max: 15, note: `Awareness format for a Volume-First brand: valid if paired with a conversion campaign to close sales.` };
   }
 
   // Wrong bucket entirely.
@@ -121,7 +121,7 @@ const geographyScore = (scen: Scenario, c: CampaignChoices): ScoreLine => {
   if (mustNarrow) {
     return c.geography === "select_cities"
       ? { key: "geo", label: "Geography", earned: 10, max: 10, note: "Narrowed targeting where it mattered." }
-      : { key: "geo", label: "Geography", earned: 0, max: 10, note: "Pan India was wrong — demand is hyperlocal or stock is patchy." };
+      : { key: "geo", label: "Geography", earned: 0, max: 10, note: "Pan India was wrong: demand is hyperlocal or stock is patchy." };
   }
   return { key: "geo", label: "Geography", earned: 8, max: 10, note: "Acceptable geo choice." };
 };

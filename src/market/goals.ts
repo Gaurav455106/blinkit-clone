@@ -1,0 +1,83 @@
+// ── Client goals for v2, calibrated to the engine (Gaurav: calibrate to the brief) ──
+// Targets come from what good play actually achieves in each brand's market
+// (benchmarks below, from `npm run calibrate`: best runs that spend at least 90%
+// of the budget). Targets sit a little below good play, so a good student can
+// hit them and naive play usually can't. Only goals the v2 engine measures.
+
+import type { ClientGoals, GoalMetric, Scenario } from "@/data/scenarios";
+
+export interface GoalBenchmark {
+  /** Break-even ROAS of the brand's sales mix. */
+  breakEven: number;
+  units: number;
+  views: number;
+  ctrPct: number;
+}
+
+/** Re-checked by src/market/calibration/benchmarks.calibration.ts (fails if the engine drifts > 10%). */
+export const GOAL_BENCHMARKS: Readonly<Record<string, GoalBenchmark>> = {
+  henlo:     { breakEven: 7.1,  units: 4387, views: 516134, ctrPct: 6.78 },
+  glow:      { breakEven: 4.48, units: 832,  views: 404282, ctrPct: 3.1 },
+  vitaboost: { breakEven: 4.01, units: 408,  views: 518067, ctrPct: 1.62 },
+  tinybuddy: { breakEven: 3.68, units: 2940, views: 487087, ctrPct: 4.22 },
+  munchbox:  { breakEven: 3.79, units: 7496, views: 611545, ctrPct: 7.83 },
+  pawlife:   { breakEven: 3.36, units: 669,  views: 498457, ctrPct: 3.52 },
+  fuelup:    { breakEven: 3.29, units: 895,  views: 516661, ctrPct: 2.17 },
+};
+
+const STRETCH = 0.85;
+const LIGHT = 0.7;
+/** Unique people reached ≈ 60% of views. */
+const REACH_PER_VIEW = 0.6;
+
+const roundTo = (n: number, step: number) => Math.max(step, Math.round(n / step) * step);
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+function goals(primary: string, lifecycle: ClientGoals["lifecycle"], performanceGoals: GoalMetric[], reachGoals: GoalMetric[], campaignHint: string): ClientGoals {
+  return {
+    primary, lifecycle, performanceGoals, reachGoals,
+    metrics: [...performanceGoals, ...reachGoals],
+    threshold: "Hit 90% or more of these goals to be promoted to Senior Executive.",
+    campaignHint,
+  };
+}
+
+/** The client's goals for a v2 run of this scenario. Falls back to the v1 goals for unknown brands. */
+export function clientGoalsV2(scenario: Scenario): ClientGoals {
+  const b = GOAL_BENCHMARKS[scenario.profile.id];
+  if (!b) return scenario.clientGoals;
+  const units = roundTo(b.units * STRETCH, 10);
+  const reach = roundTo(b.views * REACH_PER_VIEW * STRETCH, 1000);
+  const impressions = roundTo(b.views * STRETCH, 1000);
+
+  if (scenario.inventory.tone === "overstocked") {
+    return goals("Sell the extra stock before it goes old", "Retain",
+      [{ label: "Units sold", target: roundTo(b.units * 1.1, 10), unit: "units" }, { label: "Minimum ROAS", target: round1(b.breakEven * 0.8), unit: "x" }],
+      [],
+      "Clearing stock: put the money into ads that sell (Product Booster, Recommendation Ads). Skip awareness ads until stock is normal.");
+  }
+  switch (scenario.profile.goalType) {
+    case "ROAS-First":
+      return goals("Make sales that earn back more than the ads cost", "Convert",
+        [{ label: "ROAS", target: round1(b.breakEven * 1.15), unit: "x" }, { label: "Units sold", target: units, unit: "units" }],
+        [{ label: "Reach", target: reach, unit: "people" }],
+        "Start with Product Booster for shoppers who are already searching. Keep every bid below what a click is worth to you.");
+    case "Volume-First":
+      return goals("Sell as many units as possible without losing money", "Convert",
+        [{ label: "Units sold", target: units, unit: "units" }, { label: "Minimum ROAS", target: round1(b.breakEven * 0.95), unit: "x" }],
+        [{ label: "Reach", target: reach, unit: "people" }],
+        "Go for volume, but watch ROAS: below break-even, every extra sale loses money.");
+    case "Awareness-First":
+      return goals("Get the brand seen by lots of new shoppers", "Acquire",
+        [{ label: "CTR", target: round1(b.ctrPct * 0.9), unit: "%" }, { label: "Units sold", target: roundTo(b.units * LIGHT, 10), unit: "units" }],
+        [{ label: "Impressions", target: impressions, unit: "views" }],
+        "Lead with Listing Spotlight or Brand Booster so shoppers notice the brand. Add a small Product Booster for people already searching.");
+    case "Category-Creation":
+      return goals("Teach shoppers that this kind of product exists", "Acquire",
+        [{ label: "Units sold", target: roundTo(b.units * LIGHT, 10), unit: "units" }],
+        [{ label: "Reach", target: reach, unit: "people" }, { label: "Impressions", target: impressions, unit: "views" }],
+        "Few people search for this yet, so search ads alone won't work. Use Listing Spotlight and Stories to show shoppers the product.");
+    default:
+      return scenario.clientGoals;
+  }
+}

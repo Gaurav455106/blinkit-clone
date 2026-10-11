@@ -70,7 +70,7 @@ export default function SSOCallback() {
           });
         } catch (err) {
           if (codeOf(err) !== "ERR_JWKS_TIMEOUT") throw err;
-          console.warn("JWKS fetch timed out (likely hub cold start) — retrying once…");
+          console.warn("JWKS fetch timed out (likely hub cold start): retrying once…");
           await sleep(2_500); // clear the cooldown window before the second try
           return await jwtVerify(token, JWKS, {
             issuer:   HUB_URL,
@@ -190,7 +190,7 @@ function describe(f: Failure): { title: string; body: string; canRetry: boolean 
     case "timeout":
       return {
         title: "Couldn't reach the Hub",
-        body: "The Kraftshala Hub took too long to respond — this is usually temporary. Please try again.",
+        body: "The Kraftshala Hub took too long to respond: this is usually temporary. Please try again.",
         canRetry: true,
       };
     case "expired":

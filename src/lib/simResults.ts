@@ -251,10 +251,10 @@ export function simulateRun(
       budgetMixLabel = `Budget mix aligned (${storedConvPct}% conversion) for ${scenario.profile.goalType}`;
     } else if (deviation <= 10) {
       budgetMixEarned = 5;
-      budgetMixLabel = `Budget mix slightly off — ${storedConvPct}% conversion (recommended ${bmRange.min}–${bmRange.max}% for ${scenario.profile.goalType})`;
+      budgetMixLabel = `Budget mix slightly off: ${storedConvPct}% conversion (recommended ${bmRange.min}–${bmRange.max}% for ${scenario.profile.goalType})`;
     } else {
       budgetMixEarned = 2;
-      budgetMixLabel = `Budget over-indexed — ${storedConvPct}% conversion vs recommended ${bmRange.min}–${bmRange.max}% for ${scenario.profile.goalType}`;
+      budgetMixLabel = `Budget over-indexed: ${storedConvPct}% conversion vs recommended ${bmRange.min}–${bmRange.max}% for ${scenario.profile.goalType}`;
     }
   }
 
@@ -283,15 +283,15 @@ export function simulateRun(
   const rights: string[] = [];
   const wrongs: string[] = [];
   if (objMatches) rights.push(`Chose ${scenario.profile.optimalObjective} which matched the client's ${scenario.profile.goalType}`);
-  if (cm?.status === "strong") rights.push("Strong CM pitch — premium shelf placement and OSA boost");
-  if (coversAllStocked) rights.push("Reached every stocked state — ads ran wherever there was stock to sell");
-  if (skuCount <= 2) rights.push("Focused SKU selection — concentrated impact");
+  if (cm?.status === "strong") rights.push("Strong CM pitch: premium shelf placement and OSA boost");
+  if (coversAllStocked) rights.push("Reached every stocked state: ads ran wherever there was stock to sell");
+  if (skuCount <= 2) rights.push("Focused SKU selection: concentrated impact");
   if (kwGood) rights.push("Mostly on-target keywords");
 
-  if (!objMatches) wrongs.push(`Wrong objective — ${scenario.profile.optimalObjective} was the right call`);
-  if (!coversAllStocked) wrongs.push("Left out states where you had stock — that demand went unserved. Pan India would have reached them at no extra cost, since ads never run where stock is zero");
-  if (skuCount > 3) wrongs.push("Spread budget across too many SKUs — diluted impact");
-  if (!kwGood && kwAll.length) wrongs.push("Selected too many risky keywords — competitive category, expensive clicks");
+  if (!objMatches) wrongs.push(`Wrong objective: ${scenario.profile.optimalObjective} was the right call`);
+  if (!coversAllStocked) wrongs.push("Left out states where you had stock: that demand went unserved. Pan India would have reached them at no extra cost, since ads never run where stock is zero");
+  if (skuCount > 3) wrongs.push("Spread budget across too many SKUs: diluted impact");
+  if (!kwGood && kwAll.length) wrongs.push("Selected too many risky keywords: competitive category, expensive clicks");
   if (cm?.status === "rejected" || cm?.status === "weak") wrongs.push("CM had concerns about your pitch");
   if (budgetMixLabel) {
     if (budgetMixEarned === 8) rights.push(budgetMixLabel);
@@ -301,40 +301,40 @@ export function simulateRun(
   // Bucket coverage feedback
   if (bucketCovered) {
     if (requiredBucket === "both") {
-      rights.push("Ran both awareness and conversion campaigns — covered the full funnel as the brief required");
+      rights.push("Ran both awareness and conversion campaigns: covered the full funnel as the brief required");
     } else if (requiredBucket === "awareness") {
-      rights.push(`Used awareness formats (listing_spotlight / brand_booster / stories) — correct for a ${scenario.profile.goalType} brand`);
+      rights.push(`Used awareness formats (listing_spotlight / brand_booster / stories): correct for a ${scenario.profile.goalType} brand`);
     } else {
-      rights.push(`Used conversion formats (product_booster / recommendation_ads) — correct for a ${scenario.profile.goalType} brand`);
+      rights.push(`Used conversion formats (product_booster / recommendation_ads): correct for a ${scenario.profile.goalType} brand`);
     }
   } else {
     if (requiredBucket === "both") {
-      if (!hasAwarenessCampaign) wrongs.push("Missing awareness campaign — this brand needs reach to feed the funnel. Add a listing_spotlight, brand_booster, or stories campaign.");
-      if (!hasConversionCampaign) wrongs.push("Missing conversion campaign — awareness alone won't hit the units/ROAS target. Add a product_booster or recommendation_ads campaign.");
+      if (!hasAwarenessCampaign) wrongs.push("Missing awareness campaign: this brand needs reach to feed the funnel. Add a listing_spotlight, brand_booster, or stories campaign.");
+      if (!hasConversionCampaign) wrongs.push("Missing conversion campaign: awareness alone won't hit the units/ROAS target. Add a product_booster or recommendation_ads campaign.");
     } else if (requiredBucket === "awareness") {
-      wrongs.push(`${scenario.profile.goalType} brand needs awareness formats (listing_spotlight, brand_booster, stories) — running only conversion campaigns burns budget on people who don't know the brand yet.`);
+      wrongs.push(`${scenario.profile.goalType} brand needs awareness formats (listing_spotlight, brand_booster, stories): running only conversion campaigns burns budget on people who don't know the brand yet.`);
     } else {
-      wrongs.push(`${scenario.profile.goalType} brand needs conversion formats (product_booster, recommendation_ads) — awareness campaigns won't hit ROAS or units targets.`);
+      wrongs.push(`${scenario.profile.goalType} brand needs conversion formats (product_booster, recommendation_ads): awareness campaigns won't hit ROAS or units targets.`);
     }
   }
 
   // Phase 3 commentary
   if (arch === archOpt.optimal) rights.push(`Picked the optimal campaign architecture (${arch}) for this brand & stock map`);
-  else if (arch === "E") wrongs.push("Messy campaign architecture — no clear control over cities or SKUs");
-  else if (arch !== archOpt.alternative) wrongs.push(`Architecture mismatch — used ${arch}, optimal was ${archOpt.optimal}`);
+  else if (arch === "E") wrongs.push("Messy campaign architecture: no clear control over cities or SKUs");
+  else if (arch !== archOpt.alternative) wrongs.push(`Architecture mismatch: used ${arch}, optimal was ${archOpt.optimal}`);
   rights.push(seqScored.note);
   if (cannibalPairs.length > 0 && resolvedSet.size < cannibalPairs.length) {
-    wrongs.push(`Left ${cannibalPairs.length - resolvedSet.size} keyword overlap${cannibalPairs.length - resolvedSet.size > 1 ? "s" : ""} unresolved — paid twice for the same shoppers`);
+    wrongs.push(`Left ${cannibalPairs.length - resolvedSet.size} keyword overlap${cannibalPairs.length - resolvedSet.size > 1 ? "s" : ""} unresolved: paid twice for the same shoppers`);
   } else if (cannibalPairs.length > 0) {
     rights.push("Caught and resolved all keyword overlaps");
   }
-  if ((phase3?.abTests ?? []).length >= 1 && (phase3?.abTests ?? []).length <= 2) rights.push("Ran disciplined A/B tests — let data pick the winning creative");
-  if ((phase3?.abTests ?? []).length > 2) wrongs.push("Too many simultaneous A/B tests — diluted learnings and burned tokens");
+  if ((phase3?.abTests ?? []).length >= 1 && (phase3?.abTests ?? []).length <= 2) rights.push("Ran disciplined A/B tests: let data pick the winning creative");
+  if ((phase3?.abTests ?? []).length > 2) wrongs.push("Too many simultaneous A/B tests: diluted learnings and burned tokens");
   if ((phase3?.tokensSpent ?? 0) >= 6 && (phase3?.tokensSpent ?? 0) <= 9) rights.push("Spent decision tokens at a healthy pace");
-  if ((phase3?.tokensSpent ?? 0) <= 2) wrongs.push("Hoarded decision tokens — missed optimization opportunities");
+  if ((phase3?.tokensSpent ?? 0) <= 2) wrongs.push("Hoarded decision tokens: missed optimization opportunities");
 
   let verdict: SimRunResult["verdict"];
-  if (achievementPct >= 90) verdict = { tone: "good", quote: "Outstanding work. This is exactly the level of execution we needed. You're promoted to Senior Executive — bigger budget, more brands, harder challenges ahead." };
+  if (achievementPct >= 90) verdict = { tone: "good", quote: "Outstanding work. This is exactly the level of execution we needed. You're promoted to Senior Executive: bigger budget, more brands, harder challenges ahead." };
   else if (achievementPct >= 70) verdict = { tone: "good", quote: "Strong performance. We see real growth potential. Continuing partnership and increasing your scope next month." };
   else if (achievementPct >= 50) verdict = { tone: "warn", quote: "Mixed results. Some good decisions, but key mistakes cost us. Let's review strategy together." };
   else verdict = { tone: "bad", quote: "This campaign didn't meet expectations. We need to reconsider this partnership." };

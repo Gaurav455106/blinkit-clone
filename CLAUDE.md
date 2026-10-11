@@ -1,5 +1,12 @@
 # Blinkit Ads Simulation — Claude Reference
 
+## v2 Redesign (in progress)
+> **`SPEC.md` is the plan for the v2 rebuild** (market engine, auction/SOV, reacting rivals,
+> state-driven events and Rohit, scoring v2). Read it before any engine, live-dashboard,
+> CM-pitch or scoring work. Its §12 lists the phases and §13 the decided and open questions.
+> Don't start a phase without Gaurav's go-ahead. The rest of this file describes v1 until a
+> phase replaces it.
+
 ## Dependency Reference
 > **For all logic, scoring formulas, brand profiles, and module interconnections — read `DEPENDENCIES.md` first.**  
 > CLAUDE.md covers project structure; DEPENDENCIES.md covers how everything calculates and connects.
@@ -280,6 +287,10 @@ finalCPM = round(baseCPM × dayMult × timeMult / 25) × 25
 | `sim_keyword_exact_bids` | Record<string,string> | ProductBoosterTargeting |
 | `sim_keyword_smart_bids` | Record<string,string> | ProductBoosterTargeting |
 | `sim_keyword_smart_enabled` | Record<string,boolean> | ProductBoosterTargeting |
+| `sim_keyword_boost` | Record<string,boolean> | ProductBoosterTargeting (saved since v2 1h) |
+| `sim_keyword_boost_pct` | Record<string,string> | ProductBoosterTargeting (saved since v2 1h) |
+| `sim_rec_checked` | Record<string,boolean> | RecommendationTargeting (saved since v2 1h) |
+| `sim_rec_bids` | Record<string,string> | RecommendationTargeting (saved since v2 1h) |
 | `sim_category_targeting` | boolean | ProductBoosterTargeting |
 | `sim_cat_enabled` | Record<string,boolean> | ProductBoosterTargeting |
 | `sim_cat_bids` | Record<string,string> | ProductBoosterTargeting |

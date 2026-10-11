@@ -360,24 +360,24 @@ export function computeWeek(input: ComputeInput): { result: WeekResult; newStock
         insights.push(`💡 ${top.city} is performing ${(top.roas / Math.max(0.1, bot.roas)).toFixed(1)}x better than ${bot.city}. Consider scaling budget.`);
       }
       if (bot.roas < 1 && bot.spend > 1000) {
-        insights.push(`⚠️ ${bot.city} has ${bot.roas.toFixed(1)}x ROAS — burning ₹${bot.spend.toLocaleString("en-IN")}.`);
+        insights.push(`⚠️ ${bot.city} has ${bot.roas.toFixed(1)}x ROAS: burning ₹${bot.spend.toLocaleString("en-IN")}.`);
       }
       const totRev = byCity.reduce((s, x) => s + x.spend * x.roas, 0);
       const topRev = top.spend * top.roas;
-      if (topRev > totRev * 0.5) insights.push(`🔥 ${top.city} is your top performer — ${Math.round((topRev / Math.max(1, totRev)) * 100)}% of revenue from here.`);
+      if (topRev > totRev * 0.5) insights.push(`🔥 ${top.city} is your top performer: ${Math.round((topRev / Math.max(1, totRev)) * 100)}% of revenue from here.`);
     }
     if (opt.dayparting !== "peak_only") {
-      insights.push(`💡 Consider dayparting to peak hours only — could improve ROAS by ~40%.`);
+      insights.push(`💡 Consider dayparting to peak hours only: could improve ROAS by ~40%.`);
     }
     const deadSpend = byHour.filter((h) => ["12-3 AM", "3-6 AM"].includes(h.block)).reduce((s, h) => s + h.spend, 0);
     if (deadSpend > 1000 && opt.dayparting !== "peak_only") {
-      insights.push(`💸 You spent ₹${deadSpend.toLocaleString("en-IN")} in dead hours (12 AM-6 AM) with low ROAS — wasted budget.`);
+      insights.push(`💸 You spent ₹${deadSpend.toLocaleString("en-IN")} in dead hours (12 AM-6 AM) with low ROAS: wasted budget.`);
     }
     if (byKeyword.length) {
       const topK = [...byKeyword].sort((a, b) => b.roas - a.roas)[0];
       const botK = [...byKeyword].sort((a, b) => a.roas - b.roas)[0];
-      if (topK.roas > 1.5) insights.push(`✅ '${topK.name}': ROAS ${topK.roas.toFixed(1)}x — your top driver.`);
-      if (botK.roas < 1 && botK.spend > 500) insights.push(`❌ '${botK.name}': ROAS ${botK.roas.toFixed(1)}x — burning ₹${botK.spend.toLocaleString("en-IN")}. Consider pausing.`);
+      if (topK.roas > 1.5) insights.push(`✅ '${topK.name}': ROAS ${topK.roas.toFixed(1)}x: your top driver.`);
+      if (botK.roas < 1 && botK.spend > 500) insights.push(`❌ '${botK.name}': ROAS ${botK.roas.toFixed(1)}x: burning ₹${botK.spend.toLocaleString("en-IN")}. Consider pausing.`);
     }
 
     return {

@@ -63,7 +63,7 @@ describe("requiredBuckets", () => {
 
 // ─── Simulation engine ───────────────────────────────────────────────────────
 import { simulateRun } from "@/lib/simResults";
-import { BRAND_PROFILES, BLINKIT_STATES } from "@/data/scenarios";
+import { BRAND_PROFILES, BLINKIT_STATES, SEASONS, MARKET_CONDITIONS } from "@/data/scenarios";
 import type { Scenario, CityStockMap } from "@/data/scenarios";
 import type { SavedCampaign, CmPitchResult } from "@/context/SimContext";
 
@@ -79,8 +79,8 @@ function makeScenario(brandId: string, stockOverride?: Partial<CityStockMap>): S
     seed: `test-${brandId}`,
     profile,
     cityStockMap,
-    season: { name: "Normal Week", note: "Baseline demand, no spikes." },
-    market: { name: "Stable Market", note: "No major competitor moves." },
+    season: SEASONS[0],
+    market: MARKET_CONDITIONS[0],
     inventory: { id: "healthy", label: "Healthy", osa: 85, fillRate: 90, activeStores: 54, agingUnits: 80, tone: "healthy" },
     budget: 200000,
     clientGoals: {
