@@ -1291,8 +1291,9 @@ Gaurav: the sim screens are very text-heavy; starting should feel like a game an
 | Screen | What moves |
 |---|---|
 | Dashboard | The 4 steps become a mission path; the current step pulses, done steps check off |
+| Brief | Header and cards rise in turn, the budget counts up, cards lift on hover, goal rows slide in, rival ad-share bars fill, lower sections reveal as you scroll, tabs rise in on switch |
 | Brief quiz | Right answer pops with a small burst; wrong answer shakes |
-| Deal with Rohit | Rohit "types" before each reply; the trust meter shows the change as a floating +/- |
+| Deal with Rohit | Rohit "types" his opening and each reply, his number chips pop in; **stock editor:** a slider per state and a live bar of stock share vs search share (green when within 10 points, amber when not), "All placed" pops, the send button pulses once the sheet is valid; the trust meter shows the change as a floating +/- |
 | Live dashboard | KPIs count up each day; the day's sales float up; alerts slide in; achievements pop as toasts; a week checkpoint shows a "Week N done" moment |
 | Results | Score counts up from 0, the grade badge pops, confetti from 60 up; category bars fill one after another |
 

@@ -1,3 +1,4 @@
+import { Reveal } from "@/components/game/GameBits";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -93,16 +94,16 @@ export default function Brief() {
                     </TabsTrigger>
                   ))}
                 </TabsList>
-                <TabsContent value="economics" className="mt-6"><EconomicsTab profile={profile} /></TabsContent>
-                <TabsContent value="market" className="mt-6"><MarketTab scenario={scenario} rivals={rivals} states={states} /></TabsContent>
-                <TabsContent value="keywords" className="mt-6"><KeywordsTab profile={profile} ctx={ctx} /></TabsContent>
-                <TabsContent value="calendar" className="mt-6"><CalendarTab scenario={scenario} hours={hours} /></TabsContent>
-                <TabsContent value="stakeholders" className="mt-6"><StakeholdersTab profile={profile} /></TabsContent>
+                <TabsContent value="economics" className="sim-rise mt-6"><EconomicsTab profile={profile} /></TabsContent>
+                <TabsContent value="market" className="sim-rise mt-6"><MarketTab scenario={scenario} rivals={rivals} states={states} /></TabsContent>
+                <TabsContent value="keywords" className="sim-rise mt-6"><KeywordsTab profile={profile} ctx={ctx} /></TabsContent>
+                <TabsContent value="calendar" className="sim-rise mt-6"><CalendarTab scenario={scenario} hours={hours} /></TabsContent>
+                <TabsContent value="stakeholders" className="sim-rise mt-6"><StakeholdersTab profile={profile} /></TabsContent>
               </Tabs>
 
-              <div data-tour="brief-budget"><BudgetSplit goalType={profile.goalType} budget={budget} convPct={convPct} onChange={setConvPct} /></div>
+              <div data-tour="brief-budget"><Reveal><BudgetSplit goalType={profile.goalType} budget={budget} convPct={convPct} onChange={setConvPct} /></Reveal></div>
 
-              <div data-tour="brief-quiz"><BriefQuiz goalType={profile.goalType} primaryState={profile.primaryState} stock={cityStockMap} onStatusChange={setQuizDone} /></div>
+              <div data-tour="brief-quiz"><Reveal><BriefQuiz goalType={profile.goalType} primaryState={profile.primaryState} stock={cityStockMap} onStatusChange={setQuizDone} /></Reveal></div>
 
               <div data-tour="brief-continue" className="flex flex-col gap-4 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-accent-foreground">

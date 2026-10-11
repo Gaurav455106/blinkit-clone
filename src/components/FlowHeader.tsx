@@ -49,7 +49,8 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
         <div className="text-xs text-muted-foreground">Brand Central › {crumb}</div>
         <div className="flex items-center gap-1">
           <TourButton className="h-7 px-2" />
-          {backTo && step !== "simulation" && step !== "results" && (
+          {/* The Dashboard button below already covers a back link to the dashboard */}
+          {backTo && backTo !== "/dashboard" && step !== "simulation" && step !== "results" && (
             <Button variant="ghost" size="sm" onClick={() => nav(backTo)} className="gap-1 h-7 px-2">
               <ChevronLeft className="h-3.5 w-3.5" /> {backLabel ?? "Back"}
             </Button>

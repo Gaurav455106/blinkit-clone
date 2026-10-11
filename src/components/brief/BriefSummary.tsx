@@ -1,3 +1,4 @@
+import { CountUp, Reveal, stagger } from "@/components/game/GameBits";
 import type { GoalMetric, Scenario, StateName } from "@/data/scenarios";
 import { StatTile, Section, Tag, type Tone } from "@/components/sim/primitives";
 import type { BriefRival, ShoppingHours } from "@/lib/briefData";
@@ -47,8 +48,8 @@ function GoalGroup({ title, formats, goals }: { title: string; formats: string; 
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <p className="text-xs text-muted-foreground">{formats}</p>
       <dl className="mt-3 divide-y divide-border rounded-xl bg-secondary/50">
-        {goals.map((g) => (
-          <div key={g.label} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+        {goals.map((g, i) => (
+          <div key={g.label} className="sim-rise flex items-baseline justify-between gap-3 px-4 py-2.5" style={stagger(i + 4, 90)}>
             <dt className="text-sm text-muted-foreground">{plainText(g.label)}</dt>
             <dd className="sim-num text-sm font-semibold text-foreground">{formatTarget(g)}</dd>
           </div>
@@ -61,7 +62,7 @@ function GoalGroup({ title, formats, goals }: { title: string; formats: string; 
 function RivalCard({ rival }: { rival: BriefRival }) {
   const cheaper = rival.priceVsYou.diffPct < 0;
   return (
-    <li className="flex flex-col gap-2 rounded-xl bg-secondary/50 p-4">
+    <li className="sim-lift flex flex-col gap-2 rounded-xl bg-secondary/50 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold text-foreground">{rival.name}</p>
         <Tag tone={rival.archetype === "leader" ? "neutral" : "warn"}>{rival.archetypeLabel}</Tag>
@@ -75,6 +76,9 @@ function RivalCard({ rival }: { rival: BriefRival }) {
         <div>
           <dt className="text-xs text-muted-foreground">Ad share last month</dt>
           <dd className="sim-num font-medium text-foreground">{rival.lastMonthSovPct}%</dd>
+          <dd aria-hidden className="mt-1 h-1.5 overflow-hidden rounded-full bg-background">
+            <span className="sim-fill block h-full rounded-full bg-sim-warn/70" style={{ width: `${Math.min(100, rival.lastMonthSovPct)}%` }} />
+          </dd>
         </div>
       </dl>
     </li>
@@ -91,8 +95,8 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-5 md:flex-row md:items-start">
-        <div aria-hidden className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent text-xl font-semibold text-accent-foreground">
+      <div className="sim-rise flex flex-col gap-5 md:flex-row md:items-start">
+        <div aria-hidden className="sim-pop-in flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent text-xl font-semibold text-accent-foreground">
           {profile.name.charAt(0)}
         </div>
         <div className="max-w-[68ch]">
@@ -107,8 +111,10 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Ad budget for 30 days" value={inr(budget)} hint="Shared by all your campaigns" />
-        <div className="relative">
+        <div className="sim-rise sim-lift rounded-xl" style={stagger(1, 90)}>
+          <StatTile label="Ad budget for 30 days" value={<CountUp value={budget} from={0} ms={1100} format={inr} />} hint="Shared by all your campaigns" />
+        </div>
+        <div className="sim-rise sim-lift relative rounded-xl" style={stagger(2, 90)}>
           <StatTile
             label="Break-even ROAS"
             value={breakEvenText}
@@ -116,9 +122,11 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
           />
           <PinButton note={`Break-even ROAS by product: ${breakEvenText}`} className="absolute right-2 top-2" />
         </div>
-        <StatTile label="States with stock" value={stocked.length} hint={stocked.join(", ") || "None"} />
+        <div className="sim-rise sim-lift rounded-xl" style={stagger(3, 90)}>
+          <StatTile label="States with stock" value={<CountUp value={stocked.length} from={0} ms={900} format={(n) => String(Math.round(n))} />} hint={stocked.join(", ") || "None"} />
+        </div>
         {hours ? (
-          <div className="relative">
+          <div className="sim-rise sim-lift relative rounded-xl" style={stagger(4, 90)}>
             <StatTile
               label="Busiest shopping time"
               value={hours.busiest.label}
@@ -131,6 +139,7 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
         )}
       </div>
 
+      <Reveal>
       <Section title="What the client wants" description={plainText(`${clientGoals.primary}. ${clientGoals.threshold}`)}>
         <div className="grid gap-6 md:grid-cols-2">
           <GoalGroup title="Sales targets" formats="Met by Product Booster and Recommendation Ads" goals={clientGoals.performanceGoals ?? []} />
@@ -140,7 +149,9 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
           <p className="mt-5 max-w-[75ch] border-l-2 border-primary/40 pl-4 text-sm leading-relaxed text-foreground">{plainText(clientGoals.campaignHint)}</p>
         )}
       </Section>
+      </Reveal>
 
+      <Reveal>
       <Section
           title="Who you're up against"
           description="Ad share is how often their ad showed, out of all ad spots, last month. You can't see what they bid, only how they behave."
@@ -153,7 +164,9 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
             </ul>
           )}
         </Section>
+      </Reveal>
 
+      <Reveal>
         <Section title="This month">
           <dl className="grid gap-5 text-sm md:grid-cols-3">
             <div>
@@ -173,6 +186,7 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
             </div>
           </dl>
         </Section>
+      </Reveal>
     </div>
   );
 }
