@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, ChevronLeft, BarChart2, Megaphone, Bookmark, Package, Menu, X } from "lucide-react";
 import { useTour } from "@/components/tour/useTour";
+import { DEFAULT_CAMPAIGN_START, campaignSkuIds, enabledCategories } from "@/lib/wizardSave";
 
 type PlatformView = "brand_collections" | "catalogue" | null;
 
@@ -41,6 +42,7 @@ const WIZARD_KEYS = [
   "sim_audience_cohorts", "sim_audience_action", "sim_audience_period",
   "sim_audience_cats", "sim_audience_brands", "campaign_draft_id",
   "sim_keyword_boost", "sim_keyword_boost_pct", "sim_rec_checked", "sim_rec_bids",
+  "sim_spotlight_mode", "sim_spotlight_products",
 ];
 
 export interface SavedCampaignRef {
@@ -51,6 +53,17 @@ export interface SavedCampaignRef {
   wizardSnapshot?: Record<string, string>;
 }
 
+/** Restore the snapshot when editing a draft, else clear wizard state for a fresh form. */
+function prepareWizardStorage(editCampaign?: { wizardSnapshot?: Record<string, string> }): void {
+  if (editCampaign?.wizardSnapshot) {
+    // Restore exactly where the student left off
+    Object.entries(editCampaign.wizardSnapshot).forEach(([k, v]) => localStorage.setItem(k, v));
+  } else if (!editCampaign) {
+    // Fresh form — clear all wizard keys so previous campaign state doesn't contaminate
+    WIZARD_KEYS.forEach((k) => localStorage.removeItem(k));
+  }
+}
+
 export function CampaignForm({ onDone, asSheet, editCampaign }: {
   onDone?: () => void;
   asSheet?: boolean;
@@ -58,6 +71,13 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
 } = {}) {
   const nav = useNavigate();
   const { scenario, student, addCampaign, updateCampaign, deleteCampaign, campaigns, activeRunId, currentDay } = useSim();
+  // Runs once, before any field below (or any step component) reads its stored value.
+  // As an effect it ran after the first render, so a reopened wizard showed the last
+  // form's choices while their storage had been wiped, and they were never saved.
+  useState(() => {
+    prepareWizardStorage(editCampaign);
+    return true;
+  });
   const [currentStep, setCurrentStep] = useLocalStorage("campaign_step", 0);
   const [campaignName, setCampaignName] = useLocalStorage("campaign_name", "");
   // Duplicate name check: another campaign (not the one being edited) already has this name
@@ -66,7 +86,7 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
   );
   const [objective, setObjective] = useLocalStorage<"performance" | "reach" | null>("campaign_objective", null);
   const [adAsset, setAdAsset] = useLocalStorage<AdAsset>("campaign_adAsset", null);
-  const [startDate, setStartDate] = useLocalStorage("sim_campaign_start_date", "");
+  const [startDate, setStartDate] = useLocalStorage("sim_campaign_start_date", DEFAULT_CAMPAIGN_START);
   const [endDate, setEndDate] = useLocalStorage("sim_campaign_end_date", "");
   const [regionValid, setRegionValid] = useState(false);
   const [productsValid, setProductsValid] = useState(false);
@@ -80,18 +100,6 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
   // within it (e.g. the city picker) must portal inside this container rather
   // than document.body, or the Dialog's scroll lock blocks wheel-scrolling them.
   const wizardRootRef = useRef<HTMLDivElement>(null);
-
-  // On mount: restore snapshot if editing a draft, else clear wizard state for a fresh form
-  useEffect(() => {
-    if (editCampaign?.wizardSnapshot) {
-      // Restore exactly where the student left off
-      Object.entries(editCampaign.wizardSnapshot).forEach(([k, v]) => localStorage.setItem(k, v));
-    } else if (!editCampaign) {
-      // Fresh form — clear all wizard keys so previous campaign state doesn't contaminate
-      WIZARD_KEYS.forEach((k) => localStorage.removeItem(k));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // ── Platform sidebar state ──
   const [platformView, setPlatformView] = useState<PlatformView>(null);
@@ -208,12 +216,19 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
       alert(`This campaign's budget would exceed your remaining ₹${(totalBudget - totalAllocated).toLocaleString("en-IN")}.`);
       return;
     }
-    // Remove draft being edited (will be replaced with a real campaign)
-    if (editCampaign?.isDraft) deleteCampaign(editCampaign.id);
+    // Replace the campaign being edited (a draft, or a saved one edited before go-live).
+    // Only removing drafts made "edit, save" add a second copy of a saved campaign.
+    if (editCampaign) deleteCampaign(editCampaign.id);
+    const keepIdentity = editCampaign && !editCampaign.isDraft;
 
-    // Capture enabled categories (PB, BB)
-    const catEnabled = get<Record<string, boolean>>("sim_cat_enabled", {});
-    const categories = Object.entries(catEnabled).filter(([, v]) => v).map(([k]) => k);
+    // Capture enabled categories (PB, BB). Untouched categories show as ticked, so they count.
+    const categories = adAsset === "product_booster" || adAsset === "brand_booster"
+      ? enabledCategories(
+          scenario?.profile.relevantCategories ?? [],
+          get<Record<string, boolean>>("sim_cat_enabled", {}),
+          get<boolean>("sim_category_targeting", true),
+        )
+      : [];
     // Capture selected feeds (Stories)
     const feeds = get<string[]>("sim_story_feeds", []);
 
@@ -230,12 +245,19 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
     }
 
     addCampaign({
-      id: `c-${Date.now()}`,
+      id: keepIdentity ? editCampaign.id : `c-${Date.now()}`,
+      ...(keepIdentity && editCampaign.launchDay !== undefined ? { launchDay: editCampaign.launchDay } : {}),
       name: campaignName || "Untitled campaign",
       objective,
       adFormat: adAsset,
       cities: get<string[]>("sim_selected_cities", []), // STATE names (legacy key)
-      skuIds: get<string[]>("sim_selected_skus", []),
+      skuIds: campaignSkuIds(adAsset, {
+        selectedSkus: get<string[]>("sim_selected_skus", []),
+        storyVariant: get<"single" | "collection" | null>("sim_story_variant", null),
+        storySku: get<string | null>("sim_story_sku", null),
+        spotlightMode: get<string | null>("sim_spotlight_mode", null),
+        spotlightProducts: get<string[]>("sim_spotlight_products", []),
+      }),
       keywords: get<string[]>("sim_selected_keywords", []),
       categories: categories.length > 0 ? categories : undefined,
       feeds: feeds.length > 0 ? feeds : undefined,
@@ -248,6 +270,8 @@ export function CampaignForm({ onDone, asSheet, editCampaign }: {
       scheduleType: get<"all_days" | "days_of_week">("sim_schedule_type", "all_days"),
       selectedDays: get<number[]>("sim_selected_days", []),
       isDraft: false,
+      // The engine reads bids (keyword, category, Rec Ads, boost, Stories CPM) from here
+      wizardSnapshot: captureWizardSnapshot(),
     });
     WIZARD_KEYS.forEach((k) => localStorage.removeItem(k));
     if (onDone) onDone();

@@ -57,7 +57,7 @@ export function ProductBoosterTargeting({
 
   // Section toggles
   const [keywordTargeting,  setKeywordTargeting]  = useState(true);
-  const [categoryTargeting, setCategoryTargeting] = useState(true);
+  const [categoryTargeting, setCategoryTargeting] = useLocalStorage<boolean>("sim_category_targeting", true);
 
   // Keyword selection
   const [selectedKeywords, setSelectedKeywords] = useLocalStorage<string[]>("sim_selected_keywords", []);
