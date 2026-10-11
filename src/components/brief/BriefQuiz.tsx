@@ -4,6 +4,7 @@ import { BLINKIT_STATES, type CityStockMap, type GoalType, type StateName } from
 import { Section } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import "@/components/game/game.css";
 
 const GOAL_LABELS: Record<GoalType, string> = {
   "ROAS-First": "Drive sales with maximum return on ad spend",
@@ -20,12 +21,19 @@ function buildQuiz(goalType: GoalType, primaryState: StateName, stock: CityStock
   const correct1 = GOAL_LABELS[goalType];
   // Deterministic wrong picks so the quiz is stable across renders
   const wrong1 = (Object.entries(GOAL_LABELS) as [GoalType, string][]).filter(([k]) => k !== goalType).map(([, v]) => v).slice(0, 2);
-  const wrong2 = BLINKIT_STATES.filter((s) => (stock[s] ?? 0) === 0).slice(0, 2);
+  // Other stocked states make the student read the numbers; an empty state fills any gap,
+  // picked from the stock itself so it isn't always the first ones alphabetically
+  // The answer is whichever state really has the most stock (a secondary state can beat the primary)
+  const top = BLINKIT_STATES.reduce((best, s) => ((stock[s] ?? 0) > (stock[best] ?? 0) ? s : best), primaryState);
+  const stockedOthers = BLINKIT_STATES.filter((s) => s !== top && (stock[s] ?? 0) > 0).sort((a, b) => (stock[b] ?? 0) - (stock[a] ?? 0));
+  const empty = BLINKIT_STATES.filter((s) => (stock[s] ?? 0) === 0);
+  const offset = BLINKIT_STATES.reduce((h, s) => h + (stock[s] ?? 0) * (s.length + 1), top.length) % Math.max(1, empty.length);
+  const wrong2 = [...stockedOthers, ...empty.slice(offset), ...empty.slice(0, offset)].slice(0, 2);
   return {
     q1Options: [correct1, ...wrong1].sort(),
     correct1,
-    q2Options: [primaryState, ...wrong2].sort(),
-    correct2: primaryState as string,
+    q2Options: [top, ...wrong2].sort(),
+    correct2: top as string,
   };
 }
 
@@ -62,13 +70,14 @@ function Question({ id, prompt, options, answer, correct, checked, onPick }: {
             onClick={() => onPick(opt)}
             className={cn(
               "flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm",
+              isWrong && "sim-shake",
               isCorrect ? "border-sim-good bg-sim-good/10 text-foreground"
                 : isWrong ? "border-sim-bad bg-sim-bad/10 text-foreground"
                 : selected ? "border-primary bg-accent text-foreground"
                 : "border-border text-foreground hover:bg-secondary",
             )}
           >
-            {isCorrect && <CheckCircle2 className="h-4 w-4 shrink-0 text-sim-good" />}
+            {isCorrect && <CheckCircle2 className="sim-pop-in h-4 w-4 shrink-0 text-sim-good" />}
             {isWrong && <XCircle className="h-4 w-4 shrink-0 text-sim-bad" />}
             {opt}
           </button>

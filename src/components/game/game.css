@@ -23,11 +23,11 @@
   100% { transform: translateY(0); opacity: 1; }
 }
 @keyframes sim-toast-in {
-  0% { transform: translateX(120%); opacity: 0; }
-  12% { transform: translateX(-4%); opacity: 1; }
-  18% { transform: translateX(0); }
-  85% { transform: translateX(0); opacity: 1; }
-  100% { transform: translateX(120%); opacity: 0; }
+  0% { transform: translateY(140%); opacity: 0; }
+  12% { transform: translateY(-6%); opacity: 1; }
+  18% { transform: translateY(0); }
+  85% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(140%); opacity: 0; }
 }
 @keyframes sim-pulse-ring {
   0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45); }

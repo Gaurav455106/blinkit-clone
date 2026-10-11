@@ -1298,6 +1298,8 @@ Gaurav: the sim screens are very text-heavy; starting should feel like a game an
 
 Rules: animation never blocks input or the clock; guided-tour anchors stay the same; copy stays plain, no em dashes.
 
+**Built 2026-10-12** (branch `feat/game-feel`): kit plus all five screens. Achievement toasts sit bottom-centre so they never cover Rohit's panel. Also fixed on the way: the brief quiz's "most stock" answer is the state that really has the most (a secondary state can beat the primary), and its wrong answers are the other stocked states instead of always "Andhra Pradesh" and "Assam"; the dashboard and tour say "make a deal with Rohit" instead of "pitch the category manager".
+
 
 ### Still open
 

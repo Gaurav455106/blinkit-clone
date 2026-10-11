@@ -64,7 +64,7 @@ export function AchievementToasts({ earned }: { earned: readonly Achievement[] }
   }, [queue]);
   const current = queue[0];
   return (
-    <div className="pointer-events-none fixed bottom-6 right-6 z-50" role="status" aria-live="polite">
+    <div className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2" role="status" aria-live="polite">
       {current && (
         <div key={current.id} className="sim-toast flex max-w-xs items-start gap-3 rounded-xl bg-card px-4 py-3 shadow-[0_1px_0_hsl(var(--border)),0_16px_40px_-16px_hsl(24_30%_20%/0.45)]">
           <span className="sim-pop-in mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--sim-highlight))] text-base" aria-hidden="true">★</span>

@@ -29,7 +29,7 @@ export const TOURS: Readonly<Record<TourId, TourDef>> = {
     name: "Your dashboard",
     steps: [
       { target: "dash-next-step", title: "Start here", body: "This card always shows your next step. Right now it takes you to your client's brief.", side: "bottom" },
-      { target: "dash-steps", title: "The four stages", body: "Every attempt goes the same way: read the brief, pitch the category manager, build campaigns, then run 30 days.", side: "bottom" },
+      { target: "dash-steps", title: "The four stages", body: "Every attempt goes the same way: read the brief, make a deal with Rohit, build campaigns, then run 30 days.", side: "bottom" },
       { target: "dash-stats", title: "Your scores", body: "Your attempts, best score and average score. Scores are out of 100.", side: "top" },
       { target: "dash-history", title: "Past attempts", body: "Every finished run lands here, so you can see what changed between tries.", side: "top" },
       { target: "sidebar-nav", title: "Moving around", body: "Use the sidebar to jump between stages. Stages unlock in order.", side: "right" },

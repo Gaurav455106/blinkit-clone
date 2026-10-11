@@ -1,3 +1,4 @@
+import "@/components/game/game.css";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight, FileText, RefreshCw } from "lucide-react";
@@ -12,7 +13,7 @@ import { TourButton } from "@/components/tour/TourButton";
 /** Goal achievement at or above this counts as "goal met". */
 const GOAL_MET_PCT = 90;
 
-const STEPS = ["Read the brief", "Pitch the category manager", "Build campaigns", "Run 30 days"] as const;
+const STEPS = ["Read the brief", "Make a deal with Rohit", "Build campaigns", "Run 30 days"] as const;
 
 function fmtDate(s?: string) {
   if (!s) return "None yet";
@@ -107,7 +108,7 @@ export default function Dashboard() {
                   <p className="mt-2 text-sm leading-relaxed text-primary-foreground/80">
                     {activeInProgress
                       ? `Started ${fmtDate(activeInProgress.startedAt)}. ${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"} running. Pick up where you left off.`
-                      : "Learn the brand, its numbers and its rivals. Then pitch the category manager, build your campaigns and run 30 days."}
+                      : "Learn the brand, its numbers and its rivals. Then make a deal with Rohit, build your campaigns and run 30 days."}
                   </p>
                 </div>
                 <Button size="lg" onClick={startNew} className="shrink-0 gap-2 bg-primary-foreground text-primary hover:bg-primary-foreground/90">
@@ -115,10 +116,16 @@ export default function Dashboard() {
                 </Button>
               </div>
               {!activeInProgress && (
-                <ol data-tour="dash-steps" className="mt-6 grid gap-2 text-sm sm:grid-cols-4">
+                <ol data-tour="dash-steps" aria-label="Your mission" className="relative mt-6 grid gap-3 text-sm sm:grid-cols-4">
+                  {/* The path the steps sit on (SPEC §15) */}
+                  <span aria-hidden className="absolute left-4 right-4 top-4 hidden h-0.5 bg-primary-foreground/25 sm:block" />
                   {STEPS.map((s, i) => (
-                    <li key={s} className={cn("rounded-lg px-3 py-2", i === 0 ? "bg-primary-foreground/15 font-medium" : "text-primary-foreground/70")}>
-                      <span className="sim-num mr-2 text-primary-foreground/60">{i + 1}</span>{s}
+                    <li key={s} className="sim-pop-in relative flex items-center gap-3 sm:flex-col sm:items-start" style={{ animationDelay: `${i * 120}ms` }}>
+                      <span className={cn(
+                        "sim-num relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
+                        i === 0 ? "sim-pulse bg-primary-foreground text-primary" : "bg-primary text-primary-foreground/80 ring-2 ring-primary-foreground/30",
+                      )}>{i + 1}</span>
+                      <span className={cn(i === 0 ? "font-medium" : "text-primary-foreground/70")}>{s}</span>
                     </li>
                   ))}
                 </ol>
