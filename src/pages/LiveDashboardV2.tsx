@@ -22,6 +22,7 @@ import { RoasChart, VisibilityChart, SovChart, HourHeatmap, PacingChart, StockPa
 import { UnitTable, CampaignPanel } from "@/components/live/LiveControls";
 import { AlertCard, CalendarStrip, CommitmentsPanel, EventsFeed } from "@/components/live/LiveEvents";
 import { PreLaunch } from "@/components/live/PreLaunch";
+import { BudgetDistribution, SponsoredSov } from "@/components/live/OverviewPanels";
 import { useTour, useTourOpen } from "@/components/tour/useTour";
 import { RohitPanel } from "@/components/rohit/RohitPanel";
 import { detectMoments } from "@/market/moments";
@@ -70,6 +71,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
     [run.ctx, run.results, run.configsByDay],
   );
   const totals = useMemo(() => sumMetrics(run.results.flatMap((r) => r.cells)), [run.results]);
+  const formatById = useMemo(() => Object.fromEntries(campaigns.map((c) => [c.id, c.adFormat])), [campaigns]);
   const achievements = useMemo(() => earnedAchievements({
     launched: run.launched, actions: run.actions, insights: run.insights.length,
     rohitReplies: run.rohit.replies.length, day: run.day, results: run.results,
@@ -193,6 +195,10 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
           <div className="grid gap-6 xl:grid-cols-2">
             <RoasChart results={run.results} actions={run.actions} campaignNames={run.campaignNames} />
             <VisibilityChart results={run.results} actions={run.actions} />
+          </div>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <BudgetDistribution results={run.results} formatById={formatById} />
+            <SponsoredSov results={run.results} good={scenario.profile.goodKeywords} risky={scenario.profile.riskyKeywords} />
           </div>
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
             <div className="space-y-6">
