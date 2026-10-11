@@ -350,7 +350,7 @@ const VERDICT_TEXT = { right: "right move", held: "held steady (right here)", ot
 
 function eventsLine(input: ScoreV2Input): ScoreLineV2 {
   const alerts = input.alerts ?? [];
-  const { items, share } = scoreEventResponses(alerts, input.actions, input.launched, input.ctx);
+  const { items, share } = scoreEventResponses(alerts, input.actions, input.launched, input.ctx, input.stepOptions?.adjustments);
   return line({
     key: "v2_events", category: "eventsRohit", label: "Response to alerts", earned: 5 * share, max: 5,
     judgedOn: "Each alert that stopped the clock had a few right moves. Did you make one before its decision window closed?",
