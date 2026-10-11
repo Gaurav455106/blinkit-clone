@@ -52,6 +52,8 @@ export interface MarketContext {
   totalDays: number;
   /** Weekday of day 1, 0 = Sunday. */
   startWeekday: number;
+  /** Day-1 units per SKU per state from the opening deal (SPEC §6.1); default = the brief's split. */
+  startStock?: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 
 /** Rolling windows hold the most recent values last. */

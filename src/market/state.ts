@@ -11,7 +11,8 @@ export function initialMarketState(ctx: MarketContext): MarketState {
     scenario.profile.skus.map((sku) => [
       sku.id,
       Object.fromEntries(
-        BLINKIT_STATES.map((s) => [s, initialUnits(scenario.cityStockMap[s] ?? 0, CITY_STORE_COUNT[s] ?? 0, sku.velocity)]),
+        BLINKIT_STATES.map((s) => [s, ctx.startStock?.[sku.id]?.[s]
+          ?? initialUnits(scenario.cityStockMap[s] ?? 0, CITY_STORE_COUNT[s] ?? 0, sku.velocity)]),
       ),
     ]),
   );
