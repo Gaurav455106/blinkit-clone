@@ -1270,7 +1270,7 @@ Build order: 32 (stock) → 33 (calibrate) → 29 → 30 + 31 → 34; each with 
 
 **Glow playthrough fixes (2026-10-12):** for reach goals a "losing money" moment now needs the whole account below the goal's floor (0.7x / 0.6x break-even), because the replay scores the whole account on views; before, cutting a weak placement while the account was well above the floor was scored "made it worse". Insights match placements by their readable name. The stock alert also needs fewer than 5 days of cover, so a slow seller spread thinly no longer "runs out" with 15 days left.
 
-**Open, for Gaurav:** (1) client goals count over-achievement up to 150%, so an easy goal hides a missed one (Glow: CTR 150%, impressions 39%, still full goal marks); recommend capping each goal at 100%. (2) Goal targets ignore Critical stock: Glow's views goal was out of reach with 61% of searches lost to stock; recommend scaling units and views targets by the stock label.
+**Decided and built (2026-10-12, Gaurav: "start in sequence, don't wait for approval"):** (1) each client goal counts up to **100%** (was 150%), so an easy goal can't hide a missed one; the table average and the summary come from one function. (2) Units, views and reach targets scale with the stock label, measured with the benchmark strategies on all 7 brands: Shaky x0.9, Critical x0.3 units / x0.4 views; ROAS and CTR targets don't change.
 
 ### Later (requested 2026-10-11)
 
