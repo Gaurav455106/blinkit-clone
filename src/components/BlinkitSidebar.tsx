@@ -123,7 +123,7 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
       )}
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 min-h-0 py-3 space-y-0.5 overflow-y-auto">
+      <nav data-tour="sidebar-nav" className="flex-1 min-h-0 py-3 space-y-0.5 overflow-y-auto">
         {/* Section label for flow items */}
         {!isHomeRoute && mode !== "home" && (
           <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest px-4 pb-1">

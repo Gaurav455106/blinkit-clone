@@ -8,6 +8,9 @@ import type { SetupScore } from "@/lib/newScoring";
 import type { EngineDayResult } from "@/lib/dayEngine";
 import { type DailyNoise, generateDailyNoise } from "@/lib/noise";
 import { ACTIVE_EMAIL_KEY } from "@/lib/masterAccess";
+import type { OpeningDeal } from "@/market/deal";
+import { marketContextFor } from "@/market/context";
+import { dealPitchResult } from "@/lib/dealPitch";
 
 export interface Student {
   name: string;
@@ -186,6 +189,10 @@ interface SimState {
   /** The v2 run's live meter (pitch value + replies + promises); null outside a v2 run. */
   liveCmRelationship: number | null;
   setLiveCmRelationship: (n: number | null) => void;
+  /** v2: the opening deal agreed with Rohit (SPEC §6.1); null before it's made. */
+  openingDeal: OpeningDeal | null;
+  /** Saves the deal and fills the pitch result and meter from it. */
+  setOpeningDeal: (deal: OpeningDeal | null) => void;
   campaigns: SavedCampaign[];
   tokensRemaining: number;
   tokensSpent: number;
@@ -324,6 +331,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const [cmPitch, setCmPitchState] = useState<CmPitchResult | null>(() => load("sim_cm_pitch", null));
   const [cmRelationship, setCmRelationship] = useState<number>(() => load("sim_cm_relationship", 50));
   const [liveCmRelationship, setLiveCmRelationship] = useState<number | null>(() => load("sim_v2_live_relationship", null));
+  const [openingDeal, setOpeningDealState] = useState<OpeningDeal | null>(() => load("sim_v2_deal", null));
   const [campaigns, setCampaigns] = useState<SavedCampaign[]>(() => load("sim_campaigns", []));
   const [tokensRemaining, setTokens] = useState<number>(() => load("sim_tokens", 10));
 
@@ -374,6 +382,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("sim_cm_pitch", JSON.stringify(cmPitch)); }, [cmPitch]);
   useEffect(() => { localStorage.setItem("sim_cm_relationship", JSON.stringify(cmRelationship)); }, [cmRelationship]);
   useEffect(() => { localStorage.setItem("sim_v2_live_relationship", JSON.stringify(liveCmRelationship)); }, [liveCmRelationship]);
+  useEffect(() => { localStorage.setItem("sim_v2_deal", JSON.stringify(openingDeal)); }, [openingDeal]);
   useEffect(() => { localStorage.setItem("sim_campaigns", JSON.stringify(campaigns)); }, [campaigns]);
   useEffect(() => { localStorage.setItem("sim_tokens", JSON.stringify(tokensRemaining)); }, [tokensRemaining]);
   useEffect(() => { localStorage.setItem("sim_currentDay", JSON.stringify(currentDay)); }, [currentDay]);
@@ -614,6 +623,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCmPitchState(null);
     setCmRelationship(50);
     setLiveCmRelationship(null);
+    setOpeningDealState(null);
     setCampaigns([]);
     setTokens(10);
     setTokensSpent(0);
@@ -636,6 +646,15 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCmPitchState(p);
     setLiveCmRelationship(null);
     if (p) setCmRelationship(pitchScoreToRelationship(p.pitchScore));
+  };
+
+  const setOpeningDeal = (deal: OpeningDeal | null) => {
+    setOpeningDealState(deal);
+    setLiveCmRelationship(null);
+    const ctx = deal && scenario ? marketContextFor(scenario, student?.batch ?? "") : null;
+    if (!deal || !ctx) return;
+    setCmPitchState(dealPitchResult(ctx, deal));
+    setCmRelationship(deal.relationship);
   };
 
   const updateCmRelationship = (delta: number, _reason?: string) => {
@@ -926,7 +945,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const mode: "home" | "setup" | "run" | "review" = reviewRunId ? "review" : activeRunId ? "run" : scenario ? "setup" : "home";
 
   const reset = () => {
-    ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_v2_live_relationship", "sim_campaigns", "sim_tokens",
+    ["sim_student", "sim_scenario", "sim_cm_pitch", "sim_v2_live_relationship", "sim_v2_deal", "sim_campaigns", "sim_tokens",
      "sim_currentDay", "sim_opts", "sim_stock", "sim_decisions", "sim_weekTotals", "sim_events",
      "sim_tokensSpent", "sim_competitor", "sim_competitorActions", "sim_cannibalResolved",
      "sim_clusterReactions", "sim_abTests", "sim_cumSpend", "sim_exhausted", "sim_micro",
@@ -943,6 +962,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     clearCampaignWizard();
     setStudentState(null);
     setScenario(null);
+    setOpeningDealState(null);
     setLiveCmRelationship(null);
     setCmPitchState(null);
     setCampaigns([]);
@@ -974,7 +994,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       daypartingChanges, midRunCampaignLaunched,
       simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises,
       dailyNoise,
-      liveCmRelationship, setLiveCmRelationship,
+      liveCmRelationship, setLiveCmRelationship, openingDeal, setOpeningDeal,
       setStudent, newScenario, setCmPitch, updateCmRelationship, addCampaign, updateCampaign, deleteCampaign, consumeToken,
       initSimulation, setOptimization, setStockLevels, setCurrentDay, logDecision, recordWeekTotals, setEventResponse,
       setCompetitor, addCompetitorAction, resolveCannibal, addClusterReaction, addAbTest,
@@ -1008,7 +1028,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
         setDailyNoise(null);
         setEvents({});
       },
-      clearCampaigns: () => { setCampaigns([]); setCmPitchState(null); setCmRelationship(50); setLiveCmRelationship(null); },
+      clearCampaigns: () => { setCampaigns([]); setCmPitchState(null); setCmRelationship(50); setLiveCmRelationship(null); setOpeningDealState(null); },
       enterReview, exitReview, resumeRun,
       reset,
     }}>

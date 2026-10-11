@@ -19,6 +19,7 @@ import { marketCalendar } from "@/market/calendar";
 import { afterDay, dropStatesActions, relationshipNow, servedStates } from "@/market/liveRun";
 import { checkCommitments, commitmentFor, type AskId, type Commitment, type ReplyOption, type ReplyQuality, type RohitAsk } from "@/market/rohit";
 import { EMPTY_ADJUSTMENTS, adjustmentsFromReply, mergeAdjustments, type Adjustments } from "@/market/adjustments";
+import { withStartStock, type DealRun } from "@/market/deal";
 
 export const RUN_DAYS = 30;
 export const CHECKPOINT_DAYS: readonly number[] = [7, 14, 21];
@@ -103,8 +104,13 @@ export function useLiveRun(
   runId: string | null,
   relationshipBase = 50,
   onRelationship?: (n: number) => void,
+  /** The agreed opening deal (SPEC §6.1): day-1 stock, effects and promises. Pass a stable object (stored state or useMemo): a new one each render would restart the run. */
+  deal: DealRun | null = null,
 ) {
-  const ctx = useMemo(() => (scenario ? marketContextFor(scenario, student?.batch ?? "") : null), [scenario, student?.batch]);
+  const ctx = useMemo(() => {
+    const base = scenario ? marketContextFor(scenario, student?.batch ?? "") : null;
+    return base && deal ? withStartStock(base, deal.startStock) : base;
+  }, [scenario, student?.batch, deal]);
   const calendar = useMemo(() => (scenario ? marketCalendar(scenario) : []), [scenario]);
   const key = storageKey(student, scenario, runId);
   const [run, setRun] = useState<StoredRun>(() => load(key));
@@ -144,8 +150,8 @@ export function useLiveRun(
   }, [live, scenario, student?.batch, run.launchDayById]);
 
   const stepOptions: StepOptions = useMemo(
-    () => ({ events: run.activations, adjustments: run.rohit.adjustments }),
-    [run.activations, run.rohit.adjustments],
+    () => ({ events: run.activations, adjustments: deal ? mergeAdjustments(deal.adjustments, run.rohit.adjustments) : run.rohit.adjustments }),
+    [run.activations, run.rohit.adjustments, deal],
   );
 
   // After a refresh: replay the stored days so the run resumes exactly
@@ -170,8 +176,8 @@ export function useLiveRun(
   const nextDayConfigs = useMemo(() => applyActions(launched, run.actions, day + 1), [launched, run.actions, day]);
 
   const commitmentResults = useMemo(
-    () => (market.state ? checkCommitments(run.rohit.commitments, market.state, market.results) : []),
-    [run.rohit.commitments, market.state, market.results],
+    () => (market.state ? checkCommitments([...(deal?.commitments ?? []), ...run.rohit.commitments], market.state, market.results) : []),
+    [run.rohit.commitments, market.state, market.results, deal],
   );
   const relationship = relationshipNow(relationshipBase, run.rohit.replies, commitmentResults);
   useEffect(() => { if (started) onRelationship?.(relationship); }, [started, relationship, onRelationship]);

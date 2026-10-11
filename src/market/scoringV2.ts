@@ -9,6 +9,8 @@ import type { StepOptions } from "@/market/step";
 import type { EventActivation } from "@/market/events";
 import type { CommitmentResult, ReplyQuality } from "@/market/rohit";
 import { scoreEventResponses, ROHIT_QUALITY_SHARE } from "@/market/liveRun";
+import { briefStock, type OpeningDeal } from "@/market/deal";
+import { stockFit, valueAsked, valueGiven } from "@/market/dealRohit";
 import { detectMoments, scoreMoment, type MomentScore } from "@/market/moments";
 import { scoreInsights, type Insight } from "@/market/insights";
 import { clientGoalsV2 } from "@/market/goals";
@@ -71,6 +73,8 @@ export interface ScoreV2Input {
   stepOptions?: StepOptions;
   /** Alerts that paused the clock (SPEC §5): the response to each is scored. */
   alerts?: readonly EventActivation[];
+  /** v2 opening deal with Rohit (SPEC §6.1); replaces the v1 pitch score when present. */
+  deal?: OpeningDeal | null;
   /** Mid-run Rohit check-ins: reply quality and how the promises turned out. */
   rohit?: { replies: readonly { quality: ReplyQuality }[]; commitments: readonly CommitmentResult[] };
 }
@@ -247,7 +251,51 @@ function pacingLine(input: ScoreV2Input): ScoreLineV2 {
   });
 }
 
+const FIT_FULL = 0.9;
+const FIT_ZERO = 0.5;
+const FAIR_TRADE = 0.85;
+const OK_TRADE = 0.6;
+const DISCOUNT_LOSS_CAP = 0.5;
+const rupee = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+
+/** v2 opening deal (SPEC §6.1): 2.5 for stock fit, 2.5 for what the student got for what they gave. */
+export function dealLine(ctx: MarketContext, deal: OpeningDeal): ScoreLineV2 {
+  const terms = deal.terms.walkedAway ? { ...deal.terms, stock: briefStock(ctx) } : deal.terms;
+  const fit = stockFit(ctx, terms);
+  const fitPts = 2.5 * clamp((fit - FIT_ZERO) / (FIT_FULL - FIT_ZERO), 0, 1);
+  const got = deal.terms.walkedAway ? 0 : valueAsked(ctx, terms);
+  const gave = deal.terms.walkedAway ? 0 : valueGiven(ctx, terms);
+  const skus = new Map(ctx.scenario.profile.skus.map((x) => [x.id, x]));
+  const losing = terms.gives.flatMap((g) => g.kind !== "discount" ? [] : g.skuIds
+    .map((id) => skus.get(id)!)
+    .filter((sku) => sku && Math.round(sku.mrp * g.pct) >= sku.margin)
+    .map((sku) => ({ sku, off: Math.round(sku.mrp * g.pct) })));
+  const efficiency = gave > 0 ? got / gave : 0;
+  const tradeRaw = deal.terms.walkedAway || (got === 0 && gave === 0) ? 1
+    : got === 0 ? 0
+    : efficiency >= FAIR_TRADE ? 2.5 : efficiency >= OK_TRADE ? 1.5 : 0.5;
+  const tradePts = losing.length ? Math.min(tradeRaw, DISCOUNT_LOSS_CAP) : tradeRaw;
+  const tradeNote = deal.terms.walkedAway ? "You walked away, so you kept the brief's terms: safe, but nothing gained."
+    : got === 0 && gave === 0 ? "No extras either way."
+    : got === 0 ? `You offered ${rupee(gave)} of value and asked for nothing back.`
+    : `You got ${rupee(got)} of value from Rohit for ${rupee(gave)} of offers.`;
+  const lossNote = losing.length ? ` Your discount on ${losing[0].sku.name} is ${rupee(losing[0].off)} a unit, but you only keep ${rupee(losing[0].sku.margin)}: every discounted sale loses money.` : "";
+  return line({
+    key: "v2_rohit", category: "eventsRohit", label: "Deal with Rohit", earned: fitPts + tradePts, max: 5,
+    judgedOn: "Two things: did you put your stock where people search (2.5), and did you get fair value for what you offered Rohit (2.5)?",
+    tiers: [
+      { points: 5, rule: "Stock follows searches (90% or better) and you got at least 85% of the value you gave" },
+      { points: 3.5, rule: "Stock follows searches, and you walked away or kept it simple" },
+      { points: 2.5, rule: "Good stock, but you gave value for nothing back" },
+      { points: 0, rule: "Stock where few people search, and a one-sided trade" },
+    ],
+    note: `Stock where people search: ${Math.round(fit * 100)}%. ${tradeNote}${lossNote}`,
+    howToImprove: "Place stock in proportion to each state's searches, ask only for what helps your plan, and never fund a discount bigger than what you keep per unit.",
+  });
+}
+
 function rohitLine(input: ScoreV2Input): ScoreLineV2 {
+  if (input.deal) return dealLine(input.ctx, input.deal);
   const share = input.pitch && input.pitch.max > 0 ? input.pitch.score / input.pitch.max : 0;
   return line({
     key: "v2_rohit", category: "eventsRohit", label: "Pitch to Rohit", earned: 5 * share, max: 5,

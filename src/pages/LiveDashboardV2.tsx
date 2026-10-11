@@ -15,12 +15,14 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Section, SimPage, StatTile } from "@/components/sim/primitives";
+import { useDealRun } from "@/components/live/useDealRun";
 import { useLiveRun, RUN_DAYS } from "@/components/live/useLiveRun";
 import { ClockBar, AlertsFeed, CheckpointPanel, ReportsPanel, CompetitionPanel, SPEEDS } from "@/components/live/LivePanels";
 import { RoasChart, VisibilityChart, SovChart, HourHeatmap, PacingChart, StockPanel } from "@/components/live/LiveCharts";
 import { UnitTable, CampaignPanel } from "@/components/live/LiveControls";
 import { AlertCard, CalendarStrip, CommitmentsPanel, EventsFeed } from "@/components/live/LiveEvents";
 import { PreLaunch } from "@/components/live/PreLaunch";
+import { useTour, useTourOpen } from "@/components/tour/useTour";
 import { RohitPanel } from "@/components/rohit/RohitPanel";
 import { detectMoments } from "@/market/moments";
 import { sumMetrics } from "@/market/aggregate";
@@ -35,7 +37,8 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
   const nav = useNavigate();
   const { campaigns, deleteCampaign, startRun, activeRunId, runHistory, cmRelationship, setLiveCmRelationship } = useSim();
   const completed = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "completed";
-  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship);
+  const deal = useDealRun(scenario, student);
+  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship, deal);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<SavedCampaign | undefined>(undefined);
@@ -43,13 +46,20 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
   const [speedMs, setSpeedMs] = useState<number>(DEFAULT_SPEED);
   const [tab, setTab] = useState("overview");
 
+  // Guided tours: one before launch, one for the live run (once each per student)
+  const inSetup = !run.started || completed;
+  const panelsClear = !sheetOpen && run.blockedBy === null && !run.rohit.pendingAsk && !run.replaying;
+  useTour("liveV2Setup", student.email, !sheetOpen, inSetup);
+  useTour("liveV2Run", student.email, panelsClear, !inSetup);
+  const tourOpen = useTourOpen();
+
   // Auto-play: one day every `speedMs`, unless something needs the student
   const { advance, readyToStep, day } = run;
   useEffect(() => {
-    if (!playing || !readyToStep || sheetOpen) return;
+    if (!playing || !readyToStep || sheetOpen || tourOpen) return;
     const t = setTimeout(() => { void advance(); }, speedMs);
     return () => clearTimeout(t);
-  }, [playing, readyToStep, sheetOpen, speedMs, day, advance]);
+  }, [playing, readyToStep, sheetOpen, tourOpen, speedMs, day, advance]);
 
   useEffect(() => { if (run.finished) setPlaying(false); }, [run.finished]);
 
@@ -82,7 +92,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
     </div>
   );
 
-  if (!run.started || completed) {
+  if (inSetup) {
     return shell(
       <PreLaunch
         brandName={scenario.profile.name}
@@ -105,6 +115,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
     : run.blockedBy === "rohit" ? "Paused: Rohit wants a word."
     : run.blockedBy === "checkpoint" ? `Paused: week ${Math.round(run.day / 7)} check-in.`
     : sheetOpen ? "Paused while you build a campaign."
+    : tourOpen ? "Paused while the tour is open."
     : run.error ? `Something went wrong: ${run.error}` : null;
 
   const spent = totals.spend + run.extraSpend;
@@ -112,7 +123,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
 
   return shell(
     <>
-      <ClockBar
+      <div data-tour="v2-clock"><ClockBar
         day={run.day}
         totalDays={RUN_DAYS}
         playing={playing}
@@ -122,7 +133,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
         onToggle={() => setPlaying((p) => !p)}
         onAdvance={() => { void run.advance(); }}
         onSpeed={setSpeedMs}
-      />
+      /></div>
 
       {run.pendingAlert && <AlertCard alert={run.pendingAlert} onDismiss={run.dismissAlert} />}
 
@@ -149,10 +160,10 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
         eyebrow={`${scenario.profile.name} · day ${run.day} of ${RUN_DAYS}`}
         title="Live campaigns"
         description="Changes you make today start tomorrow, as on the real platform."
-        actions={<Button variant="outline" onClick={() => openWizard()}><Plus className="mr-1 h-4 w-4" />New campaign</Button>}
+        actions={<Button data-tour="v2-new-campaign" variant="outline" onClick={() => openWizard()}><Plus className="mr-1 h-4 w-4" />New campaign</Button>}
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div data-tour="v2-stats" className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatTile label="Spent" value={rupees(spent)} hint={`of ${rupees(scenario.budget)}${run.extraSpend > 0 ? `, incl. ${rupees(run.extraSpend)} paid to Rohit` : ""}`} />
         <StatTile label="Sales from ads" value={rupees(totals.revenue)} />
         <StatTile label="ROAS" value={totals.spend > 0 ? totals.roas.toFixed(2) : "–"} hint={totals.breakEvenRoas > 0 ? `Break-even ${totals.breakEvenRoas.toFixed(2)}` : "Sales for every ₹1 of ads"} tone={totals.spend > 0 ? (totals.roas >= totals.breakEvenRoas ? "good" : "bad") : "neutral"} />
@@ -161,7 +172,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 flex-wrap">
+        <TabsList data-tour="v2-tabs" className="mb-4 flex-wrap">
           {[["overview", "Overview"], ["keywords", "Keywords"], ["campaigns", "Campaigns"], ["competition", "Competition"], ["stock", "Stock"], ["reports", "Reports"]].map(([v, l]) => (
             <TabsTrigger key={v} value={v}>{l}</TabsTrigger>
           ))}
@@ -174,13 +185,13 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
           </div>
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
             <div className="space-y-6">
-              <EventsFeed activations={run.activations} day={run.day} />
+              <div data-tour="v2-news"><EventsFeed activations={run.activations} day={run.day} /></div>
               <AlertsFeed moments={moments} day={run.day} />
             </div>
             <div className="space-y-6">
               <PacingChart ctx={run.ctx} results={run.results} />
-              <CalendarStrip calendar={run.calendar} day={run.day} />
-              <CommitmentsPanel results={run.commitmentResults} relationship={run.relationship} />
+              <div data-tour="v2-calendar"><CalendarStrip calendar={run.calendar} day={run.day} /></div>
+              <div data-tour="v2-promises"><CommitmentsPanel results={run.commitmentResults} relationship={run.relationship} /></div>
             </div>
           </div>
         </TabsContent>

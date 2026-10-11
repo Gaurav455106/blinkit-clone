@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { isEngineV2 } from "@/lib/engineFlag";
 import LiveDashboardV2 from "@/pages/LiveDashboardV2";
+import { useTour, useTourOpen } from "@/components/tour/useTour";
 import { useSim, REAL_MS_PER_SIM_DAY, CRISIS_DEADLINE_DAYS } from "@/context/SimContext";
 import type { SavedCampaign } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -413,13 +414,14 @@ function LiveDashboardV1() {
     return () => clearInterval(id);
   }, [simMode, simStartedAt, assignmentPace]); // eslint-disable-line
 
-  // ── Demo mode: ticker ─────────────────────────────────────────────────────
+  // ── Demo mode: ticker (paused while a guided tour is open) ────────────────
+  const tourOpen = useTourOpen();
   useEffect(() => {
-    if (simMode !== "demo" || isPreLaunch || isCompleted) return;
+    if (simMode !== "demo" || isPreLaunch || isCompleted || tourOpen) return;
     if (!playing || currentDay >= simLength) return;
     const t = setTimeout(() => setCurrentDay(Math.min(simLength, currentDay + 1)), SPEEDS[speed].ms);
     return () => clearTimeout(t);
-  }, [simMode, playing, currentDay, speed, isPreLaunch]); // eslint-disable-line
+  }, [simMode, playing, currentDay, speed, isPreLaunch, tourOpen]); // eslint-disable-line
 
   // ── Crisis reveal + auto-apply ────────────────────────────────────────────
   useEffect(() => {
@@ -775,7 +777,7 @@ function LiveDashboardV1() {
 
   // ── Shared: campaign table ────────────────────────────────────────────────
   const campaignTableSection = (
-    <Card className="rounded-xl border border-border bg-white shadow-sm">
+    <Card data-tour="v1-campaigns" className="rounded-xl border border-border bg-white shadow-sm">
       {/* ── Header row ── */}
       <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -999,7 +1001,7 @@ function LiveDashboardV1() {
 
   // ── Shared: right panel (Decisions) ───────────────────────────────────────
   const rightPanel = (
-    <div className="w-72 shrink-0 border-l border-border bg-card/40 flex flex-col overflow-hidden">
+    <div data-tour="v1-right" className="w-72 shrink-0 border-l border-border bg-card/40 flex flex-col overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border text-xs font-semibold text-foreground">Decisions</div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {setupScore && (
@@ -1150,6 +1152,11 @@ function LiveDashboardV1() {
     </Sheet>
   );
 
+  // ── Guided tours: campaign setup before launch, then the live run ─────────
+  const v1ModalOpen = newCampaignOpen || launchOpen || crisisOpen || assignCrisisOpen || resetConfirmOpen || endOpen;
+  useTour("liveV1Setup", student.email, !v1ModalOpen, isPreLaunch);
+  useTour("liveV1Run", student.email, !v1ModalOpen, !isPreLaunch && !isCompleted);
+
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen overflow-hidden w-full">
@@ -1213,7 +1220,7 @@ function LiveDashboardV1() {
 
         {/* ── Simulation strip (active run only) ── */}
         {!isPreLaunch && !isCompleted && (
-          <div className="px-6 py-2 border-b border-border bg-card/40 flex items-center gap-3 flex-wrap">
+          <div data-tour="v1-clock" className="px-6 py-2 border-b border-border bg-card/40 flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="relative flex h-2 w-2">
                 <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${simMode === "demo" ? "bg-amber-500" : "bg-red-500"}`} />
@@ -1272,7 +1279,7 @@ function LiveDashboardV1() {
         )}
 
         {/* ── Page header ── */}
-        <div className="px-6 pt-5 pb-3 border-b border-border flex items-center justify-between gap-4 flex-wrap shrink-0">
+        <div data-tour="v1-header" className="px-6 pt-5 pb-3 border-b border-border flex items-center justify-between gap-4 flex-wrap shrink-0">
           <div>
             <h1 className="text-xl font-bold text-foreground">Ad Summary</h1>
             <p className="text-xs text-muted-foreground mt-0.5">An overview of your campaigns' key metrics and performance</p>
@@ -1288,6 +1295,7 @@ function LiveDashboardV1() {
             </div>
             {isPreLaunch && (
               <Button
+                data-tour="v1-launch"
                 size="sm"
                 disabled={!canLaunch}
                 onClick={() => { setLaunchStep(1); setLaunchOpen(true); }}
@@ -1323,7 +1331,7 @@ function LiveDashboardV1() {
                 </div>
 
                 {/* Performance Overview */}
-                <div>
+                <div data-tour="v1-overview">
                   <div className="text-sm font-semibold mb-3">Performance Overview</div>
                   <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
                     {METRIC_DEFS.map((def) => {
@@ -1356,7 +1364,7 @@ function LiveDashboardV1() {
                 </div>
 
                 {/* Chart */}
-                <Card className="p-4">
+                <Card data-tour="v1-chart" className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-sm font-semibold">Daily Metric Trends</div>
                     <div className="flex items-center gap-4 text-[11px]">

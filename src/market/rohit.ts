@@ -19,7 +19,9 @@ import {
 
 export type AskId =
   | "restock" | "cofund_banner" | "match_discount" | "sov_threat"
-  | "overstock_clearance" | "new_dark_stores" | "roas_below_breakeven";
+  | "overstock_clearance" | "new_dark_stores" | "roas_below_breakeven"
+  /** Promises made in the opening deal (SPEC §6.1). */
+  | "opening_deal";
 
 export type ChipTone = "neutral" | "good" | "warn" | "bad";
 

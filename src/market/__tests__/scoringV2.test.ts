@@ -9,6 +9,7 @@ import { keywordMaxCPM } from "@/market/calibration/strategies";
 import { testContext } from "./testContext";
 import type { EventActivation, LeverId } from "@/market/events";
 import type { CommitmentResult } from "@/market/rohit";
+import { defaultDeal } from "@/market/deal";
 
 const ctx = testContext("fuelup");
 
@@ -128,5 +129,15 @@ describe("scoreSetupV2", () => {
     const full = scored(good, [], { hero: perf, long: perf, ka: perf }).lines.filter((l) => l.category === "setup");
     expect(setup).toEqual(full);
     expect(setup.reduce((s, l) => s + l.max, 0)).toBeCloseTo(25, 6);
+  });
+});
+
+describe("scoring v2: the opening deal replaces the pitch", () => {
+  it("scores the deal when one was made", () => {
+    const deal = { terms: { ...defaultDeal(ctx), walkedAway: true }, relationship: 50, log: [] };
+    const s = scored(good, [], { hero: perf, long: perf, ka: perf }, { deal });
+    const l = s.lines.find((x) => x.key === "v2_rohit")!;
+    expect(l.label).toBe("Deal with Rohit");
+    expect(l.max).toBe(5);
   });
 });

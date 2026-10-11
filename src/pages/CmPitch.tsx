@@ -32,6 +32,10 @@ import { PitchSkuCard } from "@/components/rohit/PitchSkuCard";
 import { PitchVerdict } from "@/components/rohit/PitchVerdict";
 import type { ChipData } from "@/components/rohit/DataChips";
 import { commitmentRange, commitValidity, emptyPitchRow, type PitchRow } from "@/components/rohit/pitchForm";
+import { isEngineV2 } from "@/lib/engineFlag";
+import { marketContextFor } from "@/market/context";
+import DealV2 from "@/pages/DealV2";
+import { useTour } from "@/components/tour/useTour";
 
 /** Short pauses so Rohit's replies read like a conversation. */
 const THINK_MS = 700;
@@ -55,16 +59,18 @@ export default function CmPitch() {
   }, [student, scenario, nav]);
 
   if (!student || !scenario) return null;
+  const dealCtx = isEngineV2() ? marketContextFor(scenario, student.batch) : null;
+  if (dealCtx) return <DealV2 student={student} scenario={scenario} ctx={dealCtx} />;
   return <CmPitchScreen studentName={student.name} scenario={scenario} />;
 }
 
 function CmPitchScreen({ studentName, scenario }: { studentName: string; scenario: Scenario }) {
   const nav = useNavigate();
-  const { setCmPitch, consumeToken, tokensRemaining } = useSim();
+  const { setCmPitch, consumeToken, tokensRemaining, student } = useSim();
   const { profile, cityStockMap } = scenario;
 
-  const [isSpotlightOpen, setIsSpotlightOpen] = useState(true);
   const [phase, setPhase] = useState<"form" | "chat">("form");
+  useTour("cmPitch", student?.email, phase === "form");
   const [rows, setRows] = useState<Record<string, PitchRow>>(() => Object.fromEntries(profile.skus.map((s) => [s.id, emptyPitchRow()])));
   const [turns, setTurns] = useState<Turn[]>([]);
   const [pushbacks, setPushbacks] = useState<Pushback[]>([]);
@@ -202,10 +208,9 @@ function CmPitchScreen({ studentName, scenario }: { studentName: string; scenari
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      <BlinkitSidebar highlightCm={isSpotlightOpen} />
+      <BlinkitSidebar />
       <div className="flex-1 overflow-y-auto bg-background">
         <FlowHeader crumb="Category Manager Meeting" step="cm-pitch" backTo="/brief" backLabel="Brief" />
-        {isSpotlightOpen && <RelationshipSpotlight category={profile.category} onClose={() => setIsSpotlightOpen(false)} />}
 
         <SimPage wide={phase === "chat"}>
           {phase === "form" ? (
@@ -215,7 +220,7 @@ function CmPitchScreen({ studentName, scenario }: { studentName: string; scenari
                 description={`Rohit decides shelf space and stock for ${profile.category}. Pick your products and states, and give a reason for each. He checks every claim against his numbers.`}
               />
               <div className="space-y-6">
-                <RohitLine
+                <div data-tour="pitch-rohit"><RohitLine
                   text={`Hi ${studentName}. Tell me which products you want me to push, where, and why. I'll check what you say against my data, so be precise.`}
                   chipsCaption="What Rohit can see"
                   chips={[
@@ -223,14 +228,14 @@ function CmPitchScreen({ studentName, scenario }: { studentName: string; scenari
                     { label: "Your budget", value: `₹${scenario.budget.toLocaleString("en-IN")}`, tone: "neutral" },
                     { label: "States with stock today", value: `${stocked.length}: ${stocked.join(", ")}`, tone: stocked.length > 0 ? "good" : "bad" },
                   ]}
-                />
+                /></div>
 
-                <p className="max-w-[68ch] rounded-xl bg-secondary px-4 py-3 text-sm leading-relaxed text-foreground">
+                <p data-tour="pitch-tokens" className="max-w-[68ch] rounded-xl bg-secondary px-4 py-3 text-sm leading-relaxed text-foreground">
                   You have <span className="sim-num font-semibold">{tokensRemaining}</span> {tokensRemaining === 1 ? "token" : "tokens"}.
                   A weak pitch (4 to 7 points out of 15) uses 1 token, and pitching again uses 1 more. You can't earn more.
                 </p>
 
-                <div className="space-y-4">
+                <div data-tour="pitch-skus" className="space-y-4">
                   {profile.skus.map((s) => (
                     <PitchSkuCard key={s.id} sku={s} row={rows[s.id]} scenario={scenario} onChange={(patch) => update(s.id, patch)} />
                   ))}
@@ -240,7 +245,7 @@ function CmPitchScreen({ studentName, scenario }: { studentName: string; scenari
                   <Button variant="outline" onClick={() => nav("/brief")} className="gap-2 self-start">
                     <ArrowLeft className="h-4 w-4" strokeWidth={1.75} /> Back to the brief
                   </Button>
-                  <div className="flex flex-col items-start gap-2 sm:items-end">
+                  <div data-tour="pitch-send" className="flex flex-col items-start gap-2 sm:items-end">
                     <Button onClick={submitPitch} disabled={!canSubmit} className="gap-2">
                       Send pitch to Rohit <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
                     </Button>
@@ -344,44 +349,5 @@ function CmPitchScreen({ studentName, scenario }: { studentName: string; scenari
         </SimPage>
       </div>
     </div>
-  );
-}
-
-/** First-visit callout pointing at the relationship meter in the sidebar. */
-function RelationshipSpotlight({ category, onClose }: { category: string; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return (
-    <>
-      <div className="fixed inset-0 z-50 bg-black/55" onClick={onClose} aria-hidden />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cm-spotlight-title"
-        className="sim-ui fixed bottom-10 left-[232px] z-[70] w-80 rounded-2xl bg-card shadow-[0_24px_64px_-24px_hsl(24_30%_20%/0.6)] animate-in fade-in slide-in-from-left-2 duration-300 motion-reduce:animate-none"
-      >
-        <span aria-hidden className="absolute -left-2 bottom-6 h-4 w-4 rotate-45 bg-card" />
-        <div className="space-y-3 p-5">
-          <p id="cm-spotlight-title" className="text-base font-semibold text-foreground">Your relationship with Rohit</p>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Rohit Sharma is the category manager for {category}. He decides your shelf space and how many stores stock your products (OSA).
-          </p>
-          <p className="text-sm text-muted-foreground">This meter shows how much he trusts you. A strong pitch gets you:</p>
-          <ul className="space-y-1.5 text-sm text-foreground">
-            <li>10% more stores stocked in the states he approves</li>
-            <li>15% more ad delivery for all 30 days</li>
-            <li>Top shelf spots in search results</li>
-          </ul>
-          <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-            A weak pitch uses 1 token and gets no extras. A rejected pitch lowers your final score.
-          </p>
-          <Button size="sm" className="w-full" onClick={onClose} autoFocus>Got it</Button>
-        </div>
-      </div>
-    </>
   );
 }

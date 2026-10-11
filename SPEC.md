@@ -770,6 +770,79 @@ already answers.
 
 ---
 
+### 6.1 The opening deal with Rohit (v2 pitch rebuild, planned 2026-10-11)
+
+**Why:** the v1 pitch (tick products and states, pick one of six reasons) teaches little, and in v2
+its result changes almost nothing: the v2 engine never reads `cmPitch`. It only sets the
+relationship meter's start, hides unapproved SKUs in the wizard and scores 5 points.
+
+**Learning outcome:** on quick commerce, ads only work where stock is. Distribution (stores
+stocked, shelf placement) is negotiated with the category manager by trading commitments
+(ad spend, a funded discount, a supply promise), and promises are held to during the run.
+
+**Decided with Gaurav (2026-10-11):**
+| # | Question | Decision |
+|---|---|---|
+| D1 | Does the deal set starting stock? | **Yes.** The student splits a limited stock pool across SKUs and states. |
+| D2 | Which engine? | **v2 only.** v1 keeps today's pitch for running batches. |
+| D3 | Weight | **Keep 5 of 100** (Events + Rohit). Kept promises keep scoring in the check-ins line. |
+| D4 | Retries | **One negotiation, no tokens.** Walking away gives default terms. |
+
+**Flow (5 to 7 minutes, simulation layer):**
+1. **Deal sheet**, with Rohit's data beside each part (state demand share, OSA, sell-through):
+   - *Stock:* the pool = the brief's starting units across its stocked states. The student moves units
+     between SKUs and the brand's primary and secondary states. Sets day-1 stock and OSA.
+   - *Asks (pick up to 2):* more stores in a state (extra day-1 units there), a better shelf spot
+     (relevance ×1.1 for 10 days), an expedited restock (stock arrives on a set day).
+   - *Gives (pick any):* an ad-spend promise in the category (₹ over N days), a funded launch
+     discount (price cut on chosen SKUs for 7 days, margin given up), a supply promise (keep OSA ≥ X%
+     in a state by a day).
+2. **Negotiation, 2 to 3 rounds.** Rohit weighs value asked against value given using the brief's
+   unit economics, then counters with his numbers on chips. Each reply (accept, counter, walk away)
+   shows its cost before the student picks. Brand-specific sticking points come from the brief:
+   VitaBoost (category barely exists: prove demand in one state first), Henlo (a discount wipes out a
+   thin margin), FuelUp (demand sits in a few metros), TinyBuddy (morning shoppers, loyalty),
+   MunchBox (crowded category, rivals' shelf deals), PawLife (considered purchase), Glow Republic
+   (unknown brand: placement before performance).
+3. **The deal shapes the run** (all deterministic, stored with the run, replayed exactly):
+   | Deal term | Engine input |
+   |---|---|
+   | Stock split | Day-1 stock per SKU × state (overrides the brief's split; same total) |
+   | More stores | `StockAdd` on day 1 |
+   | Shelf spot | `ShelfBoost` (relevance ×1.1, days 1 to 10) |
+   | Expedited restock | `StockAdd` on the agreed day |
+   | Funded discount | `PriceCut` (days 1 to 7, margin per unit given up) |
+   | Ad-spend promise | `Commitment` spend_at_least (tracked on the live dashboard) |
+   | Supply promise | `Commitment` osa_at_least |
+   | Walk away | Brief stock, no boosts, relationship 50 |
+   The relationship meter starts from the deal's balance; Rohit's check-ins refer back to the deal.
+4. **Scoring (5 points, line `v2_rohit` → "Deal with Rohit"):** 2.5 for stock fit (share of stock in the
+   states and SKUs where demand and margin are, vs the brief's data) and 2.5 for deal balance (₹ value
+   received minus ₹ value given, relative to the brand's best deal). Kept or broken promises stay in
+   `v2_checkins`.
+
+**Removed in v2:** pitch tokens, the six fixed reasons, the approved-SKU filter in the wizard (the
+stock split replaces it: a SKU with no stock simply can't sell).
+
+**Build order (tests first, each step checked in with Gaurav):**
+1. Deal model (`market/deal.ts`) and engine wiring: day-1 stock override in the market context, deal
+   terms → `Adjustments` and `Commitment`s; tests that the same deal replays identically and the
+   stock total never changes.
+2. Rohit's valuation and counters per brand (`market/dealRohit.ts`); tests that he never contradicts
+   his own data and that every counter's cost is shown.
+3. Deal screen (replaces `CmPitch` under the v2 flag; reuses RohitLine, chips, ReplyChoice).
+4. Scoring line and debrief text; saved breakdown.
+5. Guided tour steps, plain-language copy, browser check on two brands.
+
+**Status (2026-10-11): built, behind the v2 flag.** `market/deal.ts` (pools, validation, deal → day-1 stock,
+Adjustments, Commitments), `market/dealRohit.ts` (valuation, objections, counters, relationship), `pages/DealV2.tsx` +
+`components/deal/*` (screen; `CmPitch` routes to it under v2), `lib/dealPitch.ts` (fills the pitch result so the
+frozen screens work unchanged), `SimContext.openingDeal`, `useDealRun` (live run and debrief), `dealLine` in
+`scoringV2.ts`, guided tour `deal`. Changes from the plan: Rohit's rebalance fixes every lopsided product, halved
+discounts round down to whole 5% steps, and the wizard keeps its product filter (products with no stock are hidden,
+which matches "a SKU with no stock can't sell"). Browser-checked on Henlo (stock, discount trap) and VitaBoost
+(prove demand first).
+
 ## 7. Live optimisation: actions
 
 All actions apply from the next day. Every control below lives in the **simulation layer**

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { BRAND_PROFILES, BLINKIT_STATES, SEASONS, MARKET_CONDITIONS, type Scenario, type CityStockMap } from "@/data/scenarios";
 
@@ -31,10 +31,8 @@ function renderPage() {
 describe("CM pitch page", () => {
   beforeEach(() => localStorage.setItem("sim_brief_ack", "1"));
 
-  it("opens with the relationship explainer, then the pitch form with Rohit's data", { timeout: 20000 }, () => {
+  it("opens straight on the pitch form with Rohit's data (the meter is explained by the guided tour)", { timeout: 20000 }, () => {
     renderPage();
-    const dialog = screen.getByRole("dialog", { name: "Your relationship with Rohit" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Got it" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByRole("heading", { name: "Pitch your products to Rohit" })).toBeInTheDocument();
     expect(screen.getByText("States with stock today")).toBeInTheDocument();
@@ -43,7 +41,6 @@ describe("CM pitch page", () => {
 
   it("keeps the send button disabled until a product has a reason", { timeout: 20000 }, () => {
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Got it" }));
     const send = screen.getByRole("button", { name: /Send pitch to Rohit/ });
     expect(send).toBeDisabled();
     fireEvent.click(screen.getAllByRole("checkbox")[0]);
