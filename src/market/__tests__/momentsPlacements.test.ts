@@ -52,3 +52,31 @@ describe("wasted spend follows the brand's goal floor (F13)", () => {
     expect(wastedSpendShare(results)).toBe(1);
   });
 });
+
+describe("losing-money moments follow the goal's floor (F13, found in the Glow playthrough)", async () => {
+  const { cell, dayResult } = await import("./liveFixtures");
+  const { matchInsights } = await import("@/market/insights");
+  const camp: CampaignConfig = { id: "c1", skuIds: ["x"], keywords: [], placements: [{ id: "spotlight:home", bid: 450 }, { id: "spotlight:search", bid: 500 }], geography: "pan_india", cities: [], budgetType: "daily", budget: 5000, launchDay: 1 };
+  const results = [1, 2, 3, 4, 5, 6].map((d) => dayResult(d, { cells: [
+    cell({ inventory: "spotlight", term: "spotlight:home", spend: 1000, contribution: 600 }),
+    cell({ inventory: "spotlight", term: "spotlight:search", spend: 1000, contribution: 2000 }),
+  ] }));
+  const configsByDay = results.map(() => [camp]);
+
+  it("an awareness campaign above its 0.7x floor raises no losing-money moment for a weak placement", () => {
+    const moments = detectMoments({ ctx: testContext("glow"), results, configsByDay });
+    expect(moments.some((m) => m.type === "belowBreakEven")).toBe(false);
+  });
+
+  it("a ROAS-first brand still gets the moment for the same placement", () => {
+    const moments = detectMoments({ ctx: testContext("henlo"), results, configsByDay });
+    expect(moments.some((m) => m.type === "belowBreakEven" && m.subject === "spotlight:home")).toBe(true);
+  });
+
+  it("an insight naming a placement by its readable name matches the moment", () => {
+    const moments = detectMoments({ ctx: testContext("henlo"), results, configsByDay });
+    const m = moments.find((x) => x.subject === "spotlight:home")!;
+    const [match] = matchInsights([{ day: m.day, type: "belowBreakEven", subject: "Spotlight home", evidence: "R6", plannedAction: "lower bid" }], moments, []);
+    expect(match.moment?.id).toBe(m.id);
+  });
+});

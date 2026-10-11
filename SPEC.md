@@ -1268,6 +1268,10 @@ Build order: 32 (stock) → 33 (calibrate) → 29 → 30 + 31 → 34; each with 
 - #34: the losing-money check-in names the worst keyword or placement; Rohit restocks and co-funding count as alert responses.
 - Checks: `npm run calibrate` adds the competent band, reach floor, stock to day 7, and a score sanity run per brand (passive play now scores 32 to 68; it was 84 to 87 for Product Booster brands).
 
+**Glow playthrough fixes (2026-10-12):** for reach goals a "losing money" moment now needs the whole account below the goal's floor (0.7x / 0.6x break-even), because the replay scores the whole account on views; before, cutting a weak placement while the account was well above the floor was scored "made it worse". Insights match placements by their readable name. The stock alert also needs fewer than 5 days of cover, so a slow seller spread thinly no longer "runs out" with 15 days left.
+
+**Open, for Gaurav:** (1) client goals count over-achievement up to 150%, so an easy goal hides a missed one (Glow: CTR 150%, impressions 39%, still full goal marks); recommend capping each goal at 100%. (2) Goal targets ignore Critical stock: Glow's views goal was out of reach with 61% of searches lost to stock; recommend scaling units and views targets by the stock label.
+
 ### Later (requested 2026-10-11)
 
 - **Game feel for the sim layer.** Gaurav: the non-frozen screens are very text-heavy; add animation and fun interactive elements so starting feels like a game and stays engaging. Scope: brief, deal with Rohit, live dashboard, alerts and check-ins, results. The platform UI stays frozen (§0.1). To be specced as its own phase after the scoring fixes ship.

@@ -174,6 +174,11 @@ describe("your stock running low", () => {
     expect(fire("stock_low", input(fuel, 9, { history: withStock(0.24), campaigns: otherSku }))).toHaveLength(0);
   });
 
+  it("does not fire when there are still days of stock left, however thinly it is spread", () => {
+    const slowSeller = [dayResult(9, { stock: [stockRow({ osa: 0.24, state: "Karnataka", closing: 84, adUnits: 3, organicUnits: 3 })] })];
+    expect(fire("stock_low", input(fuel, 9, { history: slowSeller }))).toHaveLength(0);
+  });
+
   it("does not fire for a paused campaign", () => {
     expect(fire("stock_low", input(fuel, 9, { history: withStock(0.24), campaigns: [campaign({ paused: true })] }))).toHaveLength(0);
   });
@@ -234,7 +239,7 @@ describe("pacing: budget runs out before day 30", () => {
 });
 
 describe("evaluateEvents", () => {
-  const lowStock = [dayResult(9, { stock: [stockRow({ osa: 0.2 })] })];
+  const lowStock = [dayResult(9, { stock: [stockRow({ osa: 0.2, closing: 60 })] })];
 
   it("never fires an active key twice, and fires again after it expires", () => {
     const first = evaluateEvents(input(fuel, 9, { history: lowStock }));

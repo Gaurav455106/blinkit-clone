@@ -178,6 +178,8 @@ export const FESTIVAL_RIVAL_BID_MULT = 1.2;
 export const RAIN_DEMAND_MULT = 1.5;
 export const METRO_STATES: readonly string[] = ["Maharashtra", "Delhi", "Karnataka", "Telangana", "Tamil Nadu", "West Bengal"];
 export const STOCK_LOW_OSA = 0.3;
+/** ...and fewer days of sales left than this; a slow seller spread thinly isn't running out. */
+export const STOCK_LOW_COVER_DAYS = 5;
 export const BUDGET_CAP_LOST_SHARE = 0.25;
 export const CONQUEST_SOV = 0.15;
 export const NEWCOMER_SHOCK_DAYS = 5;
@@ -575,7 +577,8 @@ const stockLow = define({
   if (!y) return [];
   const targeted = targetedPairs(input);
   return y.stock
-    .filter((r) => r.osa > 0 && r.osa < STOCK_LOW_OSA && targeted.has(`${r.skuId}|${r.state}`))
+    .filter((r) => r.osa > 0 && r.osa < STOCK_LOW_OSA && targeted.has(`${r.skuId}|${r.state}`)
+      && ratio(r.closing, r.adUnits + r.organicUnits) < STOCK_LOW_COVER_DAYS)
     .map((r) => {
       const daily = r.adUnits + r.organicUnits;
       const cover = ratio(r.closing, daily);
