@@ -176,8 +176,8 @@ function Day30ResultsV1() {
     // from localStorage, finalScore still memoising). With an empty dep array this
     // effect bailed here and never ran again, so the attempt was silently never
     // saved. Deps below now include them so the save retries once they land.
-    if (!activeRunId) { console.warn("[sim] attempt save deferred — no activeRunId yet"); return; }
-    if (!finalScore)  { console.warn("[sim] attempt save deferred — finalScore not ready"); return; }
+    if (!activeRunId) { console.warn("[sim] attempt save deferred: no activeRunId yet"); return; }
+    if (!finalScore)  { console.warn("[sim] attempt save deferred: finalScore not ready"); return; }
 
     // Set synchronously before the async insert so a re-run can't double-insert.
     savedRef.current = true;

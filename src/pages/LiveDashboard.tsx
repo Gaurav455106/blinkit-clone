@@ -178,12 +178,12 @@ function ReentryOverlay({ daysAdvanced, fromDay, toDay, missedCrises, onDismiss 
                 <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
                 <span className="text-sm font-bold text-red-700">{missedCrises.length} crisis{missedCrises.length > 1 ? " events" : ""} auto-resolved</span>
               </div>
-              <p className="text-xs text-red-600">You didn't respond within {CRISIS_DEADLINE_DAYS} days — worst option was applied.</p>
+              <p className="text-xs text-red-600">You didn't respond within {CRISIS_DEADLINE_DAYS} days: worst option was applied.</p>
             </div>
           ) : (
             <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 flex items-center gap-2">
               <div className="text-lg">✅</div>
-              <div className="text-xs text-green-700">No crises missed — good timing!</div>
+              <div className="text-xs text-green-700">No crises missed: good timing!</div>
             </div>
           )}
         </div>
@@ -237,7 +237,7 @@ function SOVTable({ keywords, goodKws, riskyKws, lifetimeImpressions }: {
   if (unique.length === 0) {
     return (
       <div className="text-xs text-muted-foreground py-6 text-center leading-relaxed">
-        Category targeting active<br />— keyword SOV not applicable
+        Category targeting active<br />– keyword SOV not applicable
       </div>
     );
   }
@@ -440,7 +440,7 @@ function LiveDashboardV1() {
         });
         recordMissedCrisis(key);
         newlyMissed.push(key);
-        toast.error(`Crisis ${spec.num} auto-resolved — worst option applied (−${maxScore} pts)`);
+        toast.error(`Crisis ${spec.num} auto-resolved: worst option applied (−${maxScore} pts)`);
       }
     }
     if (newlyMissed.length > 0) setReentryInfo((prev) => ({ ...prev, newMissed: [...prev.newMissed, ...newlyMissed] }));
@@ -525,7 +525,7 @@ function LiveDashboardV1() {
       });
       if (affected.length > 0) {
         const names = affected.map((c) => c.name).join(", ");
-        toast(`⏸ Auto-paused: ${names} — stock low in ${topState}`);
+        toast(`⏸ Auto-paused: ${names}: stock low in ${topState}`);
       }
     }
 
@@ -672,10 +672,10 @@ function LiveDashboardV1() {
     const risky   = scenario.profile.riskyKeywords?.[0] ?? "broad keywords";
     const heroSku = scenario.profile.skus?.[0]?.name ?? "hero SKU";
     const list: { id: string; emoji: string; title: string; body: string; action?: string; sinceDay: number }[] = [];
-    if (currentDay >= 5)  list.push({ id: "ins-city",    emoji: "🔥", title: "Top city performing",      body: `${ps} is your strongest stock hub — ROAS likely peaks there. Consider concentrating budget.`, action: "Scale top city",  sinceDay: 5  });
+    if (currentDay >= 5)  list.push({ id: "ins-city",    emoji: "🔥", title: "Top city performing",      body: `${ps} is your strongest stock hub. ROAS likely peaks there. Consider concentrating budget.`, action: "Scale top city",  sinceDay: 5  });
     if (currentDay >= 10) list.push({ id: "ins-kw",      emoji: "⚠️", title: "Keyword burn detected",    body: `"${risky}" is a high-spend, low-conversion keyword. Review bids before it drains budget.`,   action: "Remove keyword",  sinceDay: 10 });
     if (currentDay >= 16) list.push({ id: "ins-cluster", emoji: "🎯", title: "Cluster pattern detected",  body: `Pin code clusters in ${ps} show higher repeat-purchase signals than surrounding areas.`,       sinceDay: 16 });
-    if (currentDay >= 22) list.push({ id: "ins-stock",   emoji: "📦", title: "Stock alert",               body: `${heroSku} may be running low in ${ps} — check inventory before scaling spend further.`,     sinceDay: 22 });
+    if (currentDay >= 22) list.push({ id: "ins-stock",   emoji: "📦", title: "Stock alert",               body: `${heroSku} may be running low in ${ps}: check inventory before scaling spend further.`,     sinceDay: 22 });
     return list.filter((i) => !dismissed.includes(i.id)).filter((i) => currentDay - i.sinceDay <= 4).slice(0, 3);
   }, [currentDay, dismissed, scenario.profile]);
 
@@ -834,7 +834,7 @@ function LiveDashboardV1() {
             {filteredRows.length === 0 && (
               <tr>
                 <td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
-                  {campaignSearch ? "No campaigns match your search." : "No campaigns yet — click + Create new campaign to get started."}
+                  {campaignSearch ? "No campaigns match your search." : "No campaigns yet: click + Create new campaign to get started."}
                 </td>
               </tr>
             )}
@@ -844,7 +844,7 @@ function LiveDashboardV1() {
               const projImpr = projectedImpressions(c);
               // Duration: "Day X onwards" post-launch, "On launch" for ready, "—" for draft
               const duration = status === "draft"
-                ? "—"
+                ? "–"
                 : isPreLaunch
                   ? "On launch"
                   : `Day ${c.launchDay ?? 1} onwards`;
@@ -857,7 +857,7 @@ function LiveDashboardV1() {
                     </td>
                     {/* Campaign Type */}
                     <td className="px-4 py-4 text-sm text-foreground/80">
-                      {FORMAT_LABEL[c.adFormat ?? ""] ?? "—"}
+                      {FORMAT_LABEL[c.adFormat ?? ""] ?? "–"}
                     </td>
                     {/* Status */}
                     <td className="px-4 py-4">
@@ -880,21 +880,21 @@ function LiveDashboardV1() {
                     </td>
                     {/* Budget Consumed / Planned */}
                     <td className="px-4 py-4 text-right tabular-nums text-sm font-medium">
-                      {status === "draft" ? "—" : isPreLaunch ? money(c.budget) : money(t.spend)}
+                      {status === "draft" ? "–" : isPreLaunch ? money(c.budget) : money(t.spend)}
                     </td>
                     {/* Impressions */}
                     <td className="px-4 py-4 text-right tabular-nums text-sm text-foreground/80">
                       {status === "draft" || isPreLaunch ? (
-                        <span className="text-muted-foreground">{status === "draft" ? "—" : projImpr !== null ? fmt(projImpr) : "—"}</span>
+                        <span className="text-muted-foreground">{status === "draft" ? "–" : projImpr !== null ? fmt(projImpr) : "–"}</span>
                       ) : fmt(Math.round(t.impressions))}
                     </td>
                     {/* ATCS */}
                     <td className="px-4 py-4 text-right tabular-nums text-sm">
-                      {status === "draft" || isPreLaunch || c.objective === "reach" ? "—" : fmt(Math.round(t.atcs))}
+                      {status === "draft" || isPreLaunch || c.objective === "reach" ? "–" : fmt(Math.round(t.atcs))}
                     </td>
                     {/* ROAS */}
                     <td className={`px-4 py-4 text-right tabular-nums text-sm font-medium ${c.objective !== "reach" && r >= 3 ? "text-emerald-600" : c.objective !== "reach" && r < 1.5 && r > 0 ? "text-red-600" : ""}`}>
-                      {status === "draft" || isPreLaunch || c.objective === "reach" ? "—" : t.spend === 0 ? "0" : r.toFixed(2)}
+                      {status === "draft" || isPreLaunch || c.objective === "reach" ? "–" : t.spend === 0 ? "0" : r.toFixed(2)}
                     </td>
                     {/* Actions */}
                     <td className="px-6 py-4 text-right">
@@ -910,7 +910,7 @@ function LiveDashboardV1() {
                             <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]"
                               onClick={() => {
                                 setOptimization(c.id, { paused: !opt.paused });
-                                toast(opt.paused ? `▶ Resumed ${c.name}` : `⏸ Paused ${c.name} — spend stops from Day ${currentDay}`);
+                                toast(opt.paused ? `▶ Resumed ${c.name}` : `⏸ Paused ${c.name}: spend stops from Day ${currentDay}`);
                               }}>
                               {opt.paused ? "Resume" : "Pause"}
                             </Button>
@@ -938,7 +938,7 @@ function LiveDashboardV1() {
                       <td colSpan={9} className="px-6 py-4">
                         <div className="text-[11px] font-semibold mb-2 flex items-center gap-1.5">
                           <CalendarClock className="h-3.5 w-3.5 text-primary" />
-                          Ad Schedule — toggle hours to run ads (6–9 PM is peak)
+                          Ad Schedule: toggle hours to run ads (6–9 PM is peak)
                         </div>
                         <div className="flex gap-1.5 flex-wrap mb-3">
                           {TIME_BLOCKS.map((block, idx) => {
@@ -959,7 +959,7 @@ function LiveDashboardV1() {
                               recordDaypartingChange(c.id, scheduleBlocks, currentDay);
                               setScheduleOpen(null);
                               const peakOn = scheduleBlocks.includes(6), deadOff = !scheduleBlocks.includes(0) && !scheduleBlocks.includes(1);
-                              toast.success(peakOn && deadOff ? `⚡ Schedule saved — peak hours on, dead hours off. Good call!` : `📅 Schedule saved for ${c.name}`);
+                              toast.success(peakOn && deadOff ? `⚡ Schedule saved: peak hours on, dead hours off. Good call!` : `📅 Schedule saved for ${c.name}`);
                             }}>Save Schedule</Button>
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setScheduleOpen(null)}>Cancel</Button>
                           <span className="text-[10px] text-muted-foreground ml-1">{scheduleBlocks.length}/8 slots active</span>
@@ -1049,7 +1049,7 @@ function LiveDashboardV1() {
                   <Card key={r.crisisId} className={`p-3 border ${tone}`}>
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className={`text-[10px] font-bold uppercase tracking-wide ${dotColor}`}>
-                        {isBest ? "✅" : pct >= 60 ? "🟡" : "🔴"} Crisis {r.crisisNum} — Day {r.day}
+                        {isBest ? "✅" : pct >= 60 ? "🟡" : "🔴"} Crisis {r.crisisNum}. Day {r.day}
                       </div>
                       <div className={`text-[10px] font-semibold tabular-nums shrink-0 ${dotColor}`}>+{r.score ?? 0} pts</div>
                     </div>
@@ -1082,7 +1082,7 @@ function LiveDashboardV1() {
                       className="h-7 text-[11px] w-full bg-green-600 hover:bg-green-700 text-white border-0"
                       onClick={() => {
                         setOptimization(c.id, { paused: false });
-                        toast.success(`▶ Resumed ${c.name} — spending from Day ${currentDay}`);
+                        toast.success(`▶ Resumed ${c.name}: spending from Day ${currentDay}`);
                       }}
                     >
                       ▶ Resume "{c.name}"
@@ -1113,7 +1113,7 @@ function LiveDashboardV1() {
                     }
                   } else if (i.id === "ins-kw") {
                     const risky = scenario.profile.riskyKeywords?.[0] ?? "broad keyword";
-                    toast(`⚠️ Remove "${risky}" from your campaign keywords — it has low conversion potential and burns budget.`, { duration: 6000 });
+                    toast(`⚠️ Remove "${risky}" from your campaign keywords: it has low conversion potential and burns budget.`, { duration: 6000 });
                   }
                 };
                 return (
@@ -1165,7 +1165,7 @@ function LiveDashboardV1() {
             <div key={key} className="mx-0 flex items-start gap-3 bg-red-600 text-white px-6 py-3">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <div className="flex-1 text-sm">
-                <span className="font-bold">Crisis {num} auto-resolved</span>{" — "}You didn't respond within {CRISIS_DEADLINE_DAYS} days after "{spec?.title}". The worst option was applied.{" "}
+                <span className="font-bold">Crisis {num} auto-resolved</span>{": "}You didn't respond within {CRISIS_DEADLINE_DAYS} days after "{spec?.title}". The worst option was applied.{" "}
                 <span className="font-semibold">−{spec ? Math.max(...spec.options.map(o => o.score)) : 0} pts</span>
               </div>
             </div>
@@ -1174,7 +1174,7 @@ function LiveDashboardV1() {
         {!isPreLaunch && simMode === "assignment" && pendingAssignCrisis && (
           <div className="flex items-center gap-3 px-6 py-2.5 text-sm font-medium bg-red-100 text-red-800 border-b border-red-300">
             <AlertTriangle className="h-4 w-4 shrink-0 animate-pulse" />
-            <span className="flex-1">🚨 <strong>Crisis {pendingAssignCrisis.num}:</strong> "{pendingAssignCrisis.title}" — respond before Day {pendingAssignCrisis.day + CRISIS_DEADLINE_DAYS}
+            <span className="flex-1">🚨 <strong>Crisis {pendingAssignCrisis.num}:</strong> "{pendingAssignCrisis.title}": respond before Day {pendingAssignCrisis.day + CRISIS_DEADLINE_DAYS}
               {crisisSecsLeft !== null && crisisSecsLeft > 0 && <span className="ml-2 font-mono text-xs bg-red-200 px-1.5 py-0.5 rounded">{fmtCountdown(crisisSecsLeft)} left</span>}
             </span>
             <Button size="sm" className="h-7 text-xs bg-red-700 hover:bg-red-800 text-white border-0 ml-auto shrink-0"
@@ -1422,7 +1422,7 @@ function LiveDashboardV1() {
             <>
               <DialogHeader><DialogTitle>Choose simulation mode</DialogTitle></DialogHeader>
               <div className="space-y-3 py-2">
-                {([["demo", "Demo", "Play/pause, speed controls — great for self-practice"], ["assignment", "Assignment", "Real-time clock — for classroom use"]] as const).map(([val, label, desc]) => (
+                {([["demo", "Demo", "Play/pause, speed controls: great for self-practice"], ["assignment", "Assignment", "Real-time clock: for classroom use"]] as const).map(([val, label, desc]) => (
                   <button key={val} onClick={() => setLaunchMode(val)}
                     className={`w-full text-left p-4 rounded-lg border-2 transition-all ${launchMode === val ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
                     <div className="text-sm font-semibold">{label}</div>
@@ -1481,8 +1481,8 @@ function LiveDashboardV1() {
           {pendingCrisis && (
             <>
               <div className={`px-6 py-2.5 text-white text-xs font-semibold tracking-wide flex items-center justify-between ${pendingCrisis.tone === "red" ? "bg-red-600" : pendingCrisis.tone === "orange" ? "bg-orange-500" : "bg-blue-600"}`}>
-                <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5" />URGENT DECISION REQUIRED — DAY {currentDay}</div>
-                <span className="bg-white/20 rounded px-2 py-0.5 text-[11px] font-normal">⏸ Sim paused — resolve to continue</span>
+                <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5" />URGENT DECISION REQUIRED. DAY {currentDay}</div>
+                <span className="bg-white/20 rounded px-2 py-0.5 text-[11px] font-normal">⏸ Sim paused: resolve to continue</span>
               </div>
               <div className="px-6 pt-5 pb-4 text-center">
                 <div className="text-4xl mb-2">{pendingCrisis.icon}</div>
@@ -1518,7 +1518,7 @@ function LiveDashboardV1() {
           {assignCrisisSpec && (
             <>
               <div className={`px-6 py-3 text-white text-xs font-semibold tracking-wide flex items-center justify-between ${assignCrisisSpec.tone === "red" ? "bg-red-600" : assignCrisisSpec.tone === "orange" ? "bg-orange-500" : "bg-blue-600"}`}>
-                <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5" />CRISIS {assignCrisisSpec.num} — RESPOND BY DAY {assignCrisisSpec.day + CRISIS_DEADLINE_DAYS}</div>
+                <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5" />CRISIS {assignCrisisSpec.num}. RESPOND BY DAY {assignCrisisSpec.day + CRISIS_DEADLINE_DAYS}</div>
                 <div className="flex flex-col items-end gap-0.5">
                   {crisisSecsLeft !== null ? (
                     <><span className={`font-mono text-sm font-bold ${crisisSecsLeft < 120 ? "text-yellow-300 animate-pulse" : ""}`}>⏱ {fmtCountdown(crisisSecsLeft)}</span><span className="text-[10px] font-normal opacity-80">until worst option auto-applies</span></>
@@ -1570,7 +1570,7 @@ function LiveDashboardV1() {
               consumeToken(1);
               clearActiveRun();
               setCurrentDay(1);
-              toast.success("Simulation reset — adjust your campaigns and re-launch.");
+              toast.success("Simulation reset: adjust your campaigns and re-launch.");
             }}>
               Confirm Reset
             </Button>

@@ -128,7 +128,7 @@ export function Phase3StrategyPanel({ week, weekResult }: Props) {
             <div className="flex-1 text-xs">
               <div className="font-semibold text-amber-900">Keyword Cannibalization Detected</div>
               <div className="text-foreground/80 mt-0.5">
-                Multiple campaigns are bidding on the same keyword in the same city — you're paying twice for the same shopper.
+                Multiple campaigns are bidding on the same keyword in the same city: you're paying twice for the same shopper.
               </div>
               <div className="mt-2 space-y-1">
                 {unresolvedPairs.slice(0, 3).map((p) => {
@@ -136,7 +136,7 @@ export function Phase3StrategyPanel({ week, weekResult }: Props) {
                   const names = p.campaignIds.map((id) => campaigns.find((c) => c.id === id)?.name).filter(Boolean).join(" ↔ ");
                   return (
                     <div key={key} className="flex items-center justify-between gap-2 bg-background/60 rounded px-2 py-1.5">
-                      <span><span className="font-medium">'{p.keyword}'</span> in {p.city} — <span className="text-muted-foreground">{names}</span></span>
+                      <span><span className="font-medium">'{p.keyword}'</span> in {p.city}: <span className="text-muted-foreground">{names}</span></span>
                       <Button size="sm" variant="outline" className="h-6 text-[10px]" disabled={tokensRemaining < 1}
                         onClick={() => handleResolveCannibal(key, `${p.keyword} in ${p.city}`)}>
                         Resolve (1 token)
@@ -163,7 +163,7 @@ export function Phase3StrategyPanel({ week, weekResult }: Props) {
                   if (!c) return null;
                   return (
                     <div key={p.campaignId} className="flex items-center justify-between bg-background/60 rounded px-2 py-1">
-                      <span><span className="font-medium">{c.name}</span> — {p.pacePct}% spent ({money(p.cumulativeSpend)} of {money(p.budget)})</span>
+                      <span><span className="font-medium">{c.name}</span>: {p.pacePct}% spent ({money(p.cumulativeSpend)} of {money(p.budget)})</span>
                       <span className={p.exhausted ? "text-destructive font-semibold" : "text-orange-700"}>
                         {p.exhausted ? "🔴 Exhausted" : `⚠ Out by Day ${p.projectedExhaustionDay}`}
                       </span>
@@ -188,7 +188,7 @@ export function Phase3StrategyPanel({ week, weekResult }: Props) {
             {clustersWithoutReaction.map((ins) => (
               <div key={ins.city} className="border border-border rounded p-3 bg-muted/20">
                 <div className="text-xs">
-                  <span className="font-semibold">{ins.city}</span> — top 3 zones average{" "}
+                  <span className="font-semibold">{ins.city}</span>: top 3 zones average{" "}
                   <span className="text-primary font-semibold">{ins.avgRoas.toFixed(2)}x ROAS</span>
                   {" "}vs rest {ins.restAvgRoas.toFixed(2)}x ({ins.ratio.toFixed(1)}× lift).
                 </div>

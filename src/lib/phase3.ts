@@ -35,18 +35,18 @@ export function optimalArchitecture(scenario: Scenario, profileId: string): { op
   const highVel = scenario.profile.skus.filter((s) => s.velocity === "High").length;
 
   if (profileId === "fuelup" || avgOsa < 65) {
-    return { optimal: "B", alternative: "D", reason: "Hyperlocal or uneven stock — need granular city control." };
+    return { optimal: "B", alternative: "D", reason: "Hyperlocal or uneven stock: need granular city control." };
   }
   if (stockedCities === 1) {
-    return { optimal: "C", reason: "Only one city has reliable stock — split by SKU within it." };
+    return { optimal: "C", reason: "Only one city has reliable stock: split by SKU within it." };
   }
   if ((profileId === "vitaboost" || profileId === "glow") && scenario.season.name === "Normal Week") {
-    return { optimal: "A", reason: "Unknown brand in a calm market — keep it simple, learn first." };
+    return { optimal: "A", reason: "Unknown brand in a calm market: keep it simple, learn first." };
   }
   if (stockedCities >= 3 && highVel >= 3) {
-    return { optimal: "D", reason: "Strong stock across cities + multiple hero SKUs — granular control wins." };
+    return { optimal: "D", reason: "Strong stock across cities + multiple hero SKUs: granular control wins." };
   }
-  return { optimal: "B", reason: "Balanced setup — city-split offers good control." };
+  return { optimal: "B", reason: "Balanced setup: city-split offers good control." };
 }
 
 export function scoreArchitecture(detected: ArchType, optimal: ArchType, alternative?: ArchType): number {
@@ -85,16 +85,16 @@ export function detectSequence(campaigns: SavedCampaign[]): "reach_then_perf" | 
 export function scoreSequence(profileId: string, seq: ReturnType<typeof detectSequence>): { score: number; note: string } {
   const isNew = profileId === "glow" || profileId === "vitaboost";
   if (isNew) {
-    if (seq === "reach_then_perf") return { score: 5, note: "Reach-then-Performance — correct for a new brand. Built recall first, then captured intent." };
-    if (seq === "perf_then_reach" || seq === "perf_only") return { score: 0, note: "Performance-first for a new brand — customers don't search you yet, CTR suffers." };
-    if (seq === "parallel") return { score: 2, note: "Parallel launch — Reach got diluted, didn't build brand before Performance fired." };
-    return { score: 3, note: "Reach only — built awareness but didn't capture intent." };
+    if (seq === "reach_then_perf") return { score: 5, note: "Reach-then-Performance: correct for a new brand. Built recall first, then captured intent." };
+    if (seq === "perf_then_reach" || seq === "perf_only") return { score: 0, note: "Performance-first for a new brand: customers don't search you yet, CTR suffers." };
+    if (seq === "parallel") return { score: 2, note: "Parallel launch. Reach got diluted, didn't build brand before Performance fired." };
+    return { score: 3, note: "Reach only: built awareness but didn't capture intent." };
   }
   if (profileId === "tinybuddy") {
-    return { score: seq === "perf_then_reach" || seq === "perf_only" ? 5 : 3, note: "Volume goal — Performance-first works." };
+    return { score: seq === "perf_then_reach" || seq === "perf_only" ? 5 : 3, note: "Volume goal. Performance-first works." };
   }
   // ROAS-first profiles
-  if (seq === "perf_then_reach" || seq === "perf_only") return { score: 5, note: "Performance-first matches a ROAS goal — captured existing demand." };
+  if (seq === "perf_then_reach" || seq === "perf_only") return { score: 5, note: "Performance-first matches a ROAS goal: captured existing demand." };
   if (seq === "reach_then_perf") return { score: 3, note: "Reach-first is safe but slow for a ROAS goal." };
   return { score: 3, note: "Acceptable sequencing." };
 }
@@ -232,21 +232,21 @@ export function nextCompetitorAction(week: number, competitor: Competitor, lastW
   if (roll < 0.4 * aggrFactor && lastWeekTopKeyword) {
     return {
       week, type: "kw_bid",
-      description: `Started bidding on '${lastWeekTopKeyword}' — your CPC up 30%.`,
+      description: `Started bidding on '${lastWeekTopKeyword}': your CPC up 30%.`,
       impact: { cpcMult: 1.3 },
     };
   }
   if (roll < 0.75 * aggrFactor && lastWeekTopCity) {
     return {
       week, type: "city_attack",
-      description: `Launched a campaign in ${lastWeekTopCity} — your impression share down 20%.`,
+      description: `Launched a campaign in ${lastWeekTopCity}: your impression share down 20%.`,
       impact: { impShareMult: 0.8 },
     };
   }
   if (roll < 0.9 * aggrFactor) {
     return {
       week, type: "price_cut",
-      description: `Cut prices 15% across the category — your CVR dropped 10%.`,
+      description: `Cut prices 15% across the category: your CVR dropped 10%.`,
       impact: { cvrMult: 0.9 },
     };
   }

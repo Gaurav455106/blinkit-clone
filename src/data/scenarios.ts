@@ -162,7 +162,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
     goodKeywords: ["dog treats", "dental chews", "puppy snacks", "dog biscuits", "chicken jerky"],
     riskyKeywords: ["henlo", "dog food", "pet accessories"],
     optimalObjective: "performance", optimalAdFormat: "product_booster",
-    trap: "Thin margins (break-even ROAS ~7) — overstocking and broad keywords wipe out profit fast",
+    trap: "Thin margins (break-even ROAS about 7). Overstocking and broad keywords wipe out profit fast",
     unitEconomics: "Avg MRP ₹249 · Avg Margin ₹35 · High velocity hero SKU",
     relevantCategories: ["Dog Needs", "Pet Food & Accessories"],
     goalType: "ROAS-First",
@@ -173,7 +173,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
   },
   {
     id: "glow", name: "Glow Republic", emoji: "✨", category: "Premium Skincare", difficulty: "Hard",
-    context: "New D2C skincare brand. Zero presence on Blinkit. Customers don't search for Glow Republic yet — brand awareness is very low.",
+    context: "New D2C skincare brand. Zero presence on Blinkit. Customers don't search for Glow Republic yet, because almost nobody knows the brand.",
     cityContext: "Maharashtra",
     primaryState: "Maharashtra", secondaryStates: ["Delhi", "Karnataka"],
     peakHours: "Premium skincare buyers shop 8-11 AM and 7-10 PM.",
@@ -185,7 +185,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
     goodKeywords: ["vitamin c serum", "sunscreen spf 50", "retinol cream", "night cream", "face serum"],
     riskyKeywords: ["glow republic", "skincare routine", "beauty"],
     optimalObjective: "reach", optimalAdFormat: "listing_spotlight",
-    trap: "Running Performance before Reach — no one searches your brand yet, CTR will be terrible and budget burns",
+    trap: "Running Performance before Reach. No one searches your brand yet, so few people click and the budget burns",
     unitEconomics: "Avg MRP ₹782 · Avg Margin ₹173 · Brand awareness is the bottleneck",
     relevantCategories: ["Beauty & Personal Care", "Skincare"],
     goalType: "Awareness-First",
@@ -208,7 +208,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
     goodKeywords: ["multivitamin", "omega 3", "iron tablets", "folic acid", "vitamin c tablets"],
     riskyKeywords: ["vitaboost", "health supplements", "vitamins"],
     optimalObjective: "reach", optimalAdFormat: "listing_spotlight",
-    trap: "Category barely exists on Blinkit — customers don't search supplements here, dead stock guaranteed",
+    trap: "The category barely exists on Blinkit. Customers don't search for supplements here yet, so stock sits unsold",
     unitEconomics: "Avg MRP ₹632 · Avg Margin ₹157 · Category not trained yet",
     relevantCategories: ["Health & Wellness", "Supplements"],
     goalType: "Category-Creation",
@@ -219,7 +219,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
   },
   {
     id: "tinybuddy", name: "TinyBuddy", emoji: "👶", category: "Baby Care", difficulty: "Hard",
-    context: "TinyBuddy is a trusted offline baby brand entering Blinkit. Their customer is the new parent — highly specific, shops in the morning, very brand-loyal once converted.",
+    context: "TinyBuddy is a trusted offline baby brand entering Blinkit. Their customer is the new parent: a very specific shopper who buys in the morning and stays loyal once they trust a brand.",
     cityContext: "Delhi",
     primaryState: "Delhi", secondaryStates: ["Haryana", "Uttar Pradesh"],
     peakHours: "New parents shop 9 AM-1 PM, not evening hours.",
@@ -231,7 +231,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
     goodKeywords: ["baby wipes", "diaper cream", "baby shampoo", "rash cream", "baby essentials"],
     riskyKeywords: ["tinybuddy", "baby care", "parenting"],
     optimalObjective: "reach", optimalAdFormat: "brand_booster",
-    trap: "Wrong dayparting — new parents shop 10AM-1PM, not 8-11PM. 24/7 ads waste budget on dead hours",
+    trap: "Wrong ad hours. New parents shop 10AM to 1PM, not 8 to 11PM. Ads that run all day waste budget on quiet hours",
     unitEconomics: "Avg MRP ₹249 · Avg Margin ₹70 · Morning-only demand window",
     relevantCategories: ["Baby Care", "Mother & Baby"],
     goalType: "Volume-First",
@@ -242,7 +242,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
   },
   {
     id: "munchbox", name: "MunchBox", emoji: "🍿", category: "Packaged Snacks", difficulty: "Medium",
-    context: "MunchBox makes healthy snacks. Launching on Blinkit. The category is brutally competitive — Haldirams, Lay's, Bingo all bidding aggressively on generic keywords.",
+    context: "MunchBox makes healthy snacks. Launching on Blinkit. The category is very crowded: Haldirams, Lay's and Bingo all bid hard on generic keywords.",
     cityContext: "Maharashtra",
     primaryState: "Maharashtra", secondaryStates: ["Gujarat", "Karnataka"],
     peakHours: "Snack purchases peak 5 PM-10 PM.",
@@ -265,7 +265,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
   },
   {
     id: "pawlife", name: "PawLife", emoji: "🦮", category: "Pet Accessories", difficulty: "Hard",
-    context: "PawLife makes premium pet accessories. Launching on Blinkit. These are considered purchases — a dog owner thinks before buying a harness, unlike dog treats.",
+    context: "PawLife makes premium pet accessories. Launching on Blinkit. People think before buying these. A dog owner takes time to choose a harness, unlike dog treats.",
     cityContext: "Telangana",
     primaryState: "Telangana", secondaryStates: ["Karnataka", "Maharashtra"],
     peakHours: "Considered purchases happen 10 AM-6 PM.",
@@ -287,7 +287,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
   },
   {
     id: "fuelup", name: "FuelUp", emoji: "💪", category: "Protein & Fitness", difficulty: "Very Hard",
-    context: "FuelUp is a premium protein brand. Launching on Blinkit. Customers are gym-goers concentrated in metros — demand is hyperlocal, not spread across India.",
+    context: "FuelUp is a premium protein brand. Launching on Blinkit. Customers are gym-goers in big cities, so demand sits in a few places, not across India.",
     cityContext: "Karnataka",
     primaryState: "Karnataka", secondaryStates: ["Maharashtra", "Delhi"],
     peakHours: "Gym-goers shop 5-8 AM (pre-workout) and 6-9 PM (post-workout).",
@@ -299,7 +299,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
     goodKeywords: ["whey protein", "protein supplement", "protein bar", "plant protein", "fitness supplement"],
     riskyKeywords: ["fuelup", "gym protein"],
     optimalObjective: "performance", optimalAdFormat: "product_booster",
-    trap: "Demand is hyperlocal — gym-goers in metros. Broad fitness terms and the ₹99 bar soak up budget at thin margins",
+    trap: "Demand sits in a few big cities, where the gym-goers are. Broad fitness terms and the ₹99 bar eat budget at thin margins",
     unitEconomics: "Avg MRP ₹799 · Avg Margin ₹238 · Hyperlocal demand",
     relevantCategories: ["Health & Wellness", "Sports Nutrition"],
     goalType: "ROAS-First",
@@ -314,17 +314,17 @@ export const BRAND_PROFILES: BrandProfile[] = [
 ];
 
 export const SEASONS = [
-  { name: "Normal Week", note: "Baseline demand, no spikes.", implication: "Stable CPMs. Standard bids work — focus on efficiency over aggressive spend." },
-  { name: "Festival Surge", note: "Diwali/Holi — demand +40%, CPMs +30%.", implication: "CPMs are rising fast. Front-load budget in Week 1 before rates peak. Higher demand means more conversions — but only if you're stocked." },
+  { name: "Normal Week", note: "Baseline demand, no spikes.", implication: "Ad prices are steady. Normal bids work, so focus on spending well rather than spending more." },
+  { name: "Festival Surge", note: "Diwali or Holi: demand +40%, ad prices (CPMs) +30%.", implication: "Ad prices are rising fast. Spend more in week 1, before prices peak. More shoppers means more sales, but only where you have stock." },
   { name: "Post-Festival Slowdown", note: "Demand -40%, careful with spend.", implication: "Demand is low. Reduce daily caps, don't overspend. Prioritise efficiency over scale this month." },
-  { name: "Summer Season", note: "Skincare/beverage spike.", implication: "Category demand is spiking. Double down on your top SKU — this is not the time to spread budget thin." },
-  { name: "New Year Health Spike", note: "Supplements/protein boom.", implication: "Health searches are surging. Aggressive keyword bidding will pay off — but only if your category is relevant." },
+  { name: "Summer Season", note: "Skincare/beverage spike.", implication: "Demand in your category is jumping. Put more behind your best product; this is not the time to spread the budget thin." },
+  { name: "New Year Health Spike", note: "Supplements/protein boom.", implication: "Health searches are surging. Bidding harder on keywords can pay off, but only if your category fits." },
 ] as const;
 
 export const MARKET_CONDITIONS = [
   { name: "Stable Market", note: "No major competitor moves.", implication: "No unusual pressure. Run your plan as designed." },
   { name: "Aggressive Competitor", note: "CPMs +35%.", implication: "You need 25–35% higher bids to hold impression share. Concentrate budget on the keywords and states that convert best." },
-  { name: "Price War in Category", note: "Margins squeezed across the shelf.", implication: "Don't chase ROAS — margins are thin. Focus on sell-through volume instead." },
+  { name: "Price War in Category", note: "Margins squeezed across the shelf.", implication: "Don't chase ROAS while margins are thin. Focus on selling more units instead." },
   { name: "New Entrant Disrupting", note: "A new brand is buying share aggressively.", implication: "Defend your shelf. Consider Listing Spotlight to hold visibility while the new entrant burns budget on generic terms." },
   { name: "Platform Pushing Private Label", note: "Blinkit pushing its own label in your category.", implication: "Platform will favour its own SKUs in organic ranking. You need a strong CM pitch and above-average bids to compete." },
 ] as const;
@@ -465,7 +465,7 @@ function generateClientGoals(profile: BrandProfile, inventoryLabel: InventorySta
         { label: "Minimum ROAS", target: 1.5, unit: "x" },
       ],
       [], // no awareness spend when clearing stock
-      "Clearance mode — put all budget into Product Booster or Recommendation Ads. No awareness spend until stock normalises.",
+      "Clearance mode: put all the budget into Product Booster or Recommendation Ads. No awareness spend until stock is back to normal.",
     );
   }
 
@@ -517,7 +517,7 @@ function generateClientGoals(profile: BrandProfile, inventoryLabel: InventorySta
 
     case "Volume-First":
       return make(
-        "Maximum units sold — scale both reach and conversions",
+        "Sell as many units as you can, by growing both reach and sales",
         "Convert",
         [
           { label: "Units", target: pick([1200, 1500, 1800]), unit: "units" },

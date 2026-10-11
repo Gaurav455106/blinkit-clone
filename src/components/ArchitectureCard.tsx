@@ -27,7 +27,7 @@ export function ArchitectureCard() {
     parallel: "Launched in parallel",
     perf_only: "Performance only",
     reach_only: "Reach only",
-    none: "—",
+    none: "–",
   };
 
   return (
@@ -55,7 +55,7 @@ export function ArchitectureCard() {
               <AlertTriangle className={`h-3.5 w-3.5 ${pairs.length ? "text-amber-600" : "text-muted-foreground"}`} />
               <span className="text-muted-foreground">Keyword overlaps:</span>
               <span className={`font-medium ${pairs.length ? "text-amber-700" : ""}`}>
-                {pairs.length === 0 ? "None ✓" : `${pairs.length} pair${pairs.length > 1 ? "s" : ""} — resolve after launch`}
+                {pairs.length === 0 ? "None ✓" : `${pairs.length} pair${pairs.length > 1 ? "s" : ""}: resolve after launch`}
               </span>
             </div>
           </div>
