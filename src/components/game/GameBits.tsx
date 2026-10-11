@@ -2,7 +2,7 @@
 // Small, dependency-free pieces for the sim layer. Each one renders its final
 // state at once under prefers-reduced-motion.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useCountUp } from "@/components/game/useCountUp";
 import type { Achievement } from "@/components/game/achievements";
@@ -91,4 +91,23 @@ export function TypingDots({ label = "Typing" }: { label?: string }) {
 /** Re-runs a one-shot CSS animation class each time `trigger` changes. */
 export function Replay({ trigger, className, children }: { trigger: unknown; className: string; children: ReactNode }) {
   return <span key={String(trigger)} className={cn("inline-block", className)}>{children}</span>;
+}
+
+/** Style for the n-th item of a staggered entrance (pairs with .sim-rise or .sim-reveal). */
+export const stagger = (i: number, stepMs = 70): CSSProperties => ({ ["--sim-delay" as string]: `${i * stepMs}ms` });
+
+/** Fades and lifts its content in the first time it scrolls into view. */
+export function Reveal({ children, className, delayIndex = 0 }: { children: ReactNode; className?: string; delayIndex?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(() => typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || visible) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setVisible(true); io.disconnect(); }
+    }, { threshold: 0.12 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible]);
+  return <div ref={ref} className={cn("sim-reveal", visible && "is-visible", className)} style={stagger(delayIndex)}>{children}</div>;
 }

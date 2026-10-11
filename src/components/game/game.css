@@ -61,3 +61,25 @@
   }
   .sim-ui .sim-float-up { display: none; }
 }
+
+@keyframes sim-rise {
+  0% { transform: translateY(14px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+/* Entrance: rise into place. Use --sim-delay for staggering. */
+.sim-ui .sim-rise { animation: sim-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--sim-delay, 0ms); }
+/* Scroll reveal: hidden until Reveal adds .is-visible */
+.sim-ui .sim-reveal { opacity: 0; transform: translateY(18px); transition: opacity 560ms ease-out, transform 560ms cubic-bezier(0.2, 0.8, 0.2, 1); transition-delay: var(--sim-delay, 0ms); }
+.sim-ui .sim-reveal.is-visible { opacity: 1; transform: none; }
+/* Hover lift for cards */
+.sim-ui .sim-lift { transition: transform 180ms ease-out, box-shadow 180ms ease-out; }
+.sim-ui .sim-lift:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -18px hsl(24 30% 20% / 0.45); }
+/* Bars that grow to their width */
+.sim-ui .sim-bar { transition: width 450ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 300ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-ui .sim-rise { animation: none !important; }
+  .sim-ui .sim-reveal { opacity: 1; transform: none; transition: none; }
+  .sim-ui .sim-lift, .sim-ui .sim-lift:hover { transition: none; transform: none; }
+  .sim-ui .sim-bar { transition: none; }
+}

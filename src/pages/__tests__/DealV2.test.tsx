@@ -29,10 +29,13 @@ function followDemand() {
 describe("Deal with Rohit page", () => {
   beforeEach(() => setOpeningDeal.mockClear());
 
-  it("shows the deal sheet with Rohit's search data for each state", { timeout: 20000 }, () => {
+  it("shows the deal sheet with Rohit's search data for each state", { timeout: 20000 }, async () => {
     renderPage();
     expect(screen.getByRole("heading", { name: "Strike a deal with Rohit" })).toBeInTheDocument();
-    for (const st of Object.keys(demandShares(ctx))) expect(screen.getByText(`Searches from ${st}`)).toBeInTheDocument();
+    // Rohit types his opening line first (SPEC §15)
+    const states = Object.keys(demandShares(ctx));
+    expect(await screen.findByText(`Searches from ${states[0]}`, {}, { timeout: 2000 })).toBeInTheDocument();
+    for (const st of states) expect(screen.getByText(`Searches from ${st}`)).toBeInTheDocument();
     expect(screen.getByText("1. Where your stock goes")).toBeInTheDocument();
   });
 

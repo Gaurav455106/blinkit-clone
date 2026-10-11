@@ -3,6 +3,7 @@
 // counters, every reply priced) → agreed or walked away. The result is saved
 // with the session and shapes the run.
 
+import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Handshake } from "lucide-react";
@@ -65,6 +66,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
 
   const intro = (
     <RohitLine
+      typeIn={!talk}
       text={`Hi ${student.name}. I run ${profile.category} on Blinkit. Tell me where you want your stock, what you need from me and what you'll give back. I'll check it against my numbers.`}
       chipsCaption="What Rohit can see"
       chips={[
@@ -103,7 +105,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
                     ? <ul className="space-y-1 text-sim-bad">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
                     : "Rohit will push back where your numbers don't add up. You can always walk away and keep the brief's terms."}
                 </div>
-                <Button onClick={send} className="shrink-0 gap-2">Send the deal to Rohit <ArrowRight className="h-4 w-4" /></Button>
+                <Button onClick={send} className={cn("shrink-0 gap-2", problems.length === 0 && "sim-pulse")}>Send the deal to Rohit <ArrowRight className="h-4 w-4" /></Button>
               </div>
             </div>
           )}
