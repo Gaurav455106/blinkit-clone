@@ -14,6 +14,8 @@ import { isEngineV2 } from "@/lib/engineFlag";
 import { marketContextFor } from "@/market/context";
 import { savedCampaignToConfig } from "@/market/adapter";
 import { scoreSetupV2, SCORE_V2_MAX } from "@/market/scoringV2";
+import { useTour } from "@/components/tour/useTour";
+import { TourButton } from "@/components/tour/TourButton";
 
 // ── Mode picker ──────────────────────────────────────────────────────────────
 
@@ -119,6 +121,8 @@ export default function SetupScoreCard() {
     });
   }, [v2, scenario, student?.batch, campaigns]);
 
+  useTour("setupScore", student?.email, !!student && !!scenario && !!cmPitch);
+
   if (!student || !scenario || !cmPitch) return null;
 
   const setupMax = v2Lines ? SCORE_V2_MAX.setup : SCORE_MAX.setup;
@@ -149,11 +153,12 @@ export default function SetupScoreCard() {
         eyebrow={`${scenario.profile.name} · ${scenario.profile.category}`}
         title="Your setup score"
         description={`How well your campaigns are set up before going live. Setup is worth ${setupMax} of the 100 points.`}
+        actions={<TourButton />}
       />
 
       <div className={cn("grid gap-6 transition-[opacity,transform] duration-500 lg:grid-cols-[minmax(0,1fr)_340px]", revealed || score ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0")}>
         <div className="space-y-6">
-          <Section>
+          <Section tour="setup-total">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="sim-num text-5xl font-semibold tracking-tight text-foreground">
@@ -167,7 +172,7 @@ export default function SetupScoreCard() {
             </div>
           </Section>
 
-          <Section title="Line by line" description="What you got right, and what to fix before launch.">
+          <Section tour="setup-lines" title="Line by line" description="What you got right, and what to fix before launch.">
             {shownLines ? (
               <ul className="divide-y divide-border">
                 {shownLines.map((line) => <ScoreLineRow key={line.key} line={line} />)}
@@ -181,7 +186,7 @@ export default function SetupScoreCard() {
         </div>
 
         <div className="space-y-6">
-          <Section title="Still to play for" description={`${100 - setupMax} points come during the run.`}>
+          <Section tour="setup-later" title="Still to play for" description={`${100 - setupMax} points come during the run.`}>
             <dl className="space-y-2">
               {laterParts.map(({ label, pts }) => (
                 <div key={label} className="flex items-baseline justify-between rounded-lg bg-secondary/60 px-3 py-2 text-sm">
@@ -253,7 +258,7 @@ export default function SetupScoreCard() {
             </div>
           </Section>}
 
-          <div className="space-y-2">
+          <div data-tour="setup-launch" className="space-y-2">
             <Button onClick={handleLaunch} disabled={launching} size="lg" className="w-full gap-2">
               {launching ? "Starting the run…" : <>Launch the 30-day run <ArrowRight className="h-4 w-4" /></>}
             </Button>

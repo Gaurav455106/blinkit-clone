@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { isEngineV2 } from "@/lib/engineFlag";
 import DebriefV2 from "@/pages/DebriefV2";
+import { useTour } from "@/components/tour/useTour";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { FlowHeader } from "@/components/FlowHeader";
 import { Button } from "@/components/ui/button";
@@ -242,6 +243,8 @@ function Day30ResultsV1() {
   const [copied, setCopied] = useState(false);
 
   // ── All hooks done — safe to early return now ────────────────────────────
+  useTour("resultsV1", student?.email, !!finalScore);
+
   if (!student || !scenario || !runTotals || !finalScore) {
     nav("/");
     return null;
@@ -281,12 +284,13 @@ function Day30ResultsV1() {
 
         <SimPage>
           <PageHeader
+            tour="results-header"
             eyebrow={`30-day run complete · ${brand}`}
             title={<><span className="sim-num">{grandTotal}</span> out of 100</>}
             description={<>Your grade: <span className="font-medium text-foreground">{gradeLabel}</span>. Below you can see where every point came from and where you lost points.</>}
             actions={
               <>
-                <Button variant="outline" onClick={exportExcel} className="gap-2"><Download className="h-4 w-4" /> Export to Excel</Button>
+                <Button data-tour="results-download" variant="outline" onClick={exportExcel} className="gap-2"><Download className="h-4 w-4" /> Export to Excel</Button>
                 <Button variant="outline" onClick={() => nav("/profile")} className="gap-2"><UserRound className="h-4 w-4" /> My profile</Button>
               </>
             }
@@ -302,11 +306,11 @@ function Day30ResultsV1() {
               <StatTile label="Results" value={`${results.total} / ${results.maxTotal}`} tone={scoreTone(results.total, results.maxTotal)} hint="Client goals and budget used" />
             </div>
 
-            <ScoreSummary summaries={summaries} />
+            <div data-tour="results-summary"><ScoreSummary summaries={summaries} /></div>
 
-            <ScoreBreakdown lines={lines} />
+            <div data-tour="results-breakdown"><ScoreBreakdown lines={lines} /></div>
 
-            <GoalTable goals={results.goalRows} achievementPct={results.achievementPct} />
+            <div data-tour="results-goals"><GoalTable goals={results.goalRows} achievementPct={results.achievementPct} /></div>
 
             <CampaignTable metrics={r?.perCampaign ?? []} campaigns={campaigns} />
 
