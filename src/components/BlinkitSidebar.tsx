@@ -5,6 +5,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { relationshipTier, CmRelationshipTier } from "@/lib/cmPitchLogic";
+import { sidebarRelationship } from "@/market/liveRun";
 
 // ── Nav items ──────────────────────────────────────────────────────────────────
 const HOME_ITEMS = [
@@ -37,7 +38,9 @@ const STEP_PATHS = ["/brief", "/cm-pitch", "/simulation", "/results"];
 export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean }) {
   const nav = useNavigate();
   const loc = useLocation();
-  const { student, reset, mode, cmPitch, cmRelationship, activeRunId, runHistory } = useSim();
+  const { student, reset, mode, cmPitch, cmRelationship: pitchRelationship, liveCmRelationship, activeRunId, runHistory } = useSim();
+  // During a v2 run the meter moves with Rohit's replies and kept promises
+  const cmRelationship = sidebarRelationship(liveCmRelationship, pitchRelationship);
 
   // Step gate logic
   const simRunning      = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "in_progress";

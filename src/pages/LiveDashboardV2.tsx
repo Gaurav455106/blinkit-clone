@@ -33,9 +33,9 @@ type Props = { student: Student; scenario: Scenario };
 
 export default function LiveDashboardV2({ student, scenario }: Props) {
   const nav = useNavigate();
-  const { campaigns, deleteCampaign, startRun, activeRunId, runHistory, cmRelationship } = useSim();
+  const { campaigns, deleteCampaign, startRun, activeRunId, runHistory, cmRelationship, setLiveCmRelationship } = useSim();
   const completed = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "completed";
-  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship);
+  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<SavedCampaign | undefined>(undefined);

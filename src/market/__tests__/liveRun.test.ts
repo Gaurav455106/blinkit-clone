@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  afterDay, checkInDue, actionLevers, scoreEventResponses, dropStatesActions, relationshipNow, ROHIT_QUALITY_SHARE,
+  afterDay, checkInDue, actionLevers, sidebarRelationship, scoreEventResponses, dropStatesActions, relationshipNow, ROHIT_QUALITY_SHARE,
 } from "@/market/liveRun";
 import type { EventActivation, LeverId } from "@/market/events";
 import { MAX_PAUSING_PER_RUN } from "@/market/events";
@@ -144,5 +144,13 @@ describe("relationshipNow", () => {
   it("quality shares rank strong over ok over weak", () => {
     expect(ROHIT_QUALITY_SHARE.strong).toBeGreaterThan(ROHIT_QUALITY_SHARE.ok);
     expect(ROHIT_QUALITY_SHARE.ok).toBeGreaterThan(ROHIT_QUALITY_SHARE.weak);
+  });
+});
+
+describe("sidebarRelationship", () => {
+  it("shows the live v2 meter when a run has one, else the pitch value, as a whole number", () => {
+    expect(sidebarRelationship(null, 57)).toBe(57);
+    expect(sidebarRelationship(71.6, 57)).toBe(72);
+    expect(sidebarRelationship(0, 57)).toBe(0);
   });
 });

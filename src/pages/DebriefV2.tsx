@@ -92,8 +92,8 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
 
 export default function DebriefV2({ student, scenario }: Props) {
   const nav = useNavigate();
-  const { campaigns, activeRunId, cmRelationship, cmPitch } = useSim();
-  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship);
+  const { campaigns, activeRunId, cmRelationship, cmPitch, setLiveCmRelationship } = useSim();
+  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship);
   const ready = run.finished && !run.replaying && !!run.ctx;
 
   const formats = useMemo(

@@ -177,6 +177,11 @@ export function dropStatesActions(
 
 export { servedStates };
 
+/** The meter the sidebar shows: the live v2 value during a v2 run, else the pitch value. */
+export function sidebarRelationship(live: number | null, base: number): number {
+  return Math.round(live ?? base);
+}
+
 export const ROHIT_QUALITY_SHARE: Readonly<Record<ReplyQuality, number>> = { strong: 1, ok: 0.6, weak: 0.2 };
 
 /** The meter now: the pitch's starting value, reply effects and resolved promises. */

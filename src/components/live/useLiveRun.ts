@@ -102,6 +102,7 @@ export function useLiveRun(
   campaigns: readonly SavedCampaign[],
   runId: string | null,
   relationshipBase = 50,
+  onRelationship?: (n: number) => void,
 ) {
   const ctx = useMemo(() => (scenario ? marketContextFor(scenario, student?.batch ?? "") : null), [scenario, student?.batch]);
   const calendar = useMemo(() => (scenario ? marketCalendar(scenario) : []), [scenario]);
@@ -173,6 +174,7 @@ export function useLiveRun(
     [run.rohit.commitments, market.state, market.results],
   );
   const relationship = relationshipNow(relationshipBase, run.rohit.replies, commitmentResults);
+  useEffect(() => { if (started) onRelationship?.(relationship); }, [started, relationship, onRelationship]);
 
   // After each finished day (and once before day 1): raise events, pick the alert, maybe a Rohit check-in
   useEffect(() => {
