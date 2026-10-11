@@ -1,3 +1,4 @@
+import { NEW_BRIEF_ENGINE, type EngineVersion } from "@/lib/engineFlag";
 // Static data + scenario generator for the Blinkit simulator.
 // NOTE: "city*" identifiers are kept for back-compat — they now hold STATE-level data.
 // Real Blinkit only offers Pan India OR Select States as targeting granularity.
@@ -389,6 +390,8 @@ export interface Scenario {
   clientGoals: ClientGoals;
   scheduledCrisis: ScheduledCrisis;
   city: CityName; // legacy: top-OSA state
+  /** Engine this brief was started on (missing on briefs made before the stamp). */
+  engine?: EngineVersion;
 }
 
 export interface CrisisOption { key: "a" | "b" | "c"; label: string; points: number }
@@ -550,6 +553,7 @@ export function generateScenario(): Scenario {
     profile, cityStockMap, season, market, inventory,
     budget: 200000, clientGoals, city: topState,
     scheduledCrisis: SCHEDULED_CRISIS_BY_PROFILE[profile.id] ?? { day: 12, eventId: "stock_crisis", reason: "Mid-flight supply disruption" },
+    engine: NEW_BRIEF_ENGINE,
   };
 }
 

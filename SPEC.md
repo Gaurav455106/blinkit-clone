@@ -1195,7 +1195,10 @@ the same reason.
 
 ### 12.2 Status of phases 2 to 5 (2026-10-11, all behind the engine flag)
 
-v1 stays the default. `?engine=v2` (or `VITE_ENGINE_V2=true`) switches a browser or a deployment.
+**Rollout (2026-10-11):** every new brand brief is stamped `engine: "v2"` when it's created. Briefs made before
+the stamp stay on v1 once the student has pitched or started a run; one they're still reading moves to v2. The
+stamp is saved, so an attempt never switches engines halfway. Trainers can force an engine for one browser with
+`?engine=v1` or `?engine=v2` (remembered); `?engine=auto` returns to the rule (`lib/engineFlag.ts`).
 
 | Phase | Status | Where |
 |---|---|---|

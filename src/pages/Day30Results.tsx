@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
-import { isEngineV2 } from "@/lib/engineFlag";
+import { useIsEngineV2 } from "@/lib/useEngine";
 import DebriefV2 from "@/pages/DebriefV2";
 import { useTour } from "@/components/tour/useTour";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -37,7 +37,8 @@ const shareText = (total: number) =>
 /** Picks the results page for the engine the run used. */
 export default function Day30Results() {
   const { student, scenario } = useSim();
-  if (isEngineV2() && student && scenario) return <DebriefV2 student={student} scenario={scenario} />;
+  const isV2 = useIsEngineV2();
+  if (isV2 && student && scenario) return <DebriefV2 student={student} scenario={scenario} />;
   return <Day30ResultsV1 />;
 }
 

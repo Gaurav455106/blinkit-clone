@@ -4,7 +4,7 @@ import type { BriefRival, ShoppingHours } from "@/lib/briefData";
 import { breakEvenRange, plainText } from "@/lib/briefData";
 import { PinButton } from "@/components/brief/PinButton";
 import { inr, pct, roasX } from "@/components/brief/format";
-import { isEngineV2 } from "@/lib/engineFlag";
+import { useIsEngineV2 } from "@/lib/useEngine";
 import { clientGoalsV2 } from "@/market/goals";
 
 type Props = {
@@ -84,7 +84,8 @@ function RivalCard({ rival }: { rival: BriefRival }) {
 export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
   const { profile, budget, season, market, inventory } = scenario;
   // v2 runs use goals calibrated to the engine; v1 runs keep the goals they started with
-  const clientGoals = isEngineV2() ? clientGoalsV2(scenario) : scenario.clientGoals;
+  const isV2 = useIsEngineV2();
+  const clientGoals = isV2 ? clientGoalsV2(scenario) : scenario.clientGoals;
   const range = breakEvenRange(profile);
   const breakEvenText = `${roasX(range.min)} to ${roasX(range.max)}`;
 

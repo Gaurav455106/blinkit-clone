@@ -10,7 +10,7 @@ import { SimPage, PageHeader, Section, ScoreBar, Tag } from "@/components/sim/pr
 import { scoreTone, type Tone } from "@/components/sim/tone";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { isEngineV2 } from "@/lib/engineFlag";
+import { useIsEngineV2 } from "@/lib/useEngine";
 import { marketContextFor } from "@/market/context";
 import { savedCampaignToConfig } from "@/market/adapter";
 import { scoreSetupV2, SCORE_V2_MAX } from "@/market/scoringV2";
@@ -108,7 +108,7 @@ export default function SetupScoreCard() {
   }, [storedScore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // v2: the engine's setup lines (SPEC §8), computed from the same campaigns
-  const v2 = isEngineV2();
+  const v2 = useIsEngineV2();
   const v2Lines = useMemo(() => {
     if (!v2 || !scenario) return null;
     const ctx = marketContextFor(scenario, student?.batch ?? "");
