@@ -1,0 +1,29 @@
+{
+  "name": "blinkit-code-map",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "3D explorable map of the blinkit-clone code graph (graphify-out/graph.json)",
+  "scripts": {
+    "map": "node scripts/build-map.mjs",
+    "dev": "npm run map && vite",
+    "build": "npm run map && tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.1",
+    "@react-three/rapier": "2.2.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@types/three": "0.180.0",
+    "@vitejs/plugin-react": "5.1.0",
+    "typescript": "5.9.3",
+    "vite": "7.1.12"
+  }
+}
