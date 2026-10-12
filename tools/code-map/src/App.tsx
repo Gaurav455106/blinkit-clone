@@ -1,19 +1,11 @@
 // Loads map.json, keeps exploration progress, and wires the 3D world to the HUD.
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardControls } from "@react-three/drei";
 import { World } from "./World";
 import { Hud, type Toast } from "./Hud";
 import { ACHIEVEMENTS, EMPTY, loadProgress, saveProgress, xpOf, XP_DISTRICT, XP_LANDMARK, type Progress } from "./progress";
 import type { CodeMap, Selection } from "./types";
 
-const KEYS = [
-  { name: "forward", keys: ["ArrowUp", "KeyW"] },
-  { name: "back", keys: ["ArrowDown", "KeyS"] },
-  { name: "left", keys: ["ArrowLeft", "KeyA"] },
-  { name: "right", keys: ["ArrowRight", "KeyD"] },
-  { name: "jump", keys: ["Space"] },
-];
 const TOAST_MS = 2600;
 
 type Load = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; map: CodeMap };
@@ -68,7 +60,7 @@ function Game({ map }: { map: CodeMap }) {
     if (p.collected.includes(id)) return;
     update(
       { ...p, collected: [...p.collected, id] },
-      () => { toast(`+${XP_LANDMARK} XP · Landmark: ${l?.label ?? "god node"}`, "landmark"); setSelection({ kind: "landmark", id }); },
+      () => { toast(`+${XP_LANDMARK} XP · Moon captured: ${l?.label ?? "god node"}`, "landmark"); setSelection({ kind: "landmark", id }); },
     );
   }, [map, update, toast]);
 
@@ -83,12 +75,12 @@ function Game({ map }: { map: CodeMap }) {
   };
 
   return (
-    <KeyboardControls map={KEYS}>
-      <Suspense fallback={<p className="center">Building the city…</p>}>
+    <>
+      <Suspense fallback={<p className="center">Forming the planet…</p>}>
         <World map={map} discovered={discovered} collected={collected} selection={selection} onDiscover={onDiscover} onCollect={onCollect} onSelect={setSelection} />
       </Suspense>
       <Hud map={map} progress={progress} xp={xpOf(progress)} selection={selection} toasts={toasts} onClose={() => setSelection(null)} onReset={reset} />
-    </KeyboardControls>
+    </>
   );
 }
 

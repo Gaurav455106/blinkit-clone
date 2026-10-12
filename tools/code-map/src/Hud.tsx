@@ -33,7 +33,7 @@ function Stats({ map, progress, xp }: Pick<HudProps, "map" | "progress" | "xp">)
       </div>
       <div className="bar"><div style={{ width: `${(into / XP_PER_LEVEL) * 100}%` }} /></div>
       <p className="row"><span>Districts</span><b>{progress.discovered.length} / {map.districts.length}</b></p>
-      <p className="row"><span>Landmarks</span><b>{progress.collected.length} / {map.landmarks.length}</b></p>
+      <p className="row"><span>Moons captured</span><b>{progress.collected.length} / {map.landmarks.length}</b></p>
       <ul className="areas">
         {map.areas.map((a) => {
           const all = map.districts.filter((d) => d.area === a.id);
@@ -80,7 +80,7 @@ function Detail({ map, selection, progress, onClose }: Pick<HudProps, "map" | "s
     return (
       <section className="card detail">
         <button type="button" className="close" onClick={onClose} aria-label="Close">×</button>
-        <p className="eyebrow">Landmark · god node</p>
+        <p className="eyebrow">Moon · god node</p>
         <h2>{l.label}</h2>
         <p className="muted">{l.file}</p>
         <p className="row"><span>Connections</span><b>{l.degree}</b></p>
@@ -97,7 +97,7 @@ function Detail({ map, selection, progress, onClose }: Pick<HudProps, "map" | "s
       <button type="button" className="close" onClick={onClose} aria-label="Close">×</button>
       <p className="eyebrow" style={{ color: area?.color }}>{area?.label}</p>
       <h2>{found ? d.name : "Undiscovered district"}</h2>
-      {!found && <p className="muted">Roll the ball onto it to reveal what's inside.</p>}
+      {!found && <p className="muted">Click it to land and reveal what's inside.</p>}
       {found && (
         <>
           <p className="row"><span>Nodes</span><b>{d.nodes}</b></p>
@@ -122,7 +122,7 @@ export function Hud(props: HudProps) {
       <div className="toasts" aria-live="polite">
         {props.toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.text}</div>)}
       </div>
-      <p className="controls">WASD or arrows to roll · Space to jump · Click a district to inspect it</p>
+      <p className="controls">Drag to spin · Scroll to zoom · Click a district to land · Click a moon to capture it</p>
     </div>
   );
 }

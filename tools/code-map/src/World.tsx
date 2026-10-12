@@ -1,23 +1,20 @@
-// The 3D city: districts (graphify communities) on the ground, buildings for
-// their most connected nodes, roads for links between districts, floating
-// landmarks for the god nodes, and a physics ball the player drives around.
+// The code planet: districts (graphify communities) on a globe, buildings for
+// their most connected nodes, arcs for links between districts, and the god
+// nodes as moons in orbit. Drag to spin, scroll to zoom, click to land.
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Billboard, Line, Text, useKeyboardControls, Sky } from "@react-three/drei";
-import { Physics, RigidBody, CuboidCollider, CylinderCollider, BallCollider, type RapierRigidBody, type IntersectionEnterPayload } from "@react-three/rapier";
-import { Vector3, type Mesh } from "three";
-import type { CodeMap, District, Landmark, Selection } from "./types";
+import { Billboard, Line, OrbitControls, Stars, Text } from "@react-three/drei";
+import { Physics } from "@react-three/rapier";
+import { BackSide, Quaternion, Vector3 } from "three";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import type { CodeMap, Selection } from "./types";
+import { arc, placeDistricts, PLANET_RADIUS, type Placed } from "./planetLayout";
+import { Moons } from "./Moons";
 
-export const PLAYER = "player";
-const SPAWN: [number, number, number] = [0, 3, 0];
-const FALL_LIMIT = -15;
-const MOVE_FORCE = 0.9;
-const JUMP_IMPULSE = 4;
-const CAMERA_OFFSET = new Vector3(0, 30, 24);
-
-const isPlayer = (p: IntersectionEnterPayload) => p.other.rigidBodyObject?.name === PLAYER;
-const heightOf = (degree: number) => 0.5 + Math.log2(degree + 1) * 0.55;
+const UP = new Vector3(0, 1, 0);
+const FOCUS_DISTANCE = 26;
+const heightOf = (degree: number) => 0.4 + Math.log2(degree + 1) * 0.45;
 
 interface WorldProps {
   map: CodeMap;
@@ -29,145 +26,154 @@ interface WorldProps {
   onSelect: (s: Selection) => void;
 }
 
-function Player() {
-  const body = useRef<RapierRigidBody>(null);
-  const [, get] = useKeyboardControls();
-  const { camera } = useThree();
-  const target = useMemo(() => new Vector3(), []);
-
-  useFrame(() => {
-    const b = body.current;
-    if (!b) return;
-    const { forward, back, left, right, jump } = get() as Record<string, boolean>;
-    b.applyImpulse({ x: ((right ? 1 : 0) - (left ? 1 : 0)) * MOVE_FORCE, y: 0, z: ((back ? 1 : 0) - (forward ? 1 : 0)) * MOVE_FORCE }, true);
-    const v = b.linvel();
-    if (jump && Math.abs(v.y) < 0.05) b.applyImpulse({ x: 0, y: JUMP_IMPULSE, z: 0 }, true);
-    const p = b.translation();
-    if (p.y < FALL_LIMIT) {
-      b.setTranslation({ x: SPAWN[0], y: SPAWN[1], z: SPAWN[2] }, true);
-      b.setLinvel({ x: 0, y: 0, z: 0 }, true);
-    }
-    target.set(p.x, p.y, p.z);
-    camera.position.lerp(target.clone().add(CAMERA_OFFSET), 0.08);
-    camera.lookAt(target);
-  });
-
-  return (
-    <RigidBody ref={body} name={PLAYER} position={SPAWN} colliders={false} linearDamping={1.2} angularDamping={0.8} mass={1}>
-      <BallCollider args={[0.8]} friction={1.5} restitution={0.2} />
-      <mesh castShadow>
-        <sphereGeometry args={[0.8, 32, 32]} />
-        <meshStandardMaterial color="#f8cb2e" emissive="#f8cb2e" emissiveIntensity={0.25} roughness={0.3} />
-      </mesh>
-    </RigidBody>
-  );
+interface SpotProps {
+  p: Placed;
+  color: string;
+  found: boolean;
+  selected: boolean;
+  hovered: boolean;
+  onHover: (id: string | null) => void;
+  onLand: (id: string) => void;
 }
 
-function DistrictBlock({ d, color, found, selected, onDiscover, onSelect }: {
-  d: District; color: string; found: boolean; selected: boolean; onDiscover: (id: string) => void; onSelect: (s: Selection) => void;
-}) {
-  const ring = d.radius * 0.62;
+function DistrictSpot({ p, color, found, selected, hovered, onHover, onLand }: SpotProps) {
+  const { district: d, normal, size } = p;
+  const quat = useMemo(() => new Quaternion().setFromUnitVectors(UP, normal), [normal]);
+  const pos = useMemo(() => normal.clone().multiplyScalar(PLANET_RADIUS), [normal]);
+  const lit = selected || hovered;
+  const handlers = {
+    onPointerOver: (e: { stopPropagation: () => void }) => { e.stopPropagation(); onHover(d.id); document.body.style.cursor = "pointer"; },
+    onPointerOut: () => { onHover(null); document.body.style.cursor = "auto"; },
+    onClick: (e: { stopPropagation: () => void }) => { e.stopPropagation(); onLand(d.id); },
+  };
   return (
-    <group position={[d.x, 0, d.z]}>
-      <mesh receiveShadow position={[0, 0.1, 0]} onClick={(e) => { e.stopPropagation(); onSelect({ kind: "district", id: d.id }); }}>
-        <cylinderGeometry args={[d.radius, d.radius, 0.2, 40]} />
-        <meshStandardMaterial color={color} transparent opacity={found ? 0.85 : 0.35} emissive={selected ? color : "#000"} emissiveIntensity={selected ? 0.5 : 0} />
+    <group position={pos} quaternion={quat}>
+      <mesh position={[0, 0.06, 0]} {...handlers}>
+        <cylinderGeometry args={[size, size, 0.12, 36]} />
+        <meshStandardMaterial color={color} transparent opacity={found ? 0.95 : 0.45} emissive={color} emissiveIntensity={lit ? 0.7 : found ? 0.15 : 0} />
       </mesh>
-      <RigidBody type="fixed" colliders={false}>
-        <CylinderCollider sensor args={[2, d.radius]} position={[0, 2, 0]} onIntersectionEnter={(p) => { if (isPlayer(p)) onDiscover(d.id); }} />
-      </RigidBody>
       {d.top.map((n, i) => {
-        const h = heightOf(n.degree);
+        const h = heightOf(n.degree) * (found ? 1 : 0.5);
         const a = (i / d.top.length) * Math.PI * 2;
-        const pos: [number, number, number] = i === 0 ? [0, h / 2 + 0.2, 0] : [Math.cos(a) * ring, h / 2 + 0.2, Math.sin(a) * ring];
-        const w = i === 0 ? 1.4 : 0.9;
+        const r = i === 0 ? 0 : size * 0.6;
+        const w = i === 0 ? 0.9 : 0.55;
         return (
-          <RigidBody key={n.id} type="fixed" colliders="cuboid" position={pos}>
-            <mesh castShadow onClick={(e) => { e.stopPropagation(); onSelect({ kind: "district", id: d.id }); }}>
-              <boxGeometry args={[w, h, w]} />
-              <meshStandardMaterial color={found ? color : "#cbd5e0"} roughness={0.6} />
-            </mesh>
-          </RigidBody>
+          <mesh key={n.id} position={[Math.cos(a) * r, h / 2 + 0.12, Math.sin(a) * r]} {...handlers}>
+            <boxGeometry args={[w, h, w]} />
+            <meshStandardMaterial color={found ? "#f7fafc" : "#a0aec0"} emissive={lit ? color : "#000"} emissiveIntensity={lit ? 0.4 : 0} />
+          </mesh>
         );
       })}
-      <Billboard position={[0, heightOf(d.top[0]?.degree ?? 1) + 1.6, 0]}>
-        <Text fontSize={Math.max(0.7, d.radius * 0.22)} color={found ? "#1a202c" : "#718096"} outlineWidth={0.04} outlineColor="#ffffff" anchorY="bottom">
-          {found ? d.name : "?"}
-        </Text>
-      </Billboard>
+      {(found || hovered) && (
+        <Billboard position={[0, heightOf(d.top[0]?.degree ?? 1) + 1.2, 0]}>
+          <Text fontSize={hovered ? 1.2 : 0.8} color="#ffffff" outlineWidth={0.05} outlineColor="#1a202c" anchorY="bottom">
+            {found ? d.name : "? Click to land"}
+          </Text>
+        </Billboard>
+      )}
     </group>
   );
 }
 
-/** A god node: a spinning gem floating just outside its district, low enough to roll or jump into. */
-function LandmarkOrb({ l, at, onCollect }: { l: Landmark; at: District; onCollect: (id: string) => void }) {
-  const mesh = useRef<Mesh>(null);
-  useFrame(({ clock }) => {
-    if (mesh.current) {
-      mesh.current.position.y = Math.sin(clock.elapsedTime * 2 + at.x) * 0.25;
-      mesh.current.rotation.y = clock.elapsedTime;
-    }
-  });
-  return (
-    <group position={[at.x + at.radius + 2.2, 1.8, at.z]}>
-      <RigidBody type="fixed" colliders={false}>
-        <BallCollider sensor args={[1.8]} onIntersectionEnter={(p) => { if (isPlayer(p)) onCollect(l.id); }} />
-      </RigidBody>
-      <mesh ref={mesh} castShadow>
-        <octahedronGeometry args={[0.9]} />
-        <meshStandardMaterial color="#9f7aea" emissive="#b794f4" emissiveIntensity={0.9} />
-      </mesh>
-      <pointLight color="#b794f4" intensity={6} distance={6} />
-    </group>
-  );
-}
-
-function Roads({ map }: { map: CodeMap }) {
-  const at = useMemo(() => new Map(map.districts.map((d) => [d.id, d])), [map]);
+function Roads({ placed, map }: { placed: readonly Placed[]; map: CodeMap }) {
+  const at = useMemo(() => new Map(placed.map((p) => [p.district.id, p.normal])), [placed]);
   const max = Math.max(1, ...map.roads.map((r) => r.weight));
+  const lines = useMemo(() => map.roads.flatMap((r) => {
+    const a = at.get(r.a);
+    const b = at.get(r.b);
+    return a && b ? [{ key: `${r.a}|${r.b}`, points: arc(a, b), w: r.weight / max }] : [];
+  }), [map, at, max]);
+  return <>{lines.map((l) => <Line key={l.key} points={l.points} color="#90cdf4" transparent opacity={0.15 + 0.45 * l.w} lineWidth={0.6 + 2 * l.w} />)}</>;
+}
+
+function Globe() {
   return (
     <>
-      {map.roads.map((r) => {
-        const a = at.get(r.a);
-        const b = at.get(r.b);
-        if (!a || !b) return null;
-        return <Line key={`${r.a}|${r.b}`} points={[[a.x, 0.25, a.z], [b.x, 0.25, b.z]]} color="#4a5568" transparent opacity={0.25 + 0.5 * (r.weight / max)} lineWidth={1 + 3 * (r.weight / max)} />;
-      })}
+      <mesh>
+        <sphereGeometry args={[PLANET_RADIUS, 96, 96]} />
+        <meshStandardMaterial color="#1e3a5f" roughness={0.85} metalness={0.05} />
+      </mesh>
+      <mesh scale={1.12}>
+        <sphereGeometry args={[PLANET_RADIUS, 64, 64]} />
+        <meshBasicMaterial color="#63b3ed" transparent opacity={0.08} side={BackSide} />
+      </mesh>
     </>
+  );
+}
+
+/** Orbit controls that spin on their own until you touch them, and fly to a landed district. */
+function CameraRig({ focus }: { focus: Vector3 | null }) {
+  const controls = useRef<OrbitControlsImpl>(null);
+  const { camera } = useThree();
+  const [touched, setTouched] = useState(false);
+  const flying = useRef<Vector3 | null>(null);
+
+  useEffect(() => {
+    if (focus) flying.current = focus.clone().multiplyScalar(PLANET_RADIUS + FOCUS_DISTANCE);
+  }, [focus]);
+
+  useFrame(() => {
+    const goal = flying.current;
+    if (!goal) return;
+    camera.position.lerp(goal, 0.06);
+    controls.current?.update();
+    if (camera.position.distanceTo(goal) < 0.5) flying.current = null;
+  });
+
+  return (
+    <OrbitControls
+      ref={controls}
+      enablePan={false}
+      enableDamping
+      dampingFactor={0.08}
+      rotateSpeed={0.5}
+      minDistance={PLANET_RADIUS + 8}
+      maxDistance={PLANET_RADIUS * 5}
+      autoRotate={!touched}
+      autoRotateSpeed={0.4}
+      onStart={() => { setTouched(true); flying.current = null; }}
+    />
   );
 }
 
 export function World({ map, discovered, collected, selection, onDiscover, onCollect, onSelect }: WorldProps) {
   const color = useMemo(() => new Map(map.areas.map((a) => [a.id, a.color])), [map]);
-  const byId = useMemo(() => new Map(map.districts.map((d) => [d.id, d])), [map]);
-  const size = Math.max(...map.districts.map((d) => Math.max(Math.abs(d.x), Math.abs(d.z)) + d.radius)) + 12;
+  const placed = useMemo(() => placeDistricts(map), [map]);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [focus, setFocus] = useState<Vector3 | null>(null);
+
+  const land = (id: string) => {
+    const p = placed.find((x) => x.district.id === id);
+    if (p) setFocus(p.normal.clone());
+    onDiscover(id);
+    onSelect({ kind: "district", id });
+  };
 
   return (
-    <Canvas shadows camera={{ position: [0, 30, 30], fov: 50 }} onPointerMissed={() => onSelect(null)}>
-      <Sky sunPosition={[100, 60, 50]} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[40, 60, 30]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-size} shadow-camera-right={size} shadow-camera-top={size} shadow-camera-bottom={-size} />
-      <Physics gravity={[0, -20, 0]}>
-        <RigidBody type="fixed" colliders={false}>
-          <CuboidCollider args={[size, 0.5, size]} position={[0, -0.5, 0]} />
-          <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[size * 2, size * 2]} />
-            <meshStandardMaterial color="#edf2f7" />
-          </mesh>
-        </RigidBody>
-        <Roads map={map} />
-        {map.districts.map((d) => (
-          <DistrictBlock key={d.id} d={d} color={color.get(d.area) ?? "#a0aec0"} found={discovered.has(d.id)} selected={selection?.kind === "district" && selection.id === d.id} onDiscover={onDiscover} onSelect={onSelect} />
-        ))}
-        {map.landmarks.map((l) => {
-          const at = byId.get(l.district);
-          if (!at) return null;
-          return (
-            collected.has(l.id) ? null : <LandmarkOrb key={l.id} l={l} at={at} onCollect={onCollect} />
-          );
-        })}
-        <Player />
+    <Canvas camera={{ position: [0, 20, PLANET_RADIUS * 3.2], fov: 45 }} onPointerMissed={() => onSelect(null)}>
+      <color attach="background" args={["#05070f"]} />
+      <Stars radius={300} depth={80} count={4000} factor={5} fade speed={0.6} />
+      <ambientLight intensity={0.45} />
+      <directionalLight position={[80, 60, 60]} intensity={1.6} />
+      <pointLight position={[-90, -40, -60]} intensity={400} color="#805ad5" />
+      <Globe />
+      <Roads placed={placed} map={map} />
+      {placed.map((p) => (
+        <DistrictSpot
+          key={p.district.id}
+          p={p}
+          color={color.get(p.district.area) ?? "#a0aec0"}
+          found={discovered.has(p.district.id)}
+          selected={selection?.kind === "district" && selection.id === p.district.id}
+          hovered={hovered === p.district.id}
+          onHover={setHovered}
+          onLand={land}
+        />
+      ))}
+      <Physics gravity={[0, 0, 0]}>
+        <Moons landmarks={map.landmarks} captured={collected} onCapture={onCollect} />
       </Physics>
+      <CameraRig focus={focus} />
     </Canvas>
   );
 }

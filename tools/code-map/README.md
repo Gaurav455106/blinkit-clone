@@ -1,14 +1,15 @@
 # Code Map
 
-A 3D, explorable map of the blinkit-clone codebase, built from `graphify-out/graph.json`.
+A 3D planet of the blinkit-clone codebase, built from `graphify-out/graph.json`.
 
-- **Districts** are graphify communities, coloured by area (market engine, pages, components, logic, docs…).
+- **Districts** on the globe are graphify communities, coloured by area (market engine, pages, components, logic, docs…). Each area owns a wedge of the planet.
 - **Buildings** are each district's most connected nodes; taller means more connections.
-- **Roads** are links between districts; thicker means more links.
-- **Purple gems** are the 12 most connected nodes ("god nodes").
+- **Arcs** are links between districts; brighter means more links.
+- **Moons** are the 12 most connected nodes ("god nodes"), kept in orbit by Rapier physics (inverse-square gravity).
 
-Roll the ball (WASD or arrows, Space to jump) onto districts to discover them and earn XP,
-collect the gems, and unlock achievements. Progress is saved in this browser.
+Drag to spin the planet, scroll to zoom, click a district to land on it (reveals it, +10 XP),
+click a moon to capture it (+50 XP, it flies off). Levels, per-area progress and achievements
+are saved in this browser.
 
 ```bash
 cd tools/code-map

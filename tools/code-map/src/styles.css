@@ -8,8 +8,8 @@
   color: var(--ink);
 }
 * { box-sizing: border-box; }
-html, body, #root { margin: 0; height: 100%; overflow: hidden; background: #e2e8f0; }
-.center { display: grid; place-items: center; height: 100%; margin: 0; color: var(--muted); }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; background: #05070f; }
+.center { display: grid; place-items: center; height: 100%; margin: 0; color: #a0aec0; }
 .hud { position: fixed; inset: 0; pointer-events: none; }
 .card { pointer-events: auto; position: absolute; background: var(--card); backdrop-filter: blur(8px); border-radius: 14px; padding: 14px 16px; box-shadow: 0 10px 30px -18px rgba(26, 32, 44, 0.6); }
 .card h1 { margin: 0; font-size: 18px; }
