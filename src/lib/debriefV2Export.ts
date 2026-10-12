@@ -52,7 +52,7 @@ export function debriefSheets(score: ScoreV2, reportInput: ReportInput): SheetSp
     },
     {
       name: "Costliest mistakes",
-      rows: score.costliestMistakes.map((c, i) => ({ "Rank": i + 1, "Moment": c.title, "What you did": c.what, "Lost vs best move": round(c.lost) })),
+      rows: score.costliestMistakes.map((c, i) => ({ "Rank": i + 1, "Moment": c.title, "What you did": c.what, "Lost vs best move": round(c.lost), "Measured in": c.unit })),
     },
     {
       name: "Client goals",

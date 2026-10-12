@@ -30,6 +30,7 @@ import { sumMetrics } from "@/market/aggregate";
 import type { ReportInput } from "@/market/reports";
 import { AchievementToasts, CountUp, FloatDelta } from "@/components/game/GameBits";
 import { earnedAchievements } from "@/components/game/achievements";
+import { keepWizardOpenOnEscape } from "@/lib/wizardEscape";
 
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 const DEFAULT_SPEED = SPEEDS[1].ms;
@@ -83,7 +84,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
   const openWizard = (c?: SavedCampaign) => { setEditing(c); setSheetOpen(true); };
   const sheet = (
     <Sheet open={sheetOpen} onOpenChange={(open) => { if (!open) setEditing(undefined); setSheetOpen(open); }}>
-      <SheetContent side="right" className="!w-screen !max-w-none p-0 overflow-hidden h-full [&>button]:hidden">
+      <SheetContent side="right" className="!w-screen !max-w-none p-0 overflow-hidden h-full [&>button]:hidden" onEscapeKeyDown={keepWizardOpenOnEscape}>
         <CampaignForm asSheet editCampaign={editing} onDone={() => { setSheetOpen(false); setEditing(undefined); }} />
       </SheetContent>
     </Sheet>

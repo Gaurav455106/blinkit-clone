@@ -23,7 +23,7 @@ import { useDealRun } from "@/components/live/useDealRun";
 import { useLiveRun, RUN_DAYS } from "@/components/live/useLiveRun";
 import { useScoreV2 } from "@/market/useScoreV2";
 import type { ScoreRequest } from "@/market/scoreProtocol";
-import type { MomentScore } from "@/market/moments";
+import { formatObjective, type MomentScore } from "@/market/moments";
 import { buildSavedBreakdownV2, type SavedBreakdownV2 } from "@/lib/attemptAnalysis";
 import { snapshotCampaigns, type CampaignSnapshot } from "@/lib/attemptDetail";
 import { qualitativeSummary } from "@/lib/rubrics";
@@ -207,7 +207,7 @@ export default function DebriefV2({ student, scenario }: Props) {
                   <span className="sim-num text-muted-foreground">{i + 1}.</span>
                   <span className="font-medium text-foreground">{c.title}</span>
                   <span className="text-sm text-muted-foreground">You: {c.what}.</span>
-                  <Tag tone="bad">Lost about {rupees(c.lost)} vs the best move</Tag>
+                  <Tag tone="bad">Lost about {formatObjective(c.lost, c.unit)} vs the best move</Tag>
                 </li>
               ))}
             </ol>

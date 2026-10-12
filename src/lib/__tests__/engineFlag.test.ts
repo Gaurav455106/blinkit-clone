@@ -41,4 +41,12 @@ describe("which engine a brief uses", () => {
     expect(engineOverride()).toBeNull();
     expect(resolveEngine({ engine: "v2" }, atBrief)).toBe("v2");
   });
+
+  it("once the student has pitched or started a run, the brief's stamp beats the override", () => {
+    window.history.replaceState({}, "", "/simulation?engine=v1");
+    expect(resolveEngine({ engine: "v2" }, { hasPitch: true, hasRun: false })).toBe("v2");
+    expect(resolveEngine({ engine: "v2" }, { hasPitch: false, hasRun: true })).toBe("v2");
+    expect(resolveEngine({ engine: "v2" }, atBrief)).toBe("v1");
+    window.history.replaceState({}, "", "/brief?engine=auto");
+  });
 });

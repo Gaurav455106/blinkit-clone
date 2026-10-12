@@ -44,7 +44,9 @@ export function startTour(id: TourId, email: string | null): boolean {
     allowClose: true,
     allowKeyboardControl: true,
     disableActiveInteraction: true,
-    smoothScroll: true,
+    // Instant scroll: a smooth scroll is cut short when the live page re-renders,
+    // leaving lower targets (news, calendar) off screen and unhighlighted.
+    smoothScroll: false,
     overlayOpacity: 0.55,
     stagePadding: 6,
     stageRadius: 12,

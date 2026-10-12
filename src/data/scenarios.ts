@@ -324,12 +324,26 @@ export const SEASONS = [
   { name: "New Year Health Spike", note: "Supplements/protein boom.", implication: "Health searches are surging. Bidding harder on keywords can pay off, but only if your category fits." },
 ] as const;
 
+/**
+ * Seasons that only move one kind of category (the v2 engine's demand rule in
+ * market/demand.ts). Other seasons fit every brand.
+ */
+const SEASON_CATEGORY: Partial<Record<typeof SEASONS[number]["name"], RegExp>> = {
+  "Summer Season": /skin/i,
+  "New Year Health Spike": /supplement|protein/i,
+};
+
+/** Seasons a brief for this category can draw, so the note always matches the shelf. */
+export function seasonsFor(category: string): readonly typeof SEASONS[number][] {
+  return SEASONS.filter((s) => SEASON_CATEGORY[s.name]?.test(category) ?? true);
+}
+
 export const MARKET_CONDITIONS = [
   { name: "Stable Market", note: "No major competitor moves.", implication: "No unusual pressure. Run your plan as designed." },
   { name: "Aggressive Competitor", note: "CPMs +35%.", implication: "You need 25–35% higher bids to hold impression share. Concentrate budget on the keywords and states that convert best." },
   { name: "Price War in Category", note: "Margins squeezed across the shelf.", implication: "Don't chase ROAS while margins are thin. Focus on selling more units instead." },
   { name: "New Entrant Disrupting", note: "A new brand is buying share aggressively.", implication: "Defend your shelf. Consider Listing Spotlight to hold visibility while the new entrant burns budget on generic terms." },
-  { name: "Platform Pushing Private Label", note: "Blinkit pushing its own label in your category.", implication: "Platform will favour its own SKUs in organic ranking. You need a strong CM pitch and above-average bids to compete." },
+  { name: "Platform Pushing Private Label", note: "Blinkit pushing its own label in your category.", implication: "Platform will favour its own SKUs in organic ranking. You need the category manager on your side and above-average bids to compete." },
 ] as const;
 
 export const INVENTORY_STATE_LABELS = ["Healthy", "Shaky", "Critical", "Overstocked"] as const;
@@ -544,7 +558,7 @@ function generateClientGoals(profile: BrandProfile, inventoryLabel: InventorySta
 export function generateScenario(profileId?: string): Scenario {
   const profile = BRAND_PROFILES.find((p) => p.id === profileId) ?? rand(BRAND_PROFILES);
   const cityStockMap = generateCityStockMap(profile);
-  const season = rand(SEASONS);
+  const season = rand(seasonsFor(profile.category));
   const market = rand(MARKET_CONDITIONS);
   const inventoryLabel = rand(INVENTORY_STATE_LABELS);
   const inventory = generateInventoryState(inventoryLabel);

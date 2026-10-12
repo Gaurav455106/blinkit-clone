@@ -5,7 +5,10 @@
 // started a run; one they're still reading moves to v2.
 //
 // Trainers can force an engine for one browser with ?engine=v1 or ?engine=v2
-// (remembered); ?engine=auto goes back to the rule above.
+// (remembered); ?engine=auto goes back to the rule above. The override only
+// applies while the student is still on the brief: it is stamped onto the brief
+// then, and once they have pitched or started a run the stamp wins, so screens
+// never mix v1 and v2 state.
 
 const STORAGE_KEY = "sim_engine";
 
@@ -42,5 +45,7 @@ export function engineForScenario(scenario: { engine?: EngineVersion } | null, p
 }
 
 export function resolveEngine(scenario: { engine?: EngineVersion } | null, progress: BriefProgress): EngineVersion {
+  const started = progress.hasPitch || progress.hasRun;
+  if (started && scenario?.engine) return scenario.engine;
   return engineOverride() ?? engineForScenario(scenario, progress);
 }

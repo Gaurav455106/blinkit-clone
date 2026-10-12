@@ -33,6 +33,7 @@ import { computeAllDays, type EngineDayResult } from "@/lib/dayEngine";
 import { toast } from "sonner";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { CampaignForm } from "@/components/CampaignForm";
+import { keepWizardOpenOnEscape } from "@/lib/wizardEscape";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type DayMetric = EngineDayResult;
@@ -1143,7 +1144,7 @@ function LiveDashboardV1() {
   // ── Shared: new campaign sheet ────────────────────────────────────────────
   const newCampaignSheet = (
     <Sheet open={newCampaignOpen} onOpenChange={(open) => { if (!open) { setEditCampaign(undefined); } setNewCampaignOpen(open); }}>
-      <SheetContent side="right" className="!w-screen !max-w-none p-0 overflow-hidden h-full [&>button]:hidden">
+      <SheetContent side="right" className="!w-screen !max-w-none p-0 overflow-hidden h-full [&>button]:hidden" onEscapeKeyDown={keepWizardOpenOnEscape}>
         <CampaignForm
           asSheet
           editCampaign={editCampaign}

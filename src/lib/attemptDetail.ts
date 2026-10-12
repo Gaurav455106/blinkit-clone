@@ -5,6 +5,7 @@
 import type { SavedCampaign } from "@/context/SimContext";
 import { attemptLines, attemptTotals, attemptVersion, latestFirst, oldestFirst, type AttemptRow } from "@/lib/attemptAnalysis";
 import { SCORE_SCHEMES } from "@/lib/rubrics";
+import type { ObjectiveUnit } from "@/market/moments";
 
 export interface LineLoss {
   key: string;
@@ -38,7 +39,11 @@ export interface SavedMistake {
   title: string;
   lost: number;
   what: string;
+  /** Missing on attempts saved before units were recorded: those were ₹ or unlabelled. */
+  unit?: ObjectiveUnit;
 }
+
+const UNITS: readonly ObjectiveUnit[] = ["₹", "units", "views", "reach points"];
 
 /** The v2 costliest mistakes saved with the score, read defensively. */
 export function costliestMistakesOf(row: AttemptRow): SavedMistake[] {
@@ -49,7 +54,8 @@ export function costliestMistakesOf(row: AttemptRow): SavedMistake[] {
     if (!m || typeof m !== "object") return [];
     const o = m as Record<string, unknown>;
     if (typeof o.title !== "string" || typeof o.lost !== "number" || !Number.isFinite(o.lost)) return [];
-    return [{ title: o.title, lost: o.lost, what: typeof o.what === "string" ? o.what : "No action" }];
+    const unit = UNITS.find((u) => u === o.unit);
+    return [{ title: o.title, lost: o.lost, what: typeof o.what === "string" ? o.what : "No action", ...(unit ? { unit } : {}) }];
   });
 }
 

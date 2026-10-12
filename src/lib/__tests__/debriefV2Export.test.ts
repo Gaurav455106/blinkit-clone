@@ -13,7 +13,7 @@ const score = {
     moment: { id: "m", type: "sovDrop", day: 9, campaignId: "c1", subject: "whey protein", title: "SOV fell on whey protein", evidence: "SOV 41% to 17%", window: 3, levers: [] },
     points: 0, max: 5, studentAction: null, bestLever: "Raise the bid 15%", gainVsNothing: 0, bestGainVsNothing: 4200, verdict: "ignored",
   }],
-  costliestMistakes: [{ title: "Day 9: SOV fell on whey protein", lost: 4200, what: "No action" }],
+  costliestMistakes: [{ title: "Day 9: SOV fell on whey protein", lost: 4200, what: "No action", unit: "₹" }],
   run: {} as never,
   goalRows: [{ label: "ROAS", goal: 3, actual: 2.4, unit: "x", pct: 80 }],
   achievementPct: 80,
