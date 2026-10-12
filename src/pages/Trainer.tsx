@@ -7,6 +7,7 @@ import { TrainerHeader } from "@/components/TrainerHeader";
 import { SimPage, PageHeader, StatTile, Section } from "@/components/sim/primitives";
 import { BatchTable } from "@/components/admin/BatchTable";
 import { StudentsTable } from "@/components/admin/StudentsTable";
+import { ScoringGuide } from "@/components/admin/ScoringGuide";
 import { CohortAnalysis } from "@/components/admin/CohortAnalysis";
 import { CohortTab } from "@/components/admin/CohortTab";
 import { useAllAttempts } from "@/components/admin/useAllAttempts";
@@ -56,6 +57,7 @@ export default function Trainer() {
           <TabsList>
             <TabsTrigger value="cohort">Cohort analysis</TabsTrigger>
             <TabsTrigger value="students">Students and batches</TabsTrigger>
+            <TabsTrigger value="scoring">How students are judged</TabsTrigger>
           </TabsList>
 
           <TabsContent value="cohort">
@@ -99,6 +101,9 @@ export default function Trainer() {
             >
               <StudentsTable rows={filtered} allRows={rows} loading={loading} error={error} onRetry={reload} onOpenProfile={openProfile} />
             </Section>
+          </TabsContent>
+          <TabsContent value="scoring">
+            <ScoringGuide />
           </TabsContent>
         </Tabs>
       </SimPage>

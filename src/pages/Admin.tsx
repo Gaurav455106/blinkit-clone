@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { SimPage, PageHeader, StatTile, Section } from "@/components/sim/primitives";
 import { BatchTable } from "@/components/admin/BatchTable";
 import { StudentsTable } from "@/components/admin/StudentsTable";
+import { ScoringGuide } from "@/components/admin/ScoringGuide";
 import { CohortAnalysis } from "@/components/admin/CohortAnalysis";
 import { CohortTab } from "@/components/admin/CohortTab";
 import { useAllAttempts } from "@/components/admin/useAllAttempts";
@@ -196,6 +197,7 @@ export default function Admin() {
           <TabsList>
             <TabsTrigger value="students">Students and batches</TabsTrigger>
             <TabsTrigger value="cohort">Cohort analysis</TabsTrigger>
+            <TabsTrigger value="scoring">How students are judged</TabsTrigger>
           </TabsList>
 
           <TabsContent value="students" className="space-y-6">
@@ -249,6 +251,9 @@ export default function Admin() {
             <CohortTab loading={loading} error={loadError} onRetry={reload}>
               <CohortAnalysis key={activeBatch} rows={rows} onOpenStudent={openProfile} initialBatch={activeBatch === ALL_BATCHES ? undefined : activeBatch} />
             </CohortTab>
+          </TabsContent>
+          <TabsContent value="scoring">
+            <ScoringGuide />
           </TabsContent>
         </Tabs>
       </SimPage>
