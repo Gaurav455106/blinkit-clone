@@ -19,6 +19,10 @@ import { suggestKeywordRange } from "@/market/suggest";
 import { maxProfitableCPM } from "@/market/shoppers";
 import { isAwarenessFormat, isConversionFormat, requiredBuckets } from "@/lib/scoring";
 import { FORMAT_NAMES, KEYWORD_FORMATS, SELLING_FORMATS, goodFormatsFor } from "@/market/formats";
+import { clamp, line, round1 } from "@/market/scoreLine";
+import { improvementLine, peakLine, scalingLine, steadyLine, wasteFloorFor, wastedSpendShare, LIVE_FACTOR_MAX } from "@/market/liveFactors";
+
+export { wasteFloorFor, wastedSpendShare } from "@/market/liveFactors";
 
 export const SCORE_V2_MAX = { setup: 25, live: 35, eventsRohit: 20, results: 20 } as const;
 export type CategoryV2 = keyof typeof SCORE_V2_MAX;
@@ -83,12 +87,6 @@ export interface ScoreV2Input {
 /** What setup scoring needs: the launched campaigns and their formats. */
 export type SetupInputV2 = Pick<ScoreV2Input, "ctx" | "launched" | "formats">;
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
-
-function line(l: ScoreLineV2): ScoreLineV2 {
-  return { ...l, earned: round1(clamp(l.earned, 0, l.max)) };
-}
 
 // ── Setup (25) ────────────────────────────────────────────────────────────────
 
@@ -208,10 +206,14 @@ function structure(input: SetupInputV2): ScoreLineV2 {
 }
 
 // ── Live optimisation (35) ───────────────────────────────────────────────────
+// Decision moments 15 (at most 5 each), analysis to action 5, scaling winners 5,
+// getting better 4, peak hours covered 3, steady hands 3 (SPEC §13 #35).
 
-/** Of the 35 live points: decision moments 30, analysis → action (insight log) 5. */
 const INSIGHT_POINTS = 5;
-const MOMENT_POINTS = SCORE_V2_MAX.live - INSIGHT_POINTS;
+const MOMENT_POINTS = SCORE_V2_MAX.live - INSIGHT_POINTS
+  - LIVE_FACTOR_MAX.scaling - LIVE_FACTOR_MAX.improvement - LIVE_FACTOR_MAX.peak - LIVE_FACTOR_MAX.steady;
+/** One moment can't carry more than this, so a single call doesn't decide the score. */
+export const MOMENT_CAP = 5;
 
 function insightLine(input: ScoreV2Input, detected: ReturnType<typeof detectMoments>): ScoreLineV2 {
   const s = scoreInsights(input.insights, detected, input.actions, INSIGHT_POINTS);
@@ -228,49 +230,56 @@ function insightLine(input: ScoreV2Input, detected: ReturnType<typeof detectMome
   });
 }
 
-/** Moment points when no moment was detected (SPEC §13 #29b): only a run that wasted little
+/** Moment points no moment claimed (SPEC §13 #29b): only a run that wasted little
  *  earns them, so a quiet run that lost money doesn't get them free. */
 export function noMomentPoints(wastedShare: number, max: number): number {
   return max * (1 - Math.min(1, Math.max(0, wastedShare)));
 }
 
+function cleanRunLine(input: ScoreV2Input, max: number, momentCount: number): ScoreLineV2 {
+  const wasted = wastedSpendShare(input.results, wasteFloorFor(input.ctx.scenario.profile.goalType));
+  return line({
+    key: "v2_moments", category: "live", label: momentCount ? "Clean running" : "Decision moments", earned: noMomentPoints(wasted, max), max,
+    judgedOn: momentCount
+      ? "The moment points no moment used, earned by how little of your spend was wasted (spent where ads lost money)."
+      : "How well you responded each time the data called for action. With no moment to answer, how little of your spend was wasted (spent where ads lost money).",
+    tiers: [
+      { points: max, rule: "No spend wasted" },
+      { points: 0, rule: "All spend wasted" },
+    ],
+    note: `${momentCount ? `Only ${momentCount} moment${momentCount === 1 ? "" : "s"} came up.` : "No single moment called for a change."} ${Math.round(wasted * 100)}% of your spend went where ads lost money.`,
+    howToImprove: wasted > 0.1 ? "Check the Keywords tab every few days: lower or pause anything whose ROAS sits below break-even." : "Nothing to fix here.",
+  });
+}
+
+function momentLines(input: ScoreV2Input, detected: ReturnType<typeof detectMoments>): { lines: ScoreLineV2[]; moments: MomentScore[] } {
+  const each = detected.length ? Math.min(MOMENT_CAP, MOMENT_POINTS / detected.length) : 0;
+  const scored = detected.map((m) => scoreMoment({ ctx: input.ctx, launched: input.launched, actions: input.actions, statesByDay: input.statesByDay, stepOptions: input.stepOptions }, m, each, input.describeAction));
+  const lines = scored.map((s, i) => line({
+    key: `v2_moment_${i + 1}`, category: "live", label: `Day ${s.moment.day}: ${s.moment.title}`, earned: s.points, max: each,
+    judgedOn: s.moment.evidence,
+    tiers: [
+      { points: each, rule: "Your change gained ≥ 60% of what the best lever would (or nothing was needed and you didn't make it worse)" },
+      { points: round1(each / 2), rule: "Partial gain, or acted late" },
+      { points: 0, rule: "Ignored, or your change lost money vs doing nothing" },
+    ],
+    note: s.verdict === "right" ? `Right call: ${s.studentAction}.`
+      : s.verdict === "partial" ? `Partly right: ${s.studentAction}. "${s.bestLever}" would have gained more.`
+      : s.verdict === "wrong" ? `This made it worse: ${s.studentAction ?? "your changes"}.`
+      : s.verdict === "nothingNeeded" ? "Holding steady was right here."
+      : `No response within ${s.moment.window} days. "${s.bestLever}" would have helped.`,
+    howToImprove: `Best lever here: ${s.bestLever}.`,
+  }));
+  const leftover = round1(MOMENT_POINTS - each * detected.length);
+  return { moments: scored, lines: leftover > 0 ? [...lines, cleanRunLine(input, leftover, detected.length)] : lines };
+}
+
 function liveLines(input: ScoreV2Input): { lines: ScoreLineV2[]; moments: MomentScore[] } {
   const detected = detectMoments({ ctx: input.ctx, results: input.results, configsByDay: input.configsByDay });
-  if (detected.length === 0) {
-    const wasted = wastedSpendShare(input.results, wasteFloorFor(input.ctx.scenario.profile.goalType));
-    return {
-      moments: [],
-      lines: [insightLine(input, detected), line({
-        key: "v2_moments", category: "live", label: "Decision moments", earned: noMomentPoints(wasted, MOMENT_POINTS), max: MOMENT_POINTS,
-        judgedOn: "How well you responded each time the data called for action. With no moment to answer, how little of your spend was wasted (spent where ads lost money).",
-        tiers: [
-          { points: MOMENT_POINTS, rule: "No moment needed action and no spend was wasted" },
-          { points: 0, rule: "No moment needed action but all spend was wasted" },
-        ],
-        note: `No single moment called for a change. ${Math.round(wasted * 100)}% of your spend went where ads lost money.`,
-        howToImprove: wasted > 0.1 ? "Check the Keywords tab every few days: lower or pause anything whose ROAS sits below break-even." : "Nothing to fix here.",
-      })],
-    };
-  }
-  const each = MOMENT_POINTS / detected.length;
-  const scored = detected.map((m) => scoreMoment({ ctx: input.ctx, launched: input.launched, actions: input.actions, statesByDay: input.statesByDay, stepOptions: input.stepOptions }, m, each, input.describeAction));
+  const moments = momentLines(input, detected);
   return {
-    moments: scored,
-    lines: [insightLine(input, detected), ...scored.map((s, i) => line({
-      key: `v2_moment_${i + 1}`, category: "live", label: `Day ${s.moment.day}: ${s.moment.title}`, earned: s.points, max: each,
-      judgedOn: s.moment.evidence,
-      tiers: [
-        { points: each, rule: "Your change gained ≥ 60% of what the best lever would (or nothing was needed and you didn't make it worse)" },
-        { points: round1(each / 2), rule: "Partial gain, or acted late" },
-        { points: 0, rule: "Ignored, or your change lost money vs doing nothing" },
-      ],
-      note: s.verdict === "right" ? `Right call: ${s.studentAction}.`
-        : s.verdict === "partial" ? `Partly right: ${s.studentAction}. "${s.bestLever}" would have gained more.`
-        : s.verdict === "wrong" ? `This made it worse: ${s.studentAction ?? "your changes"}.`
-        : s.verdict === "nothingNeeded" ? "Holding steady was right here."
-        : `No response within ${s.moment.window} days. "${s.bestLever}" would have helped.`,
-      howToImprove: `Best lever here: ${s.bestLever}.`,
-    }))],
+    moments: moments.moments,
+    lines: [insightLine(input, detected), ...moments.lines, scalingLine(input), improvementLine(input), peakLine(input), steadyLine(input)],
   };
 }
 
@@ -439,29 +448,7 @@ function profitLine(run: Metrics): ScoreLineV2 {
   });
 }
 
-/** F14: spend in campaign × keyword × slot cells (whole run) whose ROAS was below break-even. */
-/** Contribution ÷ spend below which spend counts as wasted, by goal (SPEC §14 F13): reach goals
- *  may run below break-even, down to the floor where their own objective stops counting. */
-export function wasteFloorFor(goalType: string): number {
-  return lossFloorFor(goalType);
-}
-
-export function wastedSpendShare(results: readonly DayResult[], floor = 1): number {
-  const cells = new Map<string, { spend: number; revenue: number; contribution: number }>();
-  let total = 0;
-  for (const r of results) {
-    for (const c of r.cells) {
-      const key = `${c.campaignId}|${c.term}|${c.slot}`;
-      const acc = cells.get(key) ?? { spend: 0, revenue: 0, contribution: 0 };
-      cells.set(key, { spend: acc.spend + c.spend, revenue: acc.revenue + c.directRevenue + c.indirectRevenue, contribution: acc.contribution + c.contribution });
-      total += c.spend;
-    }
-  }
-  let wasted = 0;
-  for (const c of cells.values()) if (c.contribution < c.spend * floor) wasted += c.spend;
-  return total > 0 ? wasted / total : 0;
-}
-
+/** F14: share of spend where ads lost money on the goal (helpers in liveFactors.ts). */
 function wasteLine(results: readonly DayResult[], goalType: string): ScoreLineV2 {
   const floor = wasteFloorFor(goalType);
   const share = wastedSpendShare(results, floor);
