@@ -1,0 +1,50 @@
+:root {
+  --ink: #1a202c;
+  --muted: #718096;
+  --card: rgba(255, 255, 255, 0.9);
+  --accent: #2f855a;
+  --gold: #d69e2e;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+}
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; background: #e2e8f0; }
+.center { display: grid; place-items: center; height: 100%; margin: 0; color: var(--muted); }
+.hud { position: fixed; inset: 0; pointer-events: none; }
+.card { pointer-events: auto; position: absolute; background: var(--card); backdrop-filter: blur(8px); border-radius: 14px; padding: 14px 16px; box-shadow: 0 10px 30px -18px rgba(26, 32, 44, 0.6); }
+.card h1 { margin: 0; font-size: 18px; }
+.card h2 { margin: 0 0 6px; font-size: 15px; }
+.card h3 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.muted { color: var(--muted); font-size: 12px; margin: 2px 0; }
+.row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; margin: 4px 0; }
+.stats { top: 16px; left: 16px; width: 260px; }
+.level { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.badge { background: var(--accent); color: white; font-weight: 600; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+.bar { height: 6px; background: #e2e8f0; border-radius: 999px; margin: 6px 0 10px; overflow: hidden; }
+.bar div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); transition: width 400ms ease; }
+.areas { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 3px; }
+.areas li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+.areas i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.achievements { top: 16px; right: 16px; width: 230px; }
+.achievements ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.achievements li { display: flex; gap: 8px; font-size: 12px; opacity: 0.5; }
+.achievements li.done { opacity: 1; }
+.achievements .tick { color: var(--gold); font-size: 15px; }
+.achievements small { color: var(--muted); }
+.link { pointer-events: auto; background: none; border: 0; color: var(--muted); font-size: 11px; margin-top: 8px; padding: 0; cursor: pointer; text-decoration: underline; }
+.detail { right: 16px; bottom: 56px; width: 300px; max-height: 55vh; overflow: auto; animation: rise 280ms ease-out; }
+.detail .eyebrow { margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #805ad5; }
+.detail ol, .detail .files { margin: 0; padding-left: 18px; font-size: 12px; }
+.detail ol li { display: flex; justify-content: space-between; gap: 8px; }
+.detail ol small { color: var(--muted); }
+.detail .files { color: var(--muted); word-break: break-all; }
+.close { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 18px; color: var(--muted); cursor: pointer; }
+.toasts { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: grid; gap: 6px; justify-items: center; }
+.toast { background: var(--ink); color: white; font-size: 13px; padding: 6px 12px; border-radius: 999px; animation: pop 2600ms ease-in-out forwards; }
+.toast.landmark { background: #6b46c1; }
+.toast.achievement { background: var(--gold); color: var(--ink); font-weight: 600; }
+.controls { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--ink); background: var(--card); padding: 6px 12px; border-radius: 999px; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop { 0% { opacity: 0; transform: translateY(-8px) scale(0.9); } 10%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .detail, .toast { animation: none; } .bar div { transition: none; } }
+@media (max-width: 760px) { .achievements { display: none; } .stats { width: calc(100% - 32px); } .detail { left: 16px; width: auto; } }
