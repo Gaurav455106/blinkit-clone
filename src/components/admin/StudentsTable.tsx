@@ -1,7 +1,7 @@
 // Best attempt per student, with expandable detail, a profile link and an
 // optional delete action (admin only). Shared by the admin and trainer pages.
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,10 +9,13 @@ import { Tag } from "@/components/sim/primitives";
 import { scoreTone } from "@/components/sim/tone";
 import { StudentRowDetail } from "@/components/admin/StudentRowDetail";
 import { brandOf, gradeLabelOf, type AttemptRow } from "@/lib/attemptAnalysis";
+import { runsByEmail } from "@/lib/attemptDetail";
 import { cn } from "@/lib/utils";
 
 interface StudentsTableProps {
   rows: readonly AttemptRow[];
+  /** Every saved attempt, so an open row can switch between a student's runs. */
+  allRows?: readonly AttemptRow[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
@@ -22,8 +25,9 @@ interface StudentsTableProps {
 
 const COLS = 6;
 
-export function StudentsTable({ rows, loading, error, onRetry, onOpenProfile, onDelete }: StudentsTableProps) {
+export function StudentsTable({ rows, allRows, loading, error, onRetry, onOpenProfile, onDelete }: StudentsTableProps) {
   const [openEmail, setOpenEmail] = useState<string | null>(null);
+  const runs = useMemo(() => runsByEmail(allRows ?? rows), [allRows, rows]);
   const th = "px-3 py-2 text-left text-xs font-medium text-muted-foreground";
   const toggle = (email: string) => setOpenEmail((cur) => (cur === email ? null : email));
 
@@ -89,7 +93,7 @@ export function StudentsTable({ rows, loading, error, onRetry, onOpenProfile, on
                 </tr>
                 {open && (
                   <tr className="border-b border-border bg-secondary/30">
-                    <td colSpan={COLS} className="px-4 py-4"><StudentRowDetail row={row} /></td>
+                    <td colSpan={COLS} className="px-4 py-4"><StudentRowDetail row={row} runs={runs.get(row.email)} onOpenProfile={onOpenProfile} /></td>
                   </tr>
                 )}
               </Fragment>

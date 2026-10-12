@@ -25,6 +25,7 @@ import { useScoreV2 } from "@/market/useScoreV2";
 import type { ScoreRequest } from "@/market/scoreProtocol";
 import type { MomentScore } from "@/market/moments";
 import { buildSavedBreakdownV2, type SavedBreakdownV2 } from "@/lib/attemptAnalysis";
+import { snapshotCampaigns, type CampaignSnapshot } from "@/lib/attemptDetail";
 import { qualitativeSummary } from "@/lib/rubrics";
 import { debriefFilename, debriefSheets, VERDICT_LABEL } from "@/lib/debriefV2Export";
 import { REPORT_README } from "@/market/reports";
@@ -66,7 +67,7 @@ function MomentList({ moments }: { moments: readonly MomentScore[] }) {
   );
 }
 
-function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakdownV2 | null, campaignsCount: number) {
+function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakdownV2 | null, campaigns: readonly CampaignSnapshot[]) {
   const { activeRunId, runHistory, completeRun, mode } = useSim();
   const savedRef = useRef(false);
   const alreadyDone = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "completed";
@@ -80,11 +81,11 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
       batch_code: student.batch,
       profile_id: scenario.profile.id,
       scenario: { seed: scenario.seed, profile: scenario.profile.name, engine: "v2" },
-      choices: { campaigns: campaignsCount },
+      choices: { campaigns: campaigns.length },
       score_total: saved.grandTotal,
       score_breakdown: saved as unknown as Json,
       badge: saved.achievementPct >= 90 ? "gold" : saved.achievementPct >= 70 ? "silver" : saved.achievementPct >= 50 ? "bronze" : null,
-      snapshot: { scenario: { seed: scenario.seed, profile: { id: scenario.profile.id, name: scenario.profile.name } }, engine: "v2" } as unknown as Json,
+      snapshot: { scenario: { seed: scenario.seed, profile: { id: scenario.profile.id, name: scenario.profile.name } }, engine: "v2", campaigns } as unknown as Json,
     }).then(({ error }) => {
       if (error) {
         console.error("[sim] v2 attempt save failed", error);
@@ -96,7 +97,7 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
         if (e) console.warn("[sim] run_sessions delete failed", e);
       });
     });
-  }, [saved, activeRunId, alreadyDone, mode, completeRun, student, scenario, campaignsCount]);
+  }, [saved, activeRunId, alreadyDone, mode, completeRun, student, scenario, campaigns]);
 }
 
 export default function DebriefV2({ student, scenario }: Props) {
@@ -123,7 +124,8 @@ export default function DebriefV2({ student, scenario }: Props) {
   const { score, busy, error } = useScoreV2(request, `${activeRunId}:${run.results.length}`);
   const saved = useMemo(() => (score ? buildSavedBreakdownV2(score) : null), [score]);
   const summaries = useMemo(() => (saved ? qualitativeSummary(saved.lines, 2) : []), [saved]);
-  useSaveAttempt(student, scenario, saved, campaigns.filter((c) => !c.isDraft).length);
+  const launched = useMemo(() => snapshotCampaigns(campaigns), [campaigns]);
+  useSaveAttempt(student, scenario, saved, launched);
   useTour("resultsV2", student.email, !!score);
   const grand = score?.grandTotal ?? 0;
   useEffect(() => {

@@ -97,7 +97,7 @@ export default function Trainer() {
                 </div>
               }
             >
-              <StudentsTable rows={filtered} loading={loading} error={error} onRetry={reload} onOpenProfile={openProfile} />
+              <StudentsTable rows={filtered} allRows={rows} loading={loading} error={error} onRetry={reload} onOpenProfile={openProfile} />
             </Section>
           </TabsContent>
         </Tabs>

@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { GraduationCap, LayoutDashboard, Trophy, LogOut, ShieldCheck } from "lucide-react";
+import { GraduationCap, LayoutDashboard, Trophy, LogOut, ShieldCheck, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSim } from "@/context/SimContext";
+import { StudentViewDialog } from "@/components/admin/StudentViewDialog";
+import { clearStudentView } from "@/lib/staffView";
 
 export function TrainerHeader() {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { reset } = useSim();
+  const [studentViewOpen, setStudentViewOpen] = useState(false);
 
   const simRole = localStorage.getItem("sim_role");
   const isAdmin = simRole === "admin";
@@ -15,6 +19,7 @@ export function TrainerHeader() {
     localStorage.removeItem("sim_role");
     // legacy key cleanup
     localStorage.removeItem("sim_trainer");
+    clearStudentView();
     reset();
     nav("/", { replace: true });
   };
@@ -70,6 +75,10 @@ export function TrainerHeader() {
             <Trophy className="h-4 w-4" /> Leaderboard
           </Link>
 
+          <Button size="sm" onClick={() => setStudentViewOpen(true)} className="ml-2 gap-1.5">
+            <Play className="h-4 w-4" /> Student view
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
@@ -80,6 +89,7 @@ export function TrainerHeader() {
           </Button>
         </nav>
       </div>
+      <StudentViewDialog role={isAdmin ? "admin" : "trainer"} open={studentViewOpen} onOpenChange={setStudentViewOpen} />
     </header>
   );
 }

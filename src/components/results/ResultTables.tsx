@@ -11,7 +11,7 @@ import { formatLabel } from "@/lib/resultsExport";
 const fmt = (n: number) => n.toLocaleString("en-IN");
 const money = (n: number) => `₹${fmt(Math.round(n))}`;
 
-function fmtTarget(n: number, unit: string): string {
+export function fmtTarget(n: number, unit: string): string {
   if (unit === "imp" || unit === "users") return n >= 100000 ? `${(n / 100000).toFixed(1)}L` : fmt(Math.round(n));
   if (unit === "x") return `${Math.round(n * 100) / 100}x`;
   if (unit === "%") return `${Math.round(n * 10) / 10}%`;

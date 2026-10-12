@@ -241,7 +241,7 @@ export default function Admin() {
                 </div>
               }
             >
-              <StudentsTable rows={filtered} loading={loading} error={loadError} onRetry={reload} onOpenProfile={openProfile} onDelete={setDeleteTarget} />
+              <StudentsTable rows={filtered} allRows={rows} loading={loading} error={loadError} onRetry={reload} onOpenProfile={openProfile} onDelete={setDeleteTarget} />
             </Section>
           </TabsContent>
 
