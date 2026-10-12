@@ -37,13 +37,14 @@ import { fireConfetti } from "@/components/game/confetti";
 import { earnedAchievements } from "@/components/game/achievements";
 import { PartCards } from "@/components/results/cards/PartCards";
 import { BadgeShelf } from "@/components/results/cards/BadgeShelf";
+import { formatRupees } from "@/lib/money";
 
 /** Confetti for "Growing Fast" (60) and up, once the score has counted up. */
 const CONFETTI_FROM = 60;
 const CONFETTI_DELAY_MS = 1400;
 
 const PITCH_MAX = 15;
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 const VERDICT_TONE = { right: "good", nothingNeeded: "good", partial: "warn", wrong: "bad", ignored: "bad" } as const;
 
 type Props = { student: Student; scenario: Scenario };

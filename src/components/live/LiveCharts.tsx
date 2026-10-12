@@ -12,12 +12,13 @@ import { byCampaign, bySlot, sumMetrics, rivalInsights } from "@/market/aggregat
 import { SLOT_LABELS } from "@/market/slots";
 import { Section } from "@/components/sim/primitives";
 import { AXIS, OUTCOME_COLORS, PROFIT, SERIES } from "@/components/live/palette";
+import { formatRupees } from "@/lib/money";
 
 const CHART_HEIGHT = 240;
 const axisProps = { stroke: AXIS.stroke, tick: { fill: AXIS.text, fontSize: 12 }, tickLine: false } as const;
 const fmt2 = (n: number) => n.toFixed(2);
 const pct = (n: number) => `${Math.round(n * 100)}%`;
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 
 function ActionMarkers({ actions }: { actions: readonly LiveAction[] }) {
   const days = [...new Set(actions.map((a) => a.dayMade + 1))];

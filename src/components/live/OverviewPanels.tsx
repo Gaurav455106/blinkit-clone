@@ -7,10 +7,11 @@ import { Section } from "@/components/sim/primitives";
 import { SERIES } from "@/components/live/palette";
 import { keywordSov, spendByFormat } from "@/components/live/overviewData";
 import { cn } from "@/lib/utils";
+import { formatRupees } from "@/lib/money";
 
 const PIE_HEIGHT = 200;
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 const KIND_DOT = { good: "bg-sim-good", risky: "bg-sim-bad", other: "bg-muted-foreground/40" } as const;
 
 /** Where the money went, by ad format. */

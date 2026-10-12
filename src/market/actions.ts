@@ -4,6 +4,7 @@
 // campaigns, so a run can be rebuilt exactly (the engine is deterministic).
 
 import type { CampaignConfig, KeywordBid, PlacementBid } from "@/market/engineTypes";
+import { formatRupees } from "@/lib/money";
 
 export type ActionChange =
   | { kind: "keywordBid"; term: string; bid: number }
@@ -91,7 +92,7 @@ export function applyActions(campaigns: readonly CampaignConfig[], actions: read
   });
 }
 
-const rupees = (n: number | null | undefined) => (n === null || n === undefined ? "off" : `₹${Math.round(n).toLocaleString("en-IN")}`);
+const rupees = (n: number | null | undefined) => (n === null || n === undefined ? "off" : formatRupees(n));
 const slots = (s: readonly number[] | undefined) => (s && s.length ? `${s.length} slots` : "24/7");
 
 /** Human-readable change-log entry (report R11), describing the state just before the action. */

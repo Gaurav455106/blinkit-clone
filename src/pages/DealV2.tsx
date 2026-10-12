@@ -26,8 +26,9 @@ import {
   type DealTerms, type OpeningDeal,
 } from "@/market/deal";
 import { chooseOption, dealOutcome, demandShares, hasPromises, rohitTurn, startNegotiation, type DealOption, type NegotiationState } from "@/market/dealRohit";
+import { formatRupees } from "@/lib/money";
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const inr = formatRupees;
 const pctOf = (x: number) => `${Math.round(x * 100)}%`;
 
 type Props = { student: Student; scenario: Scenario; ctx: MarketContext };

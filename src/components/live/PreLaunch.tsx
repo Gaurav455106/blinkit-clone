@@ -7,8 +7,9 @@ import { EmptyState, PageHeader, Section, Tag } from "@/components/sim/primitive
 import { CalendarStrip } from "@/components/live/LiveEvents";
 import { Button } from "@/components/ui/button";
 import { FORMAT_LABELS } from "@/components/live/formatLabels";
+import { formatRupees } from "@/lib/money";
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 
 type Props = {
   brandName: string;

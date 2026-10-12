@@ -8,9 +8,10 @@ import {
 } from "@/market/deal";
 import { Section } from "@/components/sim/primitives";
 import { cn } from "@/lib/utils";
+import { formatRupees } from "@/lib/money";
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
-const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const inr = formatRupees;
 const SELECT = "rounded-md border border-input bg-card px-2 py-1 text-sm text-foreground";
 
 function Choice({ checked, disabled, onToggle, title, note, children }: {

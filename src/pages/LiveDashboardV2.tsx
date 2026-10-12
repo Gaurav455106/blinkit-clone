@@ -31,8 +31,9 @@ import type { ReportInput } from "@/market/reports";
 import { AchievementToasts, CountUp, FloatDelta } from "@/components/game/GameBits";
 import { earnedAchievements } from "@/components/game/achievements";
 import { keepWizardOpenOnEscape } from "@/lib/wizardEscape";
+import { formatRupees } from "@/lib/money";
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 const DEFAULT_SPEED = SPEEDS[1].ms;
 
 type Props = { student: Student; scenario: Scenario };

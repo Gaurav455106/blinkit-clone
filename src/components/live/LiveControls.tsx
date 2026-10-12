@@ -8,9 +8,10 @@ import { byUnit } from "@/market/aggregate";
 import { SLOT_LABELS } from "@/market/slots";
 import { Section, Tag } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
+import { formatRupees } from "@/lib/money";
 
 const LAST_DAYS = 7;
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 type Act = (campaignId: string, change: ActionChange) => void;

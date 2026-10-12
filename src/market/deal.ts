@@ -10,6 +10,7 @@ import type { MarketContext } from "@/market/engineTypes";
 import { initialMarketState } from "@/market/state";
 import { EMPTY_ADJUSTMENTS, type Adjustments, type StockAdd } from "@/market/adjustments";
 import type { Commitment } from "@/market/rohit";
+import { formatRupees } from "@/lib/money";
 
 /** Units per SKU per state. */
 export type StockSplit = Readonly<Record<string, Readonly<Record<string, number>>>>;
@@ -51,7 +52,7 @@ export const DISCOUNT_DAYS = 7;
 const DEAL_KEPT = 8;
 const DEAL_BROKEN = -12;
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const inr = formatRupees;
 const sum = (m: Readonly<Record<string, number>>) => Object.values(m).reduce((s, x) => s + x, 0);
 
 // ── Pool and defaults ────────────────────────────────────────────────────────

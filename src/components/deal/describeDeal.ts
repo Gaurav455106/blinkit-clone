@@ -2,8 +2,9 @@
 
 import type { MarketContext } from "@/market/engineTypes";
 import { DISCOUNT_DAYS, type DealTerms } from "@/market/deal";
+import { formatRupees } from "@/lib/money";
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const inr = formatRupees;
 const pctOf = (x: number) => `${Math.round(x * 100)}%`;
 
 /** Plain lines describing a deal, for the sidebar and the done screen. */
