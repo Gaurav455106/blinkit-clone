@@ -40,6 +40,9 @@ const DEFS: Readonly<Record<string, Omit<Achievement, "id">>> = {
   day_30: { title: "Day 30", detail: "You ran the full month." },
 };
 
+/** Every achievement, in display order, earned or not. */
+export const ALL_ACHIEVEMENTS: readonly Achievement[] = Object.entries(DEFS).map(([id, d]) => ({ id, ...d }));
+
 /** The bid an action changes, as it stood just before the action. */
 function previousBid(launched: readonly CampaignConfig[], actions: readonly LiveAction[], i: number): number | undefined {
   const a = actions[i];
