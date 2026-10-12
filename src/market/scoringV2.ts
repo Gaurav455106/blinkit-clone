@@ -11,7 +11,7 @@ import type { CommitmentResult, ReplyQuality } from "@/market/rohit";
 import { scoreEventResponses, ROHIT_QUALITY_SHARE } from "@/market/liveRun";
 import { briefStock, type OpeningDeal } from "@/market/deal";
 import { stockFit, valueAsked, valueGiven } from "@/market/dealRohit";
-import { detectMoments, lossFloorFor, scoreMoment, type MomentScore } from "@/market/moments";
+import { detectMoments, lossFloorFor, objectiveUnit, scoreMoment, type MomentScore, type ObjectiveUnit } from "@/market/moments";
 import { scoreInsights, type Insight } from "@/market/insights";
 import { clientGoalsV2 } from "@/market/goals";
 import { sumMetrics, type Metrics } from "@/market/aggregate";
@@ -52,7 +52,7 @@ export interface ScoreV2 {
   grandTotal: number;
   moments: readonly MomentScore[];
   /** Top 3 decisions by ₹ (or goal units) lost vs the best lever. */
-  costliestMistakes: readonly { title: string; lost: number; what: string }[];
+  costliestMistakes: readonly CostlyMistake[];
   run: Metrics;
   goalRows: readonly GoalRowV2[];
   /** Average goal achievement, % (each goal capped at 150). */
@@ -469,6 +469,30 @@ export function scoreSetupV2(input: SetupInputV2): ScoreLineV2[] {
   return [formatFit(input), keywordChoice(input), bidDiscipline(input), structure(input)];
 }
 
+
+export interface CostlyMistake { title: string; lost: number; what: string; unit: ObjectiveUnit }
+
+const MISTAKE_LIMIT = 3;
+
+/**
+ * The biggest misses, worst first. Overlapping moments on one campaign replay the
+ * same days, so a repeat with the same best lever and loss is dropped.
+ */
+export function pickCostliest(moments: readonly MomentScore[], unit: ObjectiveUnit): CostlyMistake[] {
+  const missed = moments
+    .filter((m) => m.verdict === "wrong" || m.verdict === "ignored" || m.verdict === "partial")
+    .map((m) => ({ m, lost: m.bestGainVsNothing - m.gainVsNothing }))
+    .filter(({ lost }) => lost > 0)
+    .sort((a, b) => b.lost - a.lost);
+  const seen = new Set<string>();
+  return missed.flatMap(({ m, lost }) => {
+    const key = `${m.moment.campaignId}|${m.bestLever}|${Math.round(lost)}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ title: `Day ${m.moment.day}: ${m.moment.title}`, lost, what: m.studentAction ?? "No action", unit }];
+  }).slice(0, MISTAKE_LIMIT);
+}
+
 export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
   const run = sumMetrics(input.results.flatMap((r) => r.cells));
   const goalRows = goalRowsV2(input.ctx, run);
@@ -482,11 +506,7 @@ export function scoreRunV2(input: ScoreV2Input): ScoreV2 {
   const totals = (Object.keys(SCORE_V2_MAX) as CategoryV2[]).reduce((acc, k) => ({
     ...acc, [k]: round1(lines.filter((l) => l.category === k).reduce((s, l) => s + l.earned, 0)),
   }), {} as Record<CategoryV2, number>);
-  const costliestMistakes = live.moments
-    .filter((m) => m.verdict === "wrong" || m.verdict === "ignored" || m.verdict === "partial")
-    .map((m) => ({ title: `Day ${m.moment.day}: ${m.moment.title}`, lost: m.bestGainVsNothing - m.gainVsNothing, what: m.studentAction ?? "No action" }))
-    .sort((a, b) => b.lost - a.lost)
-    .slice(0, 3);
+  const costliestMistakes = pickCostliest(live.moments, objectiveUnit(input.ctx.scenario.profile.goalType));
   return {
     version: 2, lines, totals,
     grandTotal: round1(Object.values(totals).reduce((s, x) => s + x, 0)),

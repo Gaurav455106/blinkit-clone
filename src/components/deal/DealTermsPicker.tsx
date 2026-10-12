@@ -109,7 +109,7 @@ export function GivesPicker({ skus, states, gives, onChange }: GiveProps) {
                   const skuIds = discount.skuIds.includes(s.id) ? discount.skuIds.filter((x) => x !== s.id) : [...discount.skuIds, s.id];
                   const next = { ...discount, skuIds }; setDiscount(next); update({ kind: "discount", ...next });
                 }} />
-              {s.name} <span className="text-muted-foreground">(₹{Math.round(s.mrp * discount.pct)} off, you keep ₹{s.margin})</span>
+              {s.name} <span className="text-muted-foreground">(₹{Math.round(s.mrp * discount.pct)} off, you keep ₹{Math.round(s.margin - s.mrp * discount.pct)})</span>
             </label>
           ))}
         </Choice>

@@ -91,7 +91,7 @@ const formatScore = (scen: Scenario, c: CampaignChoices): ScoreLine => {
 
   // Perfect match: correct bucket AND matches the brand's optimal format.
   if (fmt === scen.profile.optimalAdFormat) {
-    return { key: "fmt", label: "Ad Format", earned: 15, max: 15, note: `${fmt} is the optimal format for a ${goal} brand.` };
+    return { key: "fmt", label: "Ad Format", earned: 15, max: 15, note: `${fmt} is the optimal format for this ${goal} brand.` };
   }
 
   // Right bucket, not the exact optimal format — still directionally correct.

@@ -110,7 +110,7 @@ export default function Brief() {
 
               <div data-tour="brief-continue" className="flex flex-col gap-4 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-accent-foreground">
-                  <p>{quizDone ? "Next: meet Rohit, the category manager, and pitch for shelf support." : "Answer both questions above to continue."}</p>
+                  <p>{quizDone ? "Next: meet Rohit, the category manager, and agree where your stock goes." : "Answer both questions above to continue."}</p>
                   {unturned > 0 && <p className="mt-1 text-xs text-muted-foreground">{unturned} clue {unturned === 1 ? "card is" : "cards are"} still face down above.</p>}
                 </div>
                 <Button disabled={!quizDone} onClick={handleContinue} className="shrink-0 gap-2">

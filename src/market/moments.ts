@@ -228,6 +228,24 @@ export function detectMoments(input: DetectInput): Moment[] {
 export type GoalObjective = (m: Metrics) => number;
 
 /** Objective by goal type (F13). */
+/** What `objectiveFor` measures, so a loss can be shown in the right unit. */
+export type ObjectiveUnit = "₹" | "units" | "views" | "reach points";
+
+export function objectiveUnit(goalType: string): ObjectiveUnit {
+  switch (goalType) {
+    case "Volume-First": return "units";
+    case "Awareness-First": return "views";
+    case "Category-Creation": return "reach points";
+    default: return "₹";
+  }
+}
+
+/** "₹12,300" for profit goals, "4,200 views" for the others. */
+export function formatObjective(x: number, unit: ObjectiveUnit = "₹"): string {
+  const n = Math.round(x).toLocaleString("en-IN");
+  return unit === "₹" ? `₹${n}` : `${n} ${unit}`;
+}
+
 export function objectiveFor(goalType: string): GoalObjective {
   switch (goalType) {
     case "Volume-First":

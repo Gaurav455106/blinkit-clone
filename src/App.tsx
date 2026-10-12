@@ -4,18 +4,23 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SimProvider, useSim } from "@/context/SimContext";
+import { lazy, Suspense } from "react";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Brief from "./pages/Brief";
-import CmPitch from "./pages/CmPitch";
-import Campaign from "./pages/Campaign";
-import LiveDashboard from "./pages/LiveDashboard";
-import SetupScoreCard from "./pages/SetupScoreCard";
-import Day30Results from "./pages/Day30Results";
-import Leaderboard from "./pages/Leaderboard";
-import Trainer from "./pages/Trainer";
-import Admin from "./pages/Admin";
-import MyProfilePage, { StaffStudentProfilePage } from "./pages/StudentProfile";
+
+// Each later stage loads when it's first opened, so login and the dashboard
+// don't wait for the engine, charts and Excel code.
+const Brief = lazy(() => import("./pages/Brief"));
+const CmPitch = lazy(() => import("./pages/CmPitch"));
+const Campaign = lazy(() => import("./pages/Campaign"));
+const LiveDashboard = lazy(() => import("./pages/LiveDashboard"));
+const SetupScoreCard = lazy(() => import("./pages/SetupScoreCard"));
+const Day30Results = lazy(() => import("./pages/Day30Results"));
+const Leaderboard = lazy(() => import("./pages/Leaderboard"));
+const Trainer = lazy(() => import("./pages/Trainer"));
+const Admin = lazy(() => import("./pages/Admin"));
+const MyProfilePage = lazy(() => import("./pages/StudentProfile"));
+const StaffStudentProfilePage = lazy(() => import("./pages/StudentProfile").then((m) => ({ default: m.StaffStudentProfilePage })));
 
 import SSOCallback from "./pages/SSOCallback";
 import { StaffReturnBar } from "@/components/StaffReturnBar";
@@ -23,6 +28,14 @@ import NotFound from "./pages/NotFound.tsx";
 import { HUB_URL, syncMasterFlag } from "@/lib/masterAccess";
 
 const queryClient = new QueryClient();
+
+function PageLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" role="status" aria-label="Loading">
+      <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 /**
  * Gates the app behind the Kraftshala Hub.
@@ -78,6 +91,7 @@ const App = () => (
       <BrowserRouter>
         <StaffReturnBar />
         <SimProvider>
+          <Suspense fallback={<PageLoading />}>
           <Routes>
             {/* Core student flow */}
             {/* /sso must stay OUTSIDE AuthGuard — it runs pre-auth, and gating it
@@ -118,6 +132,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </SimProvider>
       </BrowserRouter>
     </TooltipProvider>

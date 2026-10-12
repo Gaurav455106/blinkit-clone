@@ -4,6 +4,6 @@ import { useSim } from "@/context/SimContext";
 import { resolveEngine } from "@/lib/engineFlag";
 
 export function useIsEngineV2(): boolean {
-  const { scenario, cmPitch, activeRunId } = useSim();
-  return resolveEngine(scenario, { hasPitch: !!cmPitch, hasRun: !!activeRunId }) === "v2";
+  const { scenario, cmPitch, openingDeal, activeRunId } = useSim();
+  return resolveEngine(scenario, { hasPitch: !!cmPitch || !!openingDeal, hasRun: !!activeRunId }) === "v2";
 }

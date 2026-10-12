@@ -120,7 +120,7 @@ export function scoreSetup(scenario: Scenario, campaigns: SavedCampaign[]): Setu
 
   if (hasCorrectObjective && hasOptimalFormat) {
     comprehensionEarned = 20;
-    comprehensionNote   = `You chose the ${profile.optimalObjective} objective and ${profile.optimalAdFormat}. That is the right match for a ${profile.goalType} brand.`;
+    comprehensionNote   = `You chose the ${profile.optimalObjective} objective and ${profile.optimalAdFormat}. That is the right match for this ${profile.goalType} brand.`;
   } else if (hasCorrectObjective && bucketCovered) {
     comprehensionEarned = 12;
     comprehensionNote   = `Right objective (${profile.optimalObjective}) and the right type of format, but ${profile.optimalAdFormat} would have worked better.`;
@@ -132,7 +132,7 @@ export function scoreSetup(scenario: Scenario, campaigns: SavedCampaign[]): Setu
     comprehensionNote   = `Right type of format, but the wrong objective. The best pair was ${profile.optimalObjective} with ${profile.optimalAdFormat}.`;
   } else {
     comprehensionEarned = 0;
-    comprehensionNote   = `Wrong objective (it needed ${profile.optimalObjective}) and wrong format (it needed ${profile.optimalAdFormat}) for a ${profile.goalType} brand.`;
+    comprehensionNote   = `Wrong objective (it needed ${profile.optimalObjective}) and wrong format (it needed ${profile.optimalAdFormat}) for this ${profile.goalType} brand.`;
   }
 
   const comprehensionLine: ScoreLine = {

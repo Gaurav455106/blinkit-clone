@@ -303,9 +303,9 @@ export function simulateRun(
     if (requiredBucket === "both") {
       rights.push("Ran both awareness and conversion campaigns: covered the full funnel as the brief required");
     } else if (requiredBucket === "awareness") {
-      rights.push(`Used awareness formats (listing_spotlight / brand_booster / stories): correct for a ${scenario.profile.goalType} brand`);
+      rights.push(`Used awareness formats (listing_spotlight / brand_booster / stories): correct for this ${scenario.profile.goalType} brand`);
     } else {
-      rights.push(`Used conversion formats (product_booster / recommendation_ads): correct for a ${scenario.profile.goalType} brand`);
+      rights.push(`Used conversion formats (product_booster / recommendation_ads): correct for this ${scenario.profile.goalType} brand`);
     }
   } else {
     if (requiredBucket === "both") {

@@ -1209,7 +1209,7 @@ stamp is saved, so an attempt never switches engines halfway. Trainers can force
 
 Checked in the browser on PawLife: go live, alert on day 1 (rival on the brand term), add the brand keyword, checkpoint, refresh mid-run (replay resumes on the same day), three Rohit check-ins, four alerts, day 30, results scored and saved (save blocked in the test).
 
-Known gaps: the v1 sidebar "CM relationship" widget doesn't show the v2 meter; switching engines in one browser mid-run shows mixed v1 state; the main bundle is 2.3 MB (code-split the heavy pages per §2.1).
+Known gaps (all closed 2026-10-12): the sidebar CM widget shows the v2 meter; a `?engine=` override only applies while the student is on the brief and is then stamped on it, so a run never mixes engines; pages after the dashboard load on demand (main bundle 2.4 MB → 770 kB) and an open tab reloads once if a redeploy removed a page file.
 
 ## 13. Decisions and open questions
 

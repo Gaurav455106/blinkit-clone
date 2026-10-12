@@ -141,7 +141,7 @@ export const TOURS: Readonly<Record<TourId, TourDef>> = {
     name: "Your results",
     steps: [
       { target: "results-header", title: "Your score", body: "Your total out of 100 and your grade.", side: "bottom" },
-      { target: "results-mistakes", title: "Costliest mistakes", body: "The moments where a different move would have earned the most, in rupees. We worked it out by replaying those days.", side: "top" },
+      { target: "results-mistakes", title: "Costliest mistakes", body: "The moments where a different move would have earned the most. We worked it out by replaying those days.", side: "top" },
       { target: "results-summary", title: "Why you got it", body: "A short note per part of the score: what went well and what to do first next time.", side: "top" },
       { target: "results-deal", title: "Your deal with Rohit", body: "What you agreed before the run. It decided where your stock started and what you promised.", side: "top" },
       { target: "results-moments", title: "Decision moments", body: "Each time the data called for action: what you did, and the best move.", side: "top" },

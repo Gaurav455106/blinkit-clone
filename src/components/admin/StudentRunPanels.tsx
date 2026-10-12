@@ -11,6 +11,7 @@ import {
 import { costliestMistakesOf, topLosses } from "@/lib/attemptDetail";
 import { SCORE_SCHEMES } from "@/lib/rubrics";
 import { formatLabel } from "@/lib/resultsExport";
+import { formatObjective } from "@/market/moments";
 
 const MAX_KEYWORDS_SHOWN = 3;
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
@@ -149,7 +150,7 @@ function Mistakes({ row }: { row: AttemptRow }) {
           <li key={m.title} className={card} title={`Did: ${m.what}`}>
             <p className="flex justify-between gap-2">
               <span className="truncate font-medium text-foreground">{m.title}</span>
-              <Tag tone="bad"><span className="sim-num">{rupees(m.lost)}</span></Tag>
+              <Tag tone="bad"><span className="sim-num">{formatObjective(m.lost, m.unit)}</span></Tag>
             </p>
             <p className="truncate text-muted-foreground">Did: {m.what}</p>
           </li>
