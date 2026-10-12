@@ -1,6 +1,7 @@
+import { formatRupees } from "@/lib/money";
 // Number formatting for the brief (Indian grouping, ROAS as "3.2x").
 
-export const inr = (n: number): string => `₹${Math.round(n).toLocaleString("en-IN")}`;
+export const inr = formatRupees;
 
 export const roasX = (n: number): string => (Number.isFinite(n) ? `${n.toFixed(1)}x` : "n/a");
 

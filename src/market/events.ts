@@ -23,6 +23,7 @@ import type { CampaignConfig, CellRow, DayResult, MarketContext, MarketState } f
 import type { RivalData } from "@/market/types";
 import { SLOT_LABELS } from "@/market/slots";
 import { streamFor } from "@/market/rng";
+import { formatRupees } from "@/lib/money";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ export const MAX_PAUSING_PER_RUN = 8;
 
 // ── Formatting ───────────────────────────────────────────────────────────────
 
-export const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+export const inr = formatRupees;
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
 const mult = (x: number) => `${x}×`;
 

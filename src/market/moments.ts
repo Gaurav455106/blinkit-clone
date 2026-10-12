@@ -9,6 +9,7 @@ import { applyActions, type ActionChange, type LiveAction } from "@/market/actio
 import { stepDay, type StepOptions } from "@/market/step";
 import { sumMetrics, byUnit, byState, bySku, type Metrics } from "@/market/aggregate";
 import { peakSlotOf } from "@/market/momentHelpers";
+import { formatRupees } from "@/lib/money";
 
 export type MomentType = "sovDrop" | "budgetCapPeak" | "belowBreakEven" | "headTakesMoney" | "heroStarved" | "stateStarved";
 
@@ -38,7 +39,7 @@ const MIN_DAILY_SPEND = 150;
 const cellsOf = (r: DayResult, campaignId: string) => r.cells.filter((c) => c.campaignId === campaignId);
 const lastN = (results: readonly DayResult[], day: number, n: number) => results.filter((r) => r.day > day - n && r.day <= day);
 const pct = (x: number) => `${Math.round(x * 100)}%`;
-const rupees = (x: number) => `₹${Math.round(x).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 
 interface DetectInput {
   ctx: MarketContext;

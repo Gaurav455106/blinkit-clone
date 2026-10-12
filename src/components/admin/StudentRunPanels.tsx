@@ -12,9 +12,10 @@ import { costliestMistakesOf, topLosses } from "@/lib/attemptDetail";
 import { SCORE_SCHEMES } from "@/lib/rubrics";
 import { formatLabel } from "@/lib/resultsExport";
 import { formatObjective } from "@/market/moments";
+import { formatRupees } from "@/lib/money";
 
 const MAX_KEYWORDS_SHOWN = 3;
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = formatRupees;
 
 function Block({ title, children, delay = 0 }: { title: ReactNode; children: ReactNode; delay?: number }) {
   return (

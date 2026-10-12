@@ -20,7 +20,8 @@ import { maxProfitableCPM } from "@/market/shoppers";
 import { isAwarenessFormat, isConversionFormat, requiredBuckets } from "@/lib/scoring";
 import { FORMAT_NAMES, KEYWORD_FORMATS, SELLING_FORMATS, goodFormatsFor } from "@/market/formats";
 import { clamp, line, round1 } from "@/market/scoreLine";
-import { improvementLine, peakLine, scalingLine, steadyLine, wasteFloorFor, wastedSpendShare, LIVE_FACTOR_MAX } from "@/market/liveFactors";
+import { adviceWords, improvementLine, peakLine, scalingLine, steadyLine, wasteFloorFor, wastedSpendShare, LIVE_FACTOR_MAX } from "@/market/liveFactors";
+import { formatRupees } from "@/lib/money";
 
 export { wasteFloorFor, wastedSpendShare } from "@/market/liveFactors";
 
@@ -201,7 +202,9 @@ function structure(input: SetupInputV2): ScoreLineV2 {
     judgedOn: "Whether you set up your campaigns to avoid this brand's traps. One shared budget gets split evenly, so your best parts don't get extra money unless they have their own campaign.",
     tiers: [{ points: 6, rule: "Every structural trap anticipated" }, { points: 0, rule: "None anticipated" }],
     note: traps.length === 0 ? "No structural traps for this brand." : `Anticipated ${addressed.length} of ${traps.length}: ${traps.map((t) => `${names[t] ?? t} ${checks[t] ? "✓" : "✗"}`).join(", ")}.`,
-    howToImprove: "Give the parts that earn most their own campaign and budget: hero SKU, long-tail keywords, the best-converting state.",
+    howToImprove: addressed.length === traps.length
+      ? "Nothing to fix here."
+      : `Give the parts that earn most their own campaign and budget: ${traps.filter((t) => !checks[t]).map((t) => names[t] ?? t).join(", ")}.`,
   });
 }
 
@@ -248,7 +251,7 @@ function cleanRunLine(input: ScoreV2Input, max: number, momentCount: number): Sc
       { points: 0, rule: "All spend wasted" },
     ],
     note: `${momentCount ? `Only ${momentCount} moment${momentCount === 1 ? "" : "s"} came up.` : "No single moment called for a change."} ${Math.round(wasted * 100)}% of your spend went where ads lost money.`,
-    howToImprove: wasted > 0.1 ? "Check the Keywords tab every few days: lower or pause anything whose ROAS sits below break-even." : "Nothing to fix here.",
+    howToImprove: wasted > 0.1 ? `Check ${adviceWords(input.results).tab} every few days: lower the bid on or pause any ${adviceWords(input.results).things} whose ROAS sits below break-even.` : "Nothing to fix here.",
   });
 }
 
@@ -443,7 +446,7 @@ function profitLine(run: Metrics): ScoreLineV2 {
     key: "v2_profit", category: "results", label: "ROAS vs break-even", earned, max: 5,
     judgedOn: "Whether the ads made money. ROAS is sales for every ₹1 of ads; break-even is the ROAS you need just to not lose money.",
     tiers: [{ points: 5, rule: "≥ 1.1× break-even" }, { points: 3, rule: "≥ break-even" }, { points: 1, rule: "≥ 0.8× break-even" }, { points: 0, rule: "Below" }],
-    note: `ROAS ${run.roas.toFixed(2)} vs break-even ${run.breakEvenRoas.toFixed(2)} (profit after ads ₹${Math.round(run.profit).toLocaleString("en-IN")}).`,
+    note: `ROAS ${run.roas.toFixed(2)} vs break-even ${run.breakEvenRoas.toFixed(2)} (profit after ads ${formatRupees(run.profit)}).`,
     howToImprove: "Cut spend that sits below break-even and move it to what earns most per click.",
   });
 }
@@ -452,15 +455,16 @@ function profitLine(run: Metrics): ScoreLineV2 {
 function wasteLine(results: readonly DayResult[], goalType: string): ScoreLineV2 {
   const floor = wasteFloorFor(goalType);
   const share = wastedSpendShare(results, floor);
+  const words = adviceWords(results);
   const earned = share <= 0.1 ? 5 : share <= 0.25 ? 3 : share <= 0.4 ? 1 : 0;
   return line({
     key: "v2_waste", category: "results", label: "Wasted spend", earned, max: 5,
-    judgedOn: "How much of your money went to keywords and hours that lost money over the run. Spending less is fine; spending on losers is not.",
+    judgedOn: `How much of your money went to ${words.things}s and hours that lost money over the run. Spending less is fine; spending on losers is not.`,
     tiers: [{ points: 5, rule: "≤ 10% wasted" }, { points: 3, rule: "≤ 25%" }, { points: 1, rule: "≤ 40%" }, { points: 0, rule: "More" }],
     note: floor < 1
       ? `${Math.round(share * 100)}% of spend went where ads earned back less than ${Math.round(floor * 100)}% of their cost (the limit for this brand's reach goal).`
-      : `${Math.round(share * 100)}% of spend went to keyword × hour combinations below break-even.`,
-    howToImprove: "Use the keyword and hour-of-day reports to find spend below break-even and cut it.",
+      : `${Math.round(share * 100)}% of spend went to ${words.things} × hour combinations below break-even.`,
+    howToImprove: `Use the ${words.reports} to find spend below break-even and cut it.`,
   });
 }
 

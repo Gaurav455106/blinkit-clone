@@ -21,6 +21,26 @@ export interface LiveFactorInput {
   configsByDay: readonly (readonly CampaignConfig[])[];
 }
 
+/** Words for advice that match what the account actually ran, so a Spotlight-only
+ *  account is not told to check its keywords. */
+export interface AdviceWords {
+  /** Where to make the change on the live dashboard. */
+  tab: string;
+  /** Which reports show it. */
+  reports: string;
+  /** What gets cut or scaled: "keyword", "placement" or "keyword or placement". */
+  things: string;
+}
+
+export function adviceWords(results: readonly DayResult[]): AdviceWords {
+  const has = (keyword: boolean) => results.some((r) => r.cells.some((c) => (c.inventory === "keyword") === keyword));
+  const keywords = has(true);
+  const placements = has(false);
+  if (keywords && placements) return { tab: "the Keywords and Campaigns tabs", reports: "R2 Keyword, R6 Placement and R5 Hour of day reports", things: "keyword or placement" };
+  if (placements) return { tab: "the Campaigns tab", reports: "R6 Placement and R5 Hour of day reports", things: "placement" };
+  return { tab: "the Keywords tab", reports: "R2 Keyword and R5 Hour of day reports", things: "keyword" };
+}
+
 export const LIVE_FACTOR_MAX = { scaling: 5, improvement: 4, peak: 3, steady: 3 } as const;
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -112,6 +132,10 @@ export function wasScaled(w: Winner, actions: readonly LiveAction[]): boolean {
   });
 }
 
+/** A keyword as typed, or a placement's readable name ("Spotlight: search results"). */
+const unitLabel = (input: LiveFactorInput, term: string): string =>
+  input.ctx.market.placements.find((p) => p.id === term)?.label ?? term;
+
 export function scalingLine(input: LiveFactorInput): ScoreLineV2 {
   const max = LIVE_FACTOR_MAX.scaling;
   const winners = findWinners(input);
@@ -128,8 +152,8 @@ export function scalingLine(input: LiveFactorInput): ScoreLineV2 {
     ],
     note: winners.length === 0
       ? "Nothing was both earning well and short of views, so there was nothing to scale."
-      : `Scaled ${scaled.length} of ${winners.length}.${missed.length ? ` Missed: ${missed.slice(0, 3).map((w) => `"${w.term}" (day ${w.day}, ROAS ${w.roas.toFixed(2)}, ${pct(w.headroom)} of searches missed, needed ${w.cause === "budget" ? "more budget" : "a higher bid"})`).join(", ")}.` : ""}`,
-    howToImprove: "Every few days, sort the Keywords tab by ROAS. Anything well above break-even that misses searches needs more budget if 'lost to budget' is high, or a higher bid if 'lost to rank' is high.",
+      : `Scaled ${scaled.length} of ${winners.length}.${missed.length ? ` Missed: ${missed.slice(0, 3).map((w) => `"${unitLabel(input, w.term)}" (on day ${w.day} its last 3 days ran at ROAS ${w.roas.toFixed(2)} and missed ${pct(w.headroom)} of searches; it needed ${w.cause === "budget" ? "more budget" : "a higher bid"})`).join(", ")}.` : ""}`,
+    howToImprove: `Every few days, sort ${adviceWords(input.results).tab} by ROAS. Any ${adviceWords(input.results).things} well above break-even that misses searches needs more budget if 'lost to budget' is high, or a higher bid if 'lost to rank' is high.`,
   });
 }
 
@@ -223,10 +247,22 @@ export function flipFlops(actions: readonly LiveAction[]): string[] {
     .map(([subject]) => subject);
 }
 
+const SETTING_WORDS: Record<string, string> = {
+  keywordBid: "the bid on", smartBid: "the smart bid on", pauseKeyword: "pausing", placementBid: "the bid on",
+  budget: "a campaign budget", states: "a campaign's states", schedule: "a campaign's hours", pause: "pausing a campaign",
+};
+
+/** "the bid on Spotlight: search results" from a flip-flop subject (campaign|kind|what). */
+function settingName(input: LiveFactorInput, subject: string): string {
+  const [, kind, what] = subject.split("|");
+  const words = SETTING_WORDS[kind] ?? kind;
+  return what === kind ? words : `${words} "${unitLabel(input, what)}"`;
+}
+
 export function steadyLine(input: LiveFactorInput): ScoreLineV2 {
   const max = LIVE_FACTOR_MAX.steady;
   const flips = flipFlops(input.actions);
-  const names = flips.map((s) => s.split("|").slice(1).join(" "));
+  const names = flips.map((s) => settingName(input, s));
   return line({
     key: "v2_steady", category: "live", label: "Steady hands", earned: max - flips.length, max,
     judgedOn: `Whether you gave changes time to show results: the same setting changed more than ${FLIP_LIMIT} times in ${FLIP_DAYS} days costs 1 point.`,
