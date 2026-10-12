@@ -83,3 +83,39 @@
   .sim-ui .sim-lift, .sim-ui .sim-lift:hover { transition: none; transform: none; }
   .sim-ui .sim-bar { transition: none; }
 }
+
+/* ── Cards: deal in, tilt toward the mouse, flip over ── */
+@keyframes sim-deal {
+  0% { transform: translateY(40px) rotate(var(--sim-deal-rot, -6deg)) scale(0.92); opacity: 0; }
+  70% { transform: translateY(-4px) rotate(0deg) scale(1.01); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+.sim-ui .sim-deal { animation: sim-deal 620ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both; animation-delay: var(--sim-delay, 0ms); }
+
+/* Tilt: useTilt sets --tilt-x / --tilt-y (deg) and --shine-x / --shine-y (%) */
+.sim-ui .sim-tilt { transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)); transition: transform 160ms ease-out; will-change: transform; }
+.sim-ui .sim-tilt-shine { pointer-events: none; position: absolute; inset: 0; border-radius: inherit; opacity: 0; transition: opacity 200ms ease-out;
+  background: radial-gradient(circle at var(--shine-x, 50%) var(--shine-y, 50%), hsl(0 0% 100% / 0.35), transparent 55%); }
+.sim-ui .sim-tilt:hover .sim-tilt-shine { opacity: 1; }
+
+/* Flip: both faces share one grid cell, so the card is as tall as its taller face */
+.sim-ui .sim-flip { perspective: 1200px; }
+.sim-ui .sim-flip-inner { display: grid; transform-style: preserve-3d; transition: transform 560ms cubic-bezier(0.3, 0.8, 0.3, 1.1); }
+.sim-ui .sim-flip.is-flipped .sim-flip-inner { transform: rotateY(180deg); }
+.sim-ui .sim-flip-face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.sim-ui .sim-flip-back { transform: rotateY(180deg); }
+
+/* Stamp: lands with a thud */
+@keyframes sim-stamp {
+  0% { transform: scale(1.8) rotate(-12deg); opacity: 0; }
+  60% { transform: scale(0.94) rotate(-6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-6deg); opacity: 1; }
+}
+.sim-ui .sim-stamp { animation: sim-stamp 380ms cubic-bezier(0.3, 0.9, 0.4, 1.2) both; animation-delay: var(--sim-delay, 0ms); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-ui .sim-deal, .sim-ui .sim-stamp { animation: none !important; }
+  .sim-ui .sim-tilt { transform: none !important; transition: none; }
+  .sim-ui .sim-tilt-shine { display: none; }
+  .sim-ui .sim-flip-inner { transition: none; }
+}

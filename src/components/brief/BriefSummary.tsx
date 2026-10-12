@@ -7,15 +7,22 @@ import { PinButton } from "@/components/brief/PinButton";
 import { inr, pct, roasX } from "@/components/brief/format";
 import { useIsEngineV2 } from "@/lib/useEngine";
 import { clientGoalsV2 } from "@/market/goals";
+import { ClueCard } from "@/components/brief/ClueCard";
+import type { Clues } from "@/components/brief/useClues";
 
 type Props = {
   scenario: Scenario;
   stocked: readonly StateName[];
   rivals: readonly BriefRival[];
   hours: ShoppingHours | null;
+  clues: Clues;
 };
 
 const TOP_RIVALS = 3;
+const MONTH_CLUES = ["season", "market", "stock"] as const;
+
+/** How many clue cards the brief deals: the top rivals plus the three facts about this month. */
+export const clueCountFor = (rivals: readonly BriefRival[]) => Math.min(TOP_RIVALS, rivals.length) + MONTH_CLUES.length;
 
 function formatTarget(t: GoalMetric): string {
   if (t.unit === "imp" || t.unit === "users") {
@@ -62,7 +69,7 @@ function GoalGroup({ title, formats, goals }: { title: string; formats: string; 
 function RivalCard({ rival }: { rival: BriefRival }) {
   const cheaper = rival.priceVsYou.diffPct < 0;
   return (
-    <li className="sim-lift flex flex-col gap-2 rounded-xl bg-secondary/50 p-4">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold text-foreground">{rival.name}</p>
         <Tag tone={rival.archetype === "leader" ? "neutral" : "warn"}>{rival.archetypeLabel}</Tag>
@@ -81,11 +88,11 @@ function RivalCard({ rival }: { rival: BriefRival }) {
           </dd>
         </div>
       </dl>
-    </li>
+    </div>
   );
 }
 
-export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
+export function BriefSummary({ scenario, stocked, rivals, hours, clues }: Props) {
   const { profile, budget, season, market, inventory } = scenario;
   // v2 runs use goals calibrated to the engine; v1 runs keep the goals they started with
   const isV2 = useIsEngineV2();
@@ -160,7 +167,13 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
             <p className="text-sm text-muted-foreground">No rival data for this brand.</p>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {rivals.slice(0, TOP_RIVALS).map((r) => <RivalCard key={r.id} rival={r} />)}
+              {rivals.slice(0, TOP_RIVALS).map((r, i) => (
+                <li key={r.id}>
+                  <ClueCard title={`Rival ${i + 1}`} open={clues.isOpen(`rival:${r.id}`)} onOpen={() => clues.open(`rival:${r.id}`)} className="h-full">
+                    <RivalCard rival={r} />
+                  </ClueCard>
+                </li>
+              ))}
             </ul>
           )}
         </Section>
@@ -168,23 +181,23 @@ export function BriefSummary({ scenario, stocked, rivals, hours }: Props) {
 
       <Reveal>
         <Section title="This month">
-          <dl className="grid gap-5 text-sm md:grid-cols-3">
-            <div>
-              <dt className="font-medium text-foreground">{season.name}</dt>
-              <dd className="mt-0.5 text-muted-foreground">{plainText(`${season.note} ${season.implication}`)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-foreground">{market.name}</dt>
-              <dd className="mt-0.5 text-muted-foreground">{plainText(`${market.note} ${market.implication}`)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-foreground">Stock: {inventory.label}</dt>
-              <dd className="mt-0.5 text-muted-foreground">
+          <div className="grid gap-3 text-sm md:grid-cols-3">
+            <ClueCard title="Season" open={clues.isOpen("season")} onOpen={() => clues.open("season")}>
+              <p className="font-medium text-foreground">{season.name}</p>
+              <p className="mt-0.5 text-muted-foreground">{plainText(`${season.note} ${season.implication}`)}</p>
+            </ClueCard>
+            <ClueCard title="Competition" open={clues.isOpen("market")} onOpen={() => clues.open("market")}>
+              <p className="font-medium text-foreground">{market.name}</p>
+              <p className="mt-0.5 text-muted-foreground">{plainText(`${market.note} ${market.implication}`)}</p>
+            </ClueCard>
+            <ClueCard title="Stock" open={clues.isOpen("stock")} onOpen={() => clues.open("stock")}>
+              <p className="font-medium text-foreground">Stock: {inventory.label}</p>
+              <p className="mt-0.5 text-muted-foreground">
                 <span className="sim-num">On the shelf in {inventory.osa}% of stores. {inventory.agingUnits.toLocaleString("en-IN")} units are getting old.</span>{" "}
                 {inventoryNote(inventory.tone)}
-              </dd>
-            </div>
-          </dl>
+              </p>
+            </ClueCard>
+          </div>
         </Section>
       </Reveal>
     </div>

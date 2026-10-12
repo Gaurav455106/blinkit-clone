@@ -34,6 +34,9 @@ import { describeDeal } from "@/components/deal/describeDeal";
 import { useTour } from "@/components/tour/useTour";
 import { CountUp } from "@/components/game/GameBits";
 import { fireConfetti } from "@/components/game/confetti";
+import { earnedAchievements } from "@/components/game/achievements";
+import { PartCards } from "@/components/results/cards/PartCards";
+import { BadgeShelf } from "@/components/results/cards/BadgeShelf";
 
 /** Confetti for "Growing Fast" (60) and up, once the score has counted up. */
 const CONFETTI_FROM = 60;
@@ -126,6 +129,10 @@ export default function DebriefV2({ student, scenario }: Props) {
   const summaries = useMemo(() => (saved ? qualitativeSummary(saved.lines, 2) : []), [saved]);
   const launched = useMemo(() => snapshotCampaigns(campaigns), [campaigns]);
   useSaveAttempt(student, scenario, saved, launched);
+  const badges = useMemo(() => earnedAchievements({
+    launched: run.launched, actions: run.actions, insights: run.insights.length,
+    rohitReplies: run.rohit.replies.length, day: run.day, results: run.results,
+  }), [run.launched, run.actions, run.insights.length, run.rohit.replies.length, run.day, run.results]);
   useTour("resultsV2", student.email, !!score);
   const grand = score?.grandTotal ?? 0;
   useEffect(() => {
@@ -185,6 +192,7 @@ export default function DebriefV2({ student, scenario }: Props) {
       />
       <div className="space-y-6">
         <GradeScale total={score.grandTotal} />
+        <PartCards lines={saved.lines} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile label="Spent on ads" value={rupees(score.run.spend)} />
           <StatTile label="Sales from ads" value={rupees(score.run.revenue)} />
@@ -205,6 +213,7 @@ export default function DebriefV2({ student, scenario }: Props) {
             </ol>
           </Section>
         )}
+        <BadgeShelf earned={badges} />
         <div data-tour="results-summary"><ScoreSummary summaries={summaries} /></div>
         {openingDeal && (
           <Section tour="results-deal" title="Your deal with Rohit" description={`Rohit's trust started at ${openingDeal.relationship} of 100.`}>

@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MARKET_DATA } from "@/market/data";
 import { marketContextFor } from "@/market/context";
 import { briefRivals, shoppingHours, stateDemandRows } from "@/lib/briefData";
-import { BriefSummary } from "@/components/brief/BriefSummary";
+import { BriefSummary, clueCountFor } from "@/components/brief/BriefSummary";
+import { useClues } from "@/components/brief/useClues";
 import { EconomicsTab } from "@/components/brief/EconomicsTab";
 import { MarketTab } from "@/components/brief/MarketTab";
 import { KeywordsTab } from "@/components/brief/KeywordsTab";
@@ -51,11 +52,13 @@ export default function Brief() {
   useTour("brief", student?.email, !!student && !!scenario);
   const states = useMemo(() => (scenario && market ? stateDemandRows(scenario, market) : []), [scenario, market]);
   const hours = useMemo(() => (market ? shoppingHours(market.category) : null), [market]);
+  const clues = useClues(scenario?.seed ?? "none");
 
   if (!student || !scenario) return null;
 
   const { profile, budget, cityStockMap } = scenario;
   const stocked = stockedStates(scenario);
+  const unturned = Math.max(0, clueCountFor(rivals) - clues.count);
 
   const handleContinue = () => {
     const convNum = Math.round((budget * convPct) / 100);
@@ -80,7 +83,7 @@ export default function Brief() {
 
           <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
             <div className="min-w-0 space-y-8">
-              <div data-tour="brief-summary"><BriefSummary scenario={scenario} stocked={stocked} rivals={rivals} hours={hours} /></div>
+              <div data-tour="brief-summary"><BriefSummary scenario={scenario} stocked={stocked} rivals={rivals} hours={hours} clues={clues} /></div>
 
               <Tabs data-tour="brief-tabs" value={tab} onValueChange={(v) => setTab(v as BriefTab)}>
                 <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary p-1">
@@ -106,9 +109,10 @@ export default function Brief() {
               <div data-tour="brief-quiz"><Reveal><BriefQuiz goalType={profile.goalType} primaryState={profile.primaryState} stock={cityStockMap} onStatusChange={setQuizDone} /></Reveal></div>
 
               <div data-tour="brief-continue" className="flex flex-col gap-4 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-accent-foreground">
-                  {quizDone ? "Next: meet Rohit, the category manager, and pitch for shelf support." : "Answer both questions above to continue."}
-                </p>
+                <div className="text-sm text-accent-foreground">
+                  <p>{quizDone ? "Next: meet Rohit, the category manager, and pitch for shelf support." : "Answer both questions above to continue."}</p>
+                  {unturned > 0 && <p className="mt-1 text-xs text-muted-foreground">{unturned} clue {unturned === 1 ? "card is" : "cards are"} still face down above.</p>}
+                </div>
                 <Button disabled={!quizDone} onClick={handleContinue} className="shrink-0 gap-2">
                   Continue to category manager <ArrowRight className="h-4 w-4" />
                 </Button>
