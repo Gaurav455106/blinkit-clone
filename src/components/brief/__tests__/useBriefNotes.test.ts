@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { addNote, removeNote, readNotes, useBriefNotes, BRIEF_NOTES_KEY, MAX_NOTES, MAX_NOTE_LENGTH } from "@/components/brief/useBriefNotes";
+import { addNote, removeNote, readNotes, clearBriefNotes, useBriefNotes, BRIEF_NOTES_KEY, MAX_NOTES, MAX_NOTE_LENGTH } from "@/components/brief/useBriefNotes";
 
 beforeEach(() => localStorage.clear());
 
@@ -52,6 +52,19 @@ describe("useBriefNotes", () => {
     act(() => result.current.toggle("x"));
     expect(result.current.notes).toEqual(["x"]);
     act(() => result.current.toggle("x"));
+    expect(result.current.notes).toEqual([]);
+  });
+});
+
+describe("clearBriefNotes", () => {
+  it("empties stored notes and updates mounted hooks, so a new brief starts blank", () => {
+    const { result } = renderHook(() => useBriefNotes());
+    act(() => result.current.pin("Old brief: break-even 4.4x"));
+    expect(result.current.notes).toHaveLength(1);
+
+    act(() => clearBriefNotes());
+
+    expect(readNotes()).toEqual([]);
     expect(result.current.notes).toEqual([]);
   });
 });
