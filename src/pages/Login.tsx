@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useSim } from "@/context/SimContext";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { HUB_URL, syncMasterFlag } from "@/lib/masterAccess";
+import { clearStudentView } from "@/lib/staffView";
 
 /**
  * Login is now a router, not a form.
@@ -62,6 +63,7 @@ export default function Login() {
     const email = testEmail.trim().toLowerCase();
     if (!testName.trim() || !email) return;
     localStorage.setItem("sim_role", "student");
+    clearStudentView();
     // setStudent isolates this email's session from whoever used the browser last
     setStudent({ name: testName.trim(), email, batch: testBatch.trim() || "MASTER" });
     nav("/dashboard");

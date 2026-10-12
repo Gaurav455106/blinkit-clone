@@ -240,7 +240,7 @@ interface SimState {
   missedCrises: string[];                // crisisKeys auto-applied (worst option)
 
   setStudent: (s: Student) => void;
-  newScenario: () => void;
+  newScenario: (profileId?: string) => void;
   setCmPitch: (p: CmPitchResult | null) => void;
   /** Delta applied to cmRelationship. Clamped 0–100. Pass a reason for future audit log. */
   updateCmRelationship: (delta: number, reason?: string) => void;
@@ -604,7 +604,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setDailyNoise(null);
   };
 
-  const newScenario = () => {
+  const newScenario = (profileId?: string) => {
     // If an in-progress run exists, snapshot its state before wiping so it can be resumed later.
     if (activeRunId && scenario) {
       const currentEntry = runHistory.find((r) => r.id === activeRunId);
@@ -624,7 +624,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
         );
       }
     }
-    setScenario(generateScenario());
+    setScenario(generateScenario(profileId));
     setCmPitchState(null);
     setCmRelationship(50);
     setLiveCmRelationship(null);

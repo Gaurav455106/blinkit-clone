@@ -540,8 +540,9 @@ function generateClientGoals(profile: BrandProfile, inventoryLabel: InventorySta
   }
 }
 
-export function generateScenario(): Scenario {
-  const profile = rand(BRAND_PROFILES);
+/** A fresh random brief; pass a brand id to fix the brand (staff test runs). */
+export function generateScenario(profileId?: string): Scenario {
+  const profile = BRAND_PROFILES.find((p) => p.id === profileId) ?? rand(BRAND_PROFILES);
   const cityStockMap = generateCityStockMap(profile);
   const season = rand(SEASONS);
   const market = rand(MARKET_CONDITIONS);

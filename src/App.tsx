@@ -18,6 +18,7 @@ import Admin from "./pages/Admin";
 import MyProfilePage, { StaffStudentProfilePage } from "./pages/StudentProfile";
 
 import SSOCallback from "./pages/SSOCallback";
+import { StaffReturnBar } from "@/components/StaffReturnBar";
 import NotFound from "./pages/NotFound.tsx";
 import { HUB_URL, syncMasterFlag } from "@/lib/masterAccess";
 
@@ -75,6 +76,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <StaffReturnBar />
         <SimProvider>
           <Routes>
             {/* Core student flow */}
