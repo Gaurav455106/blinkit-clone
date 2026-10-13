@@ -63,7 +63,7 @@ export const TOURS: Readonly<Record<TourId, TourDef>> = {
       { target: "#cm-relationship-section", title: "Rohit's trust", body: "This meter shows how much Rohit trusts you. A fair deal starts it higher, and a higher score gets you better treatment during the run.", side: "right" },
       { target: "deal-rohit", title: "What Rohit can see", body: "Rohit knows where people search for your products. Use these numbers: he checks every part of your deal against them.", side: "bottom" },
       { target: "deal-stock", title: "Where your stock goes", body: "Split each product's stock across the states. Ads only run where there is stock, so follow the searches.", side: "top" },
-      { target: "deal-asks", title: "What you ask for", body: "Up to two extras: more stores, a better shelf spot or a fast restock. Each one costs Rohit something.", side: "top" },
+      { target: "deal-asks", title: "What you ask for", body: "Up to two extras: more stores, busier dark stores or a fast restock. Each one costs Rohit something.", side: "top" },
       { target: "deal-gives", title: "What you offer back", body: "Ad spend, a discount or a stock promise. Promises are tracked during the run, so only offer what you can keep.", side: "top" },
       { target: "deal-send", title: "Send it", body: "Rohit pushes back where your numbers don't add up. Every reply shows its cost, and you can always walk away.", side: "top" },
     ],

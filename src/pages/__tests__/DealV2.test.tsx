@@ -62,7 +62,7 @@ describe("Deal with Rohit page", () => {
   it("asking for a lot without offering anything gets a counter, and walking away saves the brief's terms", { timeout: 20000 }, async () => {
     renderPage();
     followDemand();
-    fireEvent.click(screen.getByLabelText(/A better shelf spot/));
+    fireEvent.click(screen.getByLabelText(/Busier dark stores/));
     fireEvent.click(screen.getByLabelText(/A fast restock/));
     fireEvent.click(screen.getByRole("button", { name: /Send the deal to Rohit/ }));
     // Rohit types for a moment before his counter appears (SPEC §15)

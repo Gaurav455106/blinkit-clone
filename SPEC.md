@@ -792,8 +792,10 @@ stocked, shelf placement) is negotiated with the category manager by trading com
 1. **Deal sheet**, with Rohit's data beside each part (state demand share, OSA, sell-through):
    - *Stock:* the pool = the brief's starting units across its stocked states. The student moves units
      between SKUs and the brand's primary and secondary states. Sets day-1 stock and OSA.
-   - *Asks (pick up to 2):* more stores in a state (extra day-1 units there), a better shelf spot
-     (relevance ×1.1 for 10 days), an expedited restock (stock arrives on a set day).
+   - *Asks (pick up to 2):* more stores in a state (extra day-1 units there), busier dark stores in a
+     state (stock sits in the stores with the most orders: OSA reach ×1.5 for the run; replaced "a
+     better shelf spot" on 2026-10-13, since placement inside a dark store changes little), an
+     expedited restock (stock arrives on a set day).
    - *Gives (pick any):* an ad-spend promise in the category (₹ over N days), a funded launch
      discount (price cut on chosen SKUs for 7 days, margin given up), a supply promise (keep OSA ≥ X%
      in a state by a day).
@@ -809,7 +811,7 @@ stocked, shelf placement) is negotiated with the category manager by trading com
    |---|---|
    | Stock split | Day-1 stock per SKU × state (overrides the brief's split; same total) |
    | More stores | `StockAdd` on day 1 |
-   | Shelf spot | `ShelfBoost` (relevance ×1.1, days 1 to 10) |
+   | Busier dark stores | `StoreReach` (OSA = 1 − (1 − OSA)^1.5 in that state, whole run) |
    | Expedited restock | `StockAdd` on the agreed day |
    | Funded discount | `PriceCut` (days 1 to 7, margin per unit given up) |
    | Ad-spend promise | `Commitment` spend_at_least (tracked on the live dashboard) |

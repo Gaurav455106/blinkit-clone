@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import type { SKU } from "@/data/scenarios";
 import {
-  DISCOUNT_DAYS, FAST_RESTOCK_DAY, FAST_RESTOCK_SHARE, MAX_ASKS, MORE_STORES_SHARE, SHELF_BOOST, SHELF_DAYS,
+  DISCOUNT_DAYS, FAST_RESTOCK_DAY, FAST_RESTOCK_SHARE, MAX_ASKS, MORE_STORES_SHARE,
   type DealAsk, type DealGive,
 } from "@/market/deal";
 import { Section } from "@/components/sim/primitives";
@@ -31,18 +31,26 @@ function Choice({ checked, disabled, onToggle, title, note, children }: {
   );
 }
 
+type StateAsk = Exclude<DealAsk["kind"], "shelfSpot">;
+const STATE_LABEL: Record<StateAsk, string> = {
+  moreStores: "State for more stores",
+  busyStores: "State for busier dark stores",
+  fastRestock: "State for the fast restock",
+};
+
 type AskProps = { states: readonly string[]; asks: readonly DealAsk[]; onChange: (asks: DealAsk[]) => void };
 
 export function AsksPicker({ states, asks, onChange }: AskProps) {
   const [storeState, setStoreState] = useState(states[0]);
+  const [busyState, setBusyState] = useState(states[0]);
   const [restockState, setRestockState] = useState(states[0]);
   const has = (k: DealAsk["kind"]) => asks.some((a) => a.kind === k);
   const full = asks.length >= MAX_ASKS;
   const toggle = (ask: DealAsk) => onChange(has(ask.kind) ? asks.filter((a) => a.kind !== ask.kind) : [...asks, ask]);
-  const retarget = (kind: "moreStores" | "fastRestock", state: string) =>
+  const retarget = (kind: StateAsk, state: string) =>
     onChange(asks.map((a) => (a.kind === kind ? { kind, state } : a)));
-  const stateSelect = (value: string, set: (s: string) => void, kind: "moreStores" | "fastRestock") => (
-    <select aria-label={kind === "moreStores" ? "State for more stores" : "State for the fast restock"} className={SELECT} value={value}
+  const stateSelect = (value: string, set: (s: string) => void, kind: StateAsk) => (
+    <select aria-label={STATE_LABEL[kind]} className={SELECT} value={value}
       onChange={(e) => { set(e.target.value); retarget(kind, e.target.value); }}>
       {states.map((s) => <option key={s} value={s}>{s}</option>)}
     </select>
@@ -54,8 +62,10 @@ export function AsksPicker({ states, asks, onChange }: AskProps) {
           title="More stores" note={`Rohit adds ${pct(MORE_STORES_SHARE)} more of the stock you placed there, on day 1.`}>
           in {stateSelect(storeState, setStoreState, "moreStores")}
         </Choice>
-        <Choice checked={has("shelfSpot")} disabled={full && !has("shelfSpot")} onToggle={() => toggle({ kind: "shelfSpot" })}
-          title="A better shelf spot" note={`Your ads rank higher (×${SHELF_BOOST}) for the first ${SHELF_DAYS} days.`} />
+        <Choice checked={has("busyStores")} disabled={full && !has("busyStores")} onToggle={() => toggle({ kind: "busyStores", state: busyState })}
+          title="Busier dark stores" note="Your stock goes to the dark stores with the most orders, so the same units reach more shoppers.">
+          in {stateSelect(busyState, setBusyState, "busyStores")}
+        </Choice>
         <Choice checked={has("fastRestock")} disabled={full && !has("fastRestock")} onToggle={() => toggle({ kind: "fastRestock", state: restockState })}
           title="A fast restock" note={`${pct(FAST_RESTOCK_SHARE)} of what you placed there arrives again on day ${FAST_RESTOCK_DAY}.`}>
           in {stateSelect(restockState, setRestockState, "fastRestock")}

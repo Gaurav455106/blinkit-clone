@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   stockPool, allowedStates, defaultDeal, walkAwayDeal, validateDeal, dealToRun, withStartStock,
-  SHELF_BOOST, SHELF_DAYS, DISCOUNT_DAYS, FAST_RESTOCK_DAY, type DealTerms,
+  SHELF_BOOST, SHELF_DAYS, DISCOUNT_DAYS, FAST_RESTOCK_DAY, BUSY_STORES_REACH, type DealTerms,
 } from "@/market/deal";
+import type { DayResult } from "@/market/engineTypes";
 import { initialMarketState } from "@/market/state";
 import { stepDay } from "@/market/step";
 import { testContext } from "@/market/__tests__/testContext";
@@ -32,7 +33,7 @@ describe("stock pool and default deal", () => {
   it("the default deal reproduces the brief exactly, so walking away changes nothing", () => {
     const run = dealToRun(fuel, walkAwayDeal(fuel));
     expect(initialMarketState(withStartStock(fuel, run.startStock)).stock).toEqual(initialMarketState(fuel).stock);
-    expect(run.adjustments).toEqual({ stockAdds: [], extraSpend: [], priceCuts: [], shelfBoosts: [] });
+    expect(run.adjustments).toEqual({ stockAdds: [], extraSpend: [], priceCuts: [], shelfBoosts: [], storeReach: [] });
     expect(run.commitments).toEqual([]);
     expect(walkAwayDeal(fuel).walkedAway).toBe(true);
     expect(defaultDeal(fuel).walkedAway).toBe(false);
@@ -51,6 +52,15 @@ describe("validateDeal", () => {
     expect(validateDeal(fuel, { ...d, stock: { ...d.stock, "fuel-1": { ...d.stock["fuel-1"], Goa: 10 } } })[0]).toMatch(/Goa/);
     expect(validateDeal(fuel, { ...d, stock: { ...d.stock, "fuel-1": { ...d.stock["fuel-1"], [primary]: stockPool(fuel)["fuel-1"] + 50 } } })[0]).toMatch(/more than/);
     expect(validateDeal(fuel, { ...d, stock: { ...d.stock, "fuel-1": { ...d.stock["fuel-1"], [primary]: -5 } } })[0]).toMatch(/below zero/);
+  });
+
+  it("accepts whole units that add up to the pool as shown, even when the real pool rounds up", () => {
+    const d = defaultDeal(fuel);
+    const sku = profile.skus.map((x) => x.id).find((id) => stockPool(fuel)[id] % 1 >= 0.5)!;
+    const shown = Math.round(stockPool(fuel)[sku]);
+    const row = Object.fromEntries(allowedStates(fuel).map((st, i) => [st, i === 0 ? shown : 0]));
+    expect(validateDeal(fuel, { ...d, stock: { ...d.stock, [sku]: row } })).toEqual([]);
+    expect(validateDeal(fuel, { ...d, stock: { ...d.stock, [sku]: { ...row, [primary]: shown + 1 } } })[0]).toMatch(/more than/);
   });
 
   it("allows at most two asks and one of each give", () => {
@@ -87,6 +97,21 @@ describe("the deal shapes the run", () => {
     expect(adj.stockAdds.some((s) => s.day === FAST_RESTOCK_DAY && s.state === primary)).toBe(true);
     const shelf = dealToRun(fuel, { ...defaultDeal(fuel), asks: [{ kind: "shelfSpot" }] }).adjustments.shelfBoosts;
     expect(shelf).toEqual([{ fromDay: 1, toDay: SHELF_DAYS, relevanceMult: SHELF_BOOST }]);
+  });
+
+  it("busier dark stores: the same units reach more of that state's searches, all run, and nothing else changes", () => {
+    const d: DealTerms = { ...defaultDeal(fuel), asks: [{ kind: "busyStores", state: primary }] };
+    const adj = dealToRun(fuel, d).adjustments;
+    expect(adj.storeReach).toEqual([{ state: primary, reachMult: BUSY_STORES_REACH }]);
+    expect(adj.stockAdds).toEqual([]);
+
+    const ctx = withStartStock(fuel, dealToRun(fuel, d).startStock);
+    const lost = (r: DayResult, st: string) => r.cells.filter((c) => c.state === st).reduce((s, c) => s + c.lostToStock, 0);
+    const searches = (r: DayResult, st: string) => r.cells.filter((c) => c.state === st).reduce((s, c) => s + c.searches, 0);
+    const plain = stepDay(ctx, initialMarketState(ctx), [campaign()], { adjustments: dealToRun(fuel, defaultDeal(fuel)).adjustments }).result;
+    const busy = stepDay(ctx, initialMarketState(ctx), [campaign()], { adjustments: adj }).result;
+    expect(lost(busy, primary) / searches(busy, primary)).toBeLessThan(lost(plain, primary) / searches(plain, primary));
+    expect(lost(busy, second)).toBeCloseTo(lost(plain, second), 6);
   });
 
   it("a funded discount cuts price for a week and gives up that much margin per unit", () => {

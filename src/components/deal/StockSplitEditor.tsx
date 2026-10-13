@@ -6,6 +6,7 @@ import type { StockSplit } from "@/market/deal";
 import { Section, Tag } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
 import { stagger } from "@/components/game/GameBits";
+import { stockNote } from "@/components/deal/stockNote";
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const units = (n: number) => Math.round(n).toLocaleString("en-IN");
@@ -37,6 +38,7 @@ export function StockSplitEditor({ skus, states, demand, pool, value, onChange, 
           const placed = states.reduce((s, st) => s + (row[st] ?? 0), 0);
           const left = (pool[sku.id] ?? 0) - placed;
           const over = left < -0.5;
+          const note = stockNote(row, demand, states);
           return (
             <fieldset key={sku.id} className="sim-rise rounded-xl border border-border p-4" style={stagger(skuIndex, 110)}>
               <legend className="px-1 text-sm font-medium text-foreground">{sku.name}</legend>
@@ -68,6 +70,7 @@ export function StockSplitEditor({ skus, states, demand, pool, value, onChange, 
                   </label>
                 ))}
               </div>
+              {note && <p className="mt-3 text-xs text-sim-warn" aria-live="polite">{note}</p>}
             </fieldset>
           );
         })}
