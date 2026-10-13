@@ -12,6 +12,7 @@ import type { OpeningDeal } from "@/market/deal";
 import { marketContextFor } from "@/market/context";
 import { dealPitchResult } from "@/lib/dealPitch";
 import { resolveEngine } from "@/lib/engineFlag";
+import { clearBriefNotes } from "@/components/brief/useBriefNotes";
 
 export interface Student {
   name: string;
@@ -585,6 +586,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
       // Brief acknowledgement — must re-pass quiz for each new scenario
       "sim_brief_ack", "sim_budget_intent_conversion", "sim_budget_intent_reach", "sim_budget_intent_conv_pct",
     ].forEach((k) => localStorage.removeItem(k));
+    // Pinned notes belong to the brief they were taken on
+    clearBriefNotes();
   };
 
   const resetSimRuntime = () => {

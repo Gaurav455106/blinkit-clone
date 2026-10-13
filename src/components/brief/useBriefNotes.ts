@@ -70,6 +70,11 @@ function writeNotes(notes: readonly string[]): void {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
+/** Empties the notes, e.g. when a new brief starts: notes belong to one brief. */
+export function clearBriefNotes(): void {
+  writeNotes([]);
+}
+
 export interface BriefNotes {
   notes: readonly string[];
   pin: (text: string) => void;
@@ -88,7 +93,7 @@ export function useBriefNotes(): BriefNotes {
     const current = readNotes();
     writeNotes(current.includes(text.trim()) ? removeNote(current, text.trim()) : addNote(current, text));
   }, []);
-  const clear = useCallback(() => writeNotes([]), []);
+  const clear = useCallback(clearBriefNotes, []);
   const isPinned = useCallback((text: string) => notes.includes(text.trim()), [notes]);
 
   return useMemo(() => ({ notes, pin, unpin, toggle, isPinned, clear }), [notes, pin, unpin, toggle, isPinned, clear]);
