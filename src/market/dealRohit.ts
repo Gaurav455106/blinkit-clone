@@ -1,6 +1,6 @@
 // ── Rohit's side of the opening deal (SPEC §6.1, step 2) ─────────────────────
-// Pure and deterministic. Rohit values what the student asks for (shelf,
-// stores, restocks cost him) against what they offer (ad spend, a funded
+// Pure and deterministic. Rohit values what the student asks for (stores,
+// busy-store space, restocks cost him) against what they offer (ad spend, a funded
 // discount, a supply promise), using the brief's own numbers. He raises each
 // objection the data supports once, counters at most MAX_COUNTERS times, then
 // makes a final offer. The student can always walk away (brief terms).
@@ -20,6 +20,8 @@ import {
 export const MAX_COUNTERS = 2;
 /** Shelf space value Rohit gives up, per ₹ of stock he adds, before the demand factor. */
 const SHELF_COST_RATE = 0.2;
+/** Space in the busiest dark stores, per ₹ of stock placed in the state, before the demand factor. */
+const BUSY_STORES_COST_RATE = 0.05;
 /** Rohit discounts promised ad spend: a promise isn't money yet. */
 const PROMISE_CREDIT = 0.6;
 /** Extra shoppers a discount brings to his shelf, per ₹ of discount. */
@@ -66,8 +68,22 @@ export function stockFit(ctx: MarketContext, d: DealTerms): number {
 
 // ── Valuation (₹ over the run) ───────────────────────────────────────────────
 
+const stockValueIn = (ctx: MarketContext, d: DealTerms, state: string) => {
+  const skus = skuById(ctx);
+  return Object.entries(d.stock).reduce((s, [id, row]) => s + (row[state] ?? 0) * (skus.get(id)?.mrp ?? 0), 0);
+};
+
+/** A state's share of searches against the average state (0.5 to 3). */
+function demandFactor(ctx: MarketContext, state: string): number {
+  const shares = demandShares(ctx);
+  const avg = 1 / Object.keys(shares).length;
+  return Math.min(3, Math.max(0.5, (shares[state] ?? 0) / avg));
+}
+
 function askCost(ctx: MarketContext, d: DealTerms, a: DealAsk): number {
   if (a.kind === "shelfSpot") return COFUND_BANNER_COST;
+  // Busy stores are scarce where demand is high: every brand wants them
+  if (a.kind === "busyStores") return stockValueIn(ctx, d, a.state) * BUSY_STORES_COST_RATE * demandFactor(ctx, a.state);
   const skus = skuById(ctx);
   const share = a.kind === "moreStores" ? MORE_STORES_SHARE : FAST_RESTOCK_SHARE;
   const units = Object.entries(d.stock).map(([id, row]) => ({ id, units: (row[a.state] ?? 0) * share }));
@@ -307,7 +323,7 @@ function counterTurn(ctx: MarketContext, s: NegotiationState): RohitDealTurn {
     { label: "What you're asking for is worth", value: inr(asked), tone: "neutral" },
     { label: "What you're offering is worth", value: inr(given), tone: given < asked ? "bad" : "good" },
   ];
-  const label = (a: DealAsk) => (a.kind === "shelfSpot" ? "the better shelf spot" : a.kind === "moreStores" ? `more stores in ${a.state}` : `the fast restock in ${a.state}`);
+  const label = (a: DealAsk) => askLabel(a, "the");
   if (s.counters >= MAX_COUNTERS) {
     return {
       kind: "final",
@@ -384,4 +400,14 @@ export function dealOutcome(ctx: MarketContext, s: NegotiationState): { terms: D
   if (s.status !== "agreed") return { terms: walkAwayDeal(ctx), relationship: BASE_RELATIONSHIP };
   const r = BASE_RELATIONSHIP + 12 * Math.tanh(dealBalance(ctx, s.terms) / 25000) + 10 * (stockFit(ctx, s.terms) - 0.8) + s.trust;
   return { terms: s.terms, relationship: Math.round(Math.max(30, Math.min(80, r))) };
+}
+
+/** An ask in plain words, e.g. "busier dark stores in Delhi" (article: "a"/"the" where it takes one). */
+export function askLabel(a: DealAsk, article: "a" | "the"): string {
+  switch (a.kind) {
+    case "moreStores": return `more stores in ${a.state}`;
+    case "busyStores": return `busier dark stores in ${a.state}`;
+    case "fastRestock": return `${article} fast restock in ${a.state}`;
+    case "shelfSpot": return `${article} better shelf spot`;
+  }
 }

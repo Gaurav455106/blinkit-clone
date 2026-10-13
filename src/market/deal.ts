@@ -17,6 +17,8 @@ export type StockSplit = Readonly<Record<string, Readonly<Record<string, number>
 
 export type DealAsk =
   | { kind: "moreStores"; state: string }
+  | { kind: "busyStores"; state: string }
+  /** No longer offered; kept so deals saved before busyStores still replay. */
   | { kind: "shelfSpot" }
   | { kind: "fastRestock"; state: string };
 
@@ -43,6 +45,9 @@ export interface DealRun {
 export const MAX_ASKS = 2;
 /** "More stores": extra day-1 units in the state, as a share of what the student placed there. */
 export const MORE_STORES_SHARE = 0.3;
+/** "Busier dark stores": stock sits in the stores with the most orders, so the same units
+ *  cover more of the state's searches (OSA exponent × this, for the whole run). */
+export const BUSY_STORES_REACH = 1.5;
 export const SHELF_BOOST = 1.1;
 export const SHELF_DAYS = 10;
 /** Expedited restock arrives on this day with this share of the state's day-1 units. */
@@ -96,7 +101,9 @@ export function validateDeal(ctx: MarketContext, d: DealTerms): string[] {
       if (units < 0) problems.push(`${name} in ${state} is below zero.`);
       if (units > 0 && !allowed.has(state)) problems.push(`Rohit can't stock ${name} in ${state}. Pick from ${[...allowed].join(", ")}.`);
     }
-    if (sum(byState) > (pool[sku] ?? 0) + 1e-6) problems.push(`${name}: you placed more than the ${Math.round(pool[sku] ?? 0).toLocaleString("en-IN")} units you have.`);
+    // The sheet shows whole units, so a pool of 1,640.6 is "1,641": allow what's shown
+    const limit = Math.max(pool[sku] ?? 0, Math.round(pool[sku] ?? 0));
+    if (sum(byState) > limit + 1e-6) problems.push(`${name}: you placed more than the ${Math.round(pool[sku] ?? 0).toLocaleString("en-IN")} units you have.`);
   }
   if (d.asks.length > MAX_ASKS) problems.push(`Pick at most two asks.`);
   const giveKinds = d.gives.map((g) => g.kind);
@@ -126,6 +133,7 @@ function askAdjustments(stock: StockSplit, asks: readonly DealAsk[]): Adjustment
     switch (a.kind) {
       case "moreStores": return { ...acc, stockAdds: [...acc.stockAdds, ...stateAdds(stock, a.state, MORE_STORES_SHARE, 1)] };
       case "fastRestock": return { ...acc, stockAdds: [...acc.stockAdds, ...stateAdds(stock, a.state, FAST_RESTOCK_SHARE, FAST_RESTOCK_DAY)] };
+      case "busyStores": return { ...acc, storeReach: [...acc.storeReach, { state: a.state, reachMult: BUSY_STORES_REACH }] };
       case "shelfSpot": return { ...acc, shelfBoosts: [...acc.shelfBoosts, { fromDay: 1, toDay: SHELF_DAYS, relevanceMult: SHELF_BOOST }] };
     }
   }, EMPTY_ADJUSTMENTS);

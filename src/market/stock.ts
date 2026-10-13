@@ -48,6 +48,13 @@ export function osa(units: number, stores: number, velocity: Velocity): number {
   return 1 - Math.exp(-units / k);
 }
 
+/** OSA when stock sits in the busiest stores: the same units cover more searches, as if
+ *  `mult` times as many were spread evenly (1 − (1 − OSA)^mult). */
+export function reachOsa(base: number, mult: number): number {
+  if (mult === 1 || base <= 0) return base;
+  return 1 - Math.pow(1 - Math.min(1, base), mult);
+}
+
 /** Starting units that reproduce the scenario's OSA % for a state. */
 export function initialUnits(osaPct: number, stores: number, velocity: Velocity): number {
   const target = Math.min(MAX_START_OSA, Math.max(0, osaPct) / 100);

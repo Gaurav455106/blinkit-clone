@@ -5,7 +5,8 @@
 //
 // Covered here: stock arriving (restock, new dark-store cluster), fees paid
 // (counted against the ₹2 lakh budget), a funded discount (lower price and
-// margin on named SKUs) and a shelf boost (higher relevance). Dropping states
+// margin on named SKUs), a shelf boost (higher relevance) and busier dark stores
+// (the same units cover more of a state's searches). Dropping states
 // and promised budgets are campaign changes and commitments, handled by the
 // dashboard as live actions.
 
@@ -15,15 +16,18 @@ export interface StockAdd { day: number; state: string; skuId: string; units: nu
 export interface ExtraSpend { day: number; amount: number }
 export interface PriceCut { fromDay: number; toDay: number; skuIds: readonly string[]; pct: number; marginPerUnit: Readonly<Record<string, number>> }
 export interface ShelfBoost { fromDay: number; toDay: number; relevanceMult: number }
+/** Stock placed in a state's busiest dark stores for the whole run. */
+export interface StoreReach { state: string; reachMult: number }
 
 export interface Adjustments {
   stockAdds: readonly StockAdd[];
   extraSpend: readonly ExtraSpend[];
   priceCuts: readonly PriceCut[];
   shelfBoosts: readonly ShelfBoost[];
+  storeReach: readonly StoreReach[];
 }
 
-export const EMPTY_ADJUSTMENTS: Adjustments = { stockAdds: [], extraSpend: [], priceCuts: [], shelfBoosts: [] };
+export const EMPTY_ADJUSTMENTS: Adjustments = { stockAdds: [], extraSpend: [], priceCuts: [], shelfBoosts: [], storeReach: [] };
 
 const unitsToAdds = (day: number, state: string, units: Readonly<Record<string, number>>): StockAdd[] =>
   Object.entries(units).filter(([, n]) => n > 0).map(([skuId, n]) => ({ day, state, skuId, units: n }));
@@ -44,6 +48,7 @@ export function adjustmentsFromReply(effect: ReplyEffect, lastCompletedDay: numb
     shelfBoosts: effect.shelfBoost
       ? [{ fromDay: next, toDay: next + effect.shelfBoost.days - 1, relevanceMult: effect.shelfBoost.relevanceMult }]
       : [],
+    storeReach: [],
   };
 }
 
@@ -53,6 +58,7 @@ export function mergeAdjustments(a: Adjustments, b: Adjustments): Adjustments {
     extraSpend: [...a.extraSpend, ...b.extraSpend],
     priceCuts: [...a.priceCuts, ...b.priceCuts],
     shelfBoosts: [...a.shelfBoosts, ...b.shelfBoosts],
+    storeReach: [...(a.storeReach ?? []), ...(b.storeReach ?? [])],
   };
 }
 
@@ -76,4 +82,10 @@ export function priceCutFor(adj: Adjustments, day: number, skuId: string): { pct
 
 export function shelfMult(adj: Adjustments, day: number): number {
   return adj.shelfBoosts.filter((b) => within(b, day)).reduce((p, b) => p * b.relevanceMult, 1);
+}
+
+/** OSA reach multiplier for a state (1 = stock spread like the brief). Runs saved before
+ *  storeReach existed have no list. */
+export function storeReachMult(adj: Adjustments, state: string): number {
+  return (adj.storeReach ?? []).filter((r) => r.state === state).reduce((p, r) => p * r.reachMult, 1);
 }

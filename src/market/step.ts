@@ -22,9 +22,9 @@ import { streamFor } from "@/market/rng";
 import { studentEntries, placementEntries, type StudentEntry } from "@/market/entries";
 import { rivalBid, rivalPrice, updateRival } from "@/market/rivals";
 import { shopperOutcome, priceEffect, affinity, fatigueMult } from "@/market/shoppers";
-import { osa, organicDemand, sellFrom, isRestockDay, restockAmount } from "@/market/stock";
+import { osa, reachOsa, organicDemand, sellFrom, isRestockDay, restockAmount } from "@/market/stock";
 import { activeOn, demandMults, rivalBidMult, rivalExited, cvrMult, type EventActivation } from "@/market/events";
-import { EMPTY_ADJUSTMENTS, extraSpendOn, priceCutFor, shelfMult, stockAddsOn, type Adjustments } from "@/market/adjustments";
+import { EMPTY_ADJUSTMENTS, extraSpendOn, priceCutFor, shelfMult, stockAddsOn, storeReachMult, type Adjustments } from "@/market/adjustments";
 
 /** Market events active in the run and the effects of Rohit's replies (both optional). */
 export interface StepOptions {
@@ -209,7 +209,9 @@ export function stepDay(
         const rawEntries = !served.has(st) ? []
           : unit.kind === "keyword" ? studentEntries(scheduled, keywordById.get(unit.id)!, st, market, scenario, prev)
           : placementEntries(scheduled, placementById.get(unit.id)!, st, market, scenario, prev);
-        const entries = shelf === 1 ? rawEntries : rawEntries.map((e) => ({ ...e, relevance: e.relevance * shelf }));
+        const reach = storeReachMult(adj, st);
+        const entries = shelf === 1 && reach === 1 ? rawEntries
+          : rawEntries.map((e) => ({ ...e, relevance: e.relevance * shelf, osa: reachOsa(e.osa, reach) }));
         pages.push({ unit, state: st, searches: n, viewRates: VIEW_RATES_BY_KIND[unit.kind], others: [...rivals, ...bg], entries });
       }
     }
