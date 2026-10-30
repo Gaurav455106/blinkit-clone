@@ -6,6 +6,9 @@
 //     duplicate a score.
 //   - This browser remembers which runs are saved, and only after the insert
 //     succeeds, so a failed save is retried on the next visit.
+//   - score_total is an integer column but v2 totals carry one decimal (56.5),
+//     which Postgres rejects, so it is rounded here; score_breakdown keeps the
+//     exact total.
 //   - The live-run row is removed only after the permanent record exists, and
 //     only for this run, so a newer run in progress isn't wiped.
 
@@ -48,7 +51,11 @@ function withRunId(choices: Json | undefined, runId: string): Json {
 
 /** Inserts the attempt for `runId`; throws the Supabase error when the save fails. */
 export async function saveAttempt(row: TablesInsert<"attempts">, runId: string): Promise<SaveOutcome> {
-  const { error } = await supabase.from("attempts").insert({ ...row, choices: withRunId(row.choices, runId) });
+  const { error } = await supabase.from("attempts").insert({
+    ...row,
+    score_total: Math.round(row.score_total),
+    choices: withRunId(row.choices, runId),
+  });
   if (error && error.code !== UNIQUE_VIOLATION) throw error;
   markRunSaved(runId);
 
