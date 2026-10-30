@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Download, RotateCcw } from "lucide-react";
 import { useSim, type Student } from "@/context/SimContext";
 import type { Scenario } from "@/data/scenarios";
-import { supabase } from "@/integrations/supabase/client";
+import { isRunSaved, saveAttempt } from "@/lib/attemptSave";
 import type { Json } from "@/integrations/supabase/types";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { FlowHeader } from "@/components/FlowHeader";
@@ -72,14 +72,14 @@ function MomentList({ moments }: { moments: readonly MomentScore[] }) {
 }
 
 function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakdownV2 | null, campaigns: readonly CampaignSnapshot[]) {
-  const { activeRunId, runHistory, completeRun, mode } = useSim();
+  const { activeRunId, completeRun, mode } = useSim();
   const savedRef = useRef(false);
-  const alreadyDone = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "completed";
   useEffect(() => {
-    if (savedRef.current || !saved || !activeRunId || alreadyDone || mode === "review") return;
+    if (savedRef.current || !saved || !activeRunId || mode === "review") return;
+    // Re-opening the debrief must not save the same run again
+    if (isRunSaved(activeRunId)) { savedRef.current = true; return; }
     savedRef.current = true;
-    completeRun({ score: saved.grandTotal, achievementPct: saved.achievementPct });
-    supabase.from("attempts").insert({
+    saveAttempt({
       email: student.email,
       name: student.name,
       batch_code: student.batch,
@@ -90,18 +90,15 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
       score_breakdown: saved as unknown as Json,
       badge: saved.achievementPct >= 90 ? "gold" : saved.achievementPct >= 70 ? "silver" : saved.achievementPct >= 50 ? "bronze" : null,
       snapshot: { scenario: { seed: scenario.seed, profile: { id: scenario.profile.id, name: scenario.profile.name } }, engine: "v2", campaigns } as unknown as Json,
-    }).then(({ error }) => {
-      if (error) {
-        console.error("[sim] v2 attempt save failed", error);
-        toast.error("Your score could not be saved. Please tell your trainer before closing this page.", { duration: 15000 });
-        savedRef.current = false;
-        return;
-      }
-      supabase.from("run_sessions").delete().eq("email", student.email).then(({ error: e }) => {
-        if (e) console.warn("[sim] run_sessions delete failed", e);
-      });
+    }, activeRunId).then(() => {
+      // Marked complete only once the permanent record exists, so a failed save is retried
+      completeRun({ score: saved.grandTotal, achievementPct: saved.achievementPct });
+    }).catch((error: unknown) => {
+      console.error("[sim] v2 attempt save failed", error);
+      toast.error("Your score could not be saved. Please tell your trainer before closing this page.", { duration: 15000 });
+      savedRef.current = false;
     });
-  }, [saved, activeRunId, alreadyDone, mode, completeRun, student, scenario, campaigns]);
+  }, [saved, activeRunId, mode, completeRun, student, scenario, campaigns]);
 }
 
 export default function DebriefV2({ student, scenario }: Props) {

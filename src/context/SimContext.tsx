@@ -13,6 +13,7 @@ import { marketContextFor } from "@/market/context";
 import { dealPitchResult } from "@/lib/dealPitch";
 import { resolveEngine } from "@/lib/engineFlag";
 import { clearBriefNotes } from "@/components/brief/useBriefNotes";
+import { V2_RUN_SAVED_EVENT, readStoredRun, restoreStoredRun } from "@/components/live/useLiveRun";
 
 export interface Student {
   name: string;
@@ -307,6 +308,9 @@ interface SimState {
 
 const SimCtx = createContext<SimState | null>(null);
 
+const SYNC_DEBOUNCE_MS = 1500;
+const SYNC_MAX_WAIT_MS = 10_000;
+
 function load<T>(k: string, fallback: T): T {
   try {
     const v = localStorage.getItem(k);
@@ -523,6 +527,10 @@ export function SimProvider({ children }: { children: ReactNode }) {
         if (st.competitor !== undefined) setCompetitorState(st.competitor);
         if (st.competitorActions) setCompetitorActions(st.competitorActions);
         if (typeof st.currentDay === "number") setCurrentDayState(st.currentDay);
+        // v2: the deal and the day-by-day run log (kept in localStorage while playing)
+        if (st.openingDeal) setOpeningDealState(st.openingDeal);
+        if (typeof st.liveCmRelationship === "number") setLiveCmRelationship(st.liveCmRelationship);
+        if (st.v2Run) restoreStoredRun(s, st.scenario ?? null, sessionRow.run_id, st.v2Run);
         setActiveRunId(sessionRow.run_id);
         // Make sure runHistory contains this in-progress entry.
         setRunHistory((prev) => prev.some((r) => r.id === sessionRow.run_id) ? prev : [
@@ -543,11 +551,24 @@ export function SimProvider({ children }: { children: ReactNode }) {
   }
 
   // ----- Debounced cloud sync of the live run -----
+  // The v2 run log lives in useLiveRun's localStorage entry, outside this
+  // context's state; each save there bumps this tick so the sync below re-runs.
+  const [v2RunTick, setV2RunTick] = useState(0);
+  useEffect(() => {
+    const onSaved = () => setV2RunTick((n) => n + 1);
+    window.addEventListener(V2_RUN_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(V2_RUN_SAVED_EVENT, onSaved);
+  }, []);
+
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncAt = useRef(0);
   useEffect(() => {
     if (!student || !activeRunId) return;
     if (syncTimer.current) clearTimeout(syncTimer.current);
+    // Debounce, but never let a run that keeps changing (v2 autoplay) go unsynced for long
+    const overdue = Date.now() - lastSyncAt.current > SYNC_MAX_WAIT_MS;
     syncTimer.current = setTimeout(() => {
+      lastSyncAt.current = Date.now();
       const state = {
         scenario, cmPitch, cmRelationship, campaigns, weekTotals, decisionsLog, crisisResponses,
         abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
@@ -555,6 +576,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
         optimizations, stockLevels, competitor, competitorActions, currentDay,
         setupScore, dayResults, totalScenarioSpend, crisisTriggered,
         daypartingChanges, midRunCampaignLaunched,
+        openingDeal, liveCmRelationship,
+        v2Run: readStoredRun(student, scenario, activeRunId),
       };
       const started = runHistory.find((r) => r.id === activeRunId)?.startedAt ?? new Date().toISOString();
       supabase.from("run_sessions").upsert({
@@ -568,14 +591,15 @@ export function SimProvider({ children }: { children: ReactNode }) {
       }, { onConflict: "email" }).then(({ error }) => {
         if (error) console.warn("[sim] run_sessions upsert failed", error);
       });
-    }, 1500);
+    }, overdue ? 0 : SYNC_DEBOUNCE_MS);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [student, activeRunId, scenario, cmPitch, cmRelationship, campaigns, weekTotals, decisionsLog, crisisResponses,
       abTests, cannibalResolved, clusterReactions, tokensSpent, tokensRemaining,
       microDecisionsLog, exhaustedCampaigns, cumulativeSpendByCampaign, events,
       optimizations, stockLevels, competitor, competitorActions, currentDay, runHistory,
       setupScore, dayResults, totalScenarioSpend, crisisTriggered, daypartingChanges, midRunCampaignLaunched,
-      simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises]);
+      simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises,
+      openingDeal, liveCmRelationship, v2RunTick]);
 
   const clearCampaignWizard = () => {
     [

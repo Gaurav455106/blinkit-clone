@@ -15,6 +15,7 @@ import { ScoringGuide } from "@/components/admin/ScoringGuide";
 import { CohortAnalysis } from "@/components/admin/CohortAnalysis";
 import { CohortTab } from "@/components/admin/CohortTab";
 import { useAllAttempts } from "@/components/admin/useAllAttempts";
+import { LiveSessionsPanel } from "@/components/admin/LiveSessionsPanel";
 import { attemptCampaigns, attemptTotals, bestPerStudent, brandOf, summariseBatches, type AttemptRow } from "@/lib/attemptAnalysis";
 import { formatLabel } from "@/lib/resultsExport";
 
@@ -196,6 +197,7 @@ export default function Admin() {
         <Tabs defaultValue="students" className="space-y-6">
           <TabsList>
             <TabsTrigger value="students">Students and batches</TabsTrigger>
+            <TabsTrigger value="live">Live now</TabsTrigger>
             <TabsTrigger value="cohort">Cohort analysis</TabsTrigger>
             <TabsTrigger value="scoring">How students are judged</TabsTrigger>
           </TabsList>
@@ -245,6 +247,10 @@ export default function Admin() {
             >
               <StudentsTable rows={filtered} allRows={rows} loading={loading} error={loadError} onRetry={reload} onOpenProfile={openProfile} onDelete={setDeleteTarget} />
             </Section>
+          </TabsContent>
+
+          <TabsContent value="live">
+            <LiveSessionsPanel attempts={rows} />
           </TabsContent>
 
           <TabsContent value="cohort">

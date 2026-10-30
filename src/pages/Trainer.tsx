@@ -11,6 +11,7 @@ import { ScoringGuide } from "@/components/admin/ScoringGuide";
 import { CohortAnalysis } from "@/components/admin/CohortAnalysis";
 import { CohortTab } from "@/components/admin/CohortTab";
 import { useAllAttempts } from "@/components/admin/useAllAttempts";
+import { LiveSessionsPanel } from "@/components/admin/LiveSessionsPanel";
 import { bestPerStudent, summariseBatches } from "@/lib/attemptAnalysis";
 
 const ALL_BATCHES = "All";
@@ -57,6 +58,7 @@ export default function Trainer() {
           <TabsList>
             <TabsTrigger value="cohort">Cohort analysis</TabsTrigger>
             <TabsTrigger value="students">Students and batches</TabsTrigger>
+            <TabsTrigger value="live">Live now</TabsTrigger>
             <TabsTrigger value="scoring">How students are judged</TabsTrigger>
           </TabsList>
 
@@ -101,6 +103,9 @@ export default function Trainer() {
             >
               <StudentsTable rows={filtered} allRows={rows} loading={loading} error={error} onRetry={reload} onOpenProfile={openProfile} />
             </Section>
+          </TabsContent>
+          <TabsContent value="live">
+            <LiveSessionsPanel attempts={rows} />
           </TabsContent>
           <TabsContent value="scoring">
             <ScoringGuide />

@@ -8,7 +8,7 @@ import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { FlowHeader } from "@/components/FlowHeader";
 import { Button } from "@/components/ui/button";
 import { simulateRun } from "@/lib/simResults";
-import { supabase } from "@/integrations/supabase/client";
+import { isRunSaved, saveAttempt } from "@/lib/attemptSave";
 import { toast } from "sonner";
 import { RefreshCw, BarChart3, Home, Copy, Check, Download, UserRound, Award } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -180,10 +180,12 @@ function Day30ResultsV1() {
     // saved. Deps below now include them so the save retries once they land.
     if (!activeRunId) { console.warn("[sim] attempt save deferred: no activeRunId yet"); return; }
     if (!finalScore)  { console.warn("[sim] attempt save deferred: finalScore not ready"); return; }
+    // Re-opening the results page must not save the same run again
+    if (isRunSaved(activeRunId)) { savedRef.current = true; return; }
 
     // Set synchronously before the async insert so a re-run can't double-insert.
     savedRef.current = true;
-    completeRun({ score: finalScore.grandTotal, achievementPct: finalScore.results.achievementPct });
+    const runId = activeRunId;
     const firstCrisis = Object.values(crisisResponses)[0];
     const snapshot = {
       scenario, cmPitch, campaigns, weekTotals, decisionsLog, crisisResponses,
@@ -199,7 +201,7 @@ function Day30ResultsV1() {
     } catch (err) {
       console.warn("[sim] snapshot size check failed", err);
     }
-    supabase.from("attempts").insert({
+    saveAttempt({
       email: student.email,
       name: student.name,
       batch_code: student.batch,
@@ -218,22 +220,16 @@ function Day30ResultsV1() {
            : finalScore.results.achievementPct >= 50 ? "bronze"
            : null,
       snapshot: snapshotForCloud as unknown as Json,
-    }).then(({ error }) => {
-      if (error) {
-        console.error("attempt save failed", error);
-        // Surface it — a silently-lost score is worse than an ugly toast, and the
-        // trainer needs to know before the student walks away from the machine.
-        toast.error("Your score could not be saved. Please tell your trainer before closing this page.", { duration: 15000 });
-        // Allow a retry on the next render rather than locking the save out.
-        savedRef.current = false;
-        return;
-      }
-      // Only clear the live-run row once the permanent record is confirmed
-      // saved — if the insert above failed, the row stays so the run isn't lost.
-      supabase.from("run_sessions").delete().eq("email", student.email)
-        .then(({ error: sessionError }) => {
-          if (sessionError) console.warn("[sim] run_sessions delete failed", sessionError);
-        });
+    }, runId).then(() => {
+      // Marked complete only once the permanent record exists, so a failed save is retried
+      completeRun({ score: finalScore.grandTotal, achievementPct: finalScore.results.achievementPct });
+    }).catch((error: unknown) => {
+      console.error("attempt save failed", error);
+      // Surface it — a silently-lost score is worse than an ugly toast, and the
+      // trainer needs to know before the student walks away from the machine.
+      toast.error("Your score could not be saved. Please tell your trainer before closing this page.", { duration: 15000 });
+      // Allow a retry on the next render rather than locking the save out.
+      savedRef.current = false;
     });
     // Re-run when the save inputs become available. savedRef makes this idempotent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
