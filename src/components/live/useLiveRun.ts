@@ -44,7 +44,7 @@ interface RohitLog {
   adjustments: Adjustments;
 }
 
-interface StoredRun {
+export interface StoredRun {
   launchDayById: Record<string, number>;
   actions: LiveAction[];
   insights: Insight[];
@@ -80,11 +80,45 @@ function load(key: string): StoredRun {
   }
 }
 
+/** Fired on window after every local save, so the cloud sync can pick the run up. */
+export const V2_RUN_SAVED_EVENT = "sim:v2-run-saved";
+
 function save(key: string, run: StoredRun): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(run));
   } catch {
     // Storage full or blocked: the run continues in memory; a refresh would restart it
+  }
+  window.dispatchEvent(new Event(V2_RUN_SAVED_EVENT));
+}
+
+/** The stored v2 run log for the cloud copy, or null when nothing has been played yet. */
+export function readStoredRun(student: Student | null, scenario: Scenario | null, runId: string | null): StoredRun | null {
+  if (!runId) return null;
+  const key = storageKey(student, scenario, runId);
+  try {
+    return window.localStorage.getItem(key) ? load(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Puts a run log from the cloud back into this browser (another device, cleared
+ * storage). Keeps the local log when it has played as many days or more.
+ * Returns true when the cloud copy was written.
+ */
+export function restoreStoredRun(student: Student | null, scenario: Scenario | null, runId: string | null, cloud: unknown): boolean {
+  if (!runId || !cloud || typeof cloud !== "object") return false;
+  const cloudRun = cloud as Partial<StoredRun>;
+  if (typeof cloudRun.daysDone !== "number") return false;
+  const key = storageKey(student, scenario, runId);
+  if (load(key).daysDone >= cloudRun.daysDone) return false;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(cloudRun));
+    return true;
+  } catch {
+    return false;
   }
 }
 
