@@ -40,6 +40,11 @@ describe("saveAttempt", () => {
     expect(isRunSaved("run-1")).toBe(true);
   });
 
+  it("rounds a decimal total because score_total is an integer column", async () => {
+    await saveAttempt({ ...ROW, score_total: 56.5 }, "run-1");
+    expect(calls.inserts[0]).toMatchObject({ score_total: 57 });
+  });
+
   it("clears only this run's live session after saving", async () => {
     await saveAttempt(ROW, "run-1");
     expect(calls.deletes).toEqual([[["email", "a@x.com"], ["run_id", "run-1"]]]);
