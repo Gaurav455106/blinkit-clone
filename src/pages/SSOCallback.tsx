@@ -1,27 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createRemoteJWKSet, jwtVerify } from "jose";
 import { useSim } from "@/context/SimContext";
 import { HUB_URL } from "@/lib/masterAccess";
-
-const SIM_SLUG = "blinkit-sim";
-
-/**
- * Fetches and caches the hub's public key — no credentials needed.
- *
- * The hub's /.well-known/jwks.json is a Vercel serverless route, so a cold start
- * can easily blow past jose's 5s default timeout. We raise the timeout and shrink
- * the cooldown so a retry is actually allowed to re-fetch (default cooldown is 30s,
- * which made a single cold-start failure look like a permanent broken login).
- */
-const JWKS = createRemoteJWKSet(
-  new URL(`${HUB_URL}/.well-known/jwks.json`),
-  {
-    timeoutDuration:  15_000, // default 5_000 — too tight for Vercel cold starts
-    cooldownDuration:  2_000, // default 30_000 — let retries actually retry
-    cacheMaxAge:     600_000, // cache the key for 10 min to avoid repeat cold hits
-  },
-);
+import { ApiError } from "@/lib/api";
+import { signInWithHub } from "@/lib/session";
+import { clearStudentView } from "@/lib/staffView";
 
 /** Which kind of failure we hit — drives the message and whether Retry is offered */
 type FailKind = "timeout" | "expired" | "invalid" | "no_token" | "unknown_role";
@@ -32,11 +15,29 @@ interface Failure {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** The hub's key route is serverless; the first try can time out while it wakes up. */
+const COLD_START_RETRY_MS = 2_500;
 
-/** jose error code helper — codes are stable across minified builds, class names are not */
-const codeOf = (err: unknown): string =>
-  (err as { code?: string })?.code ?? "";
+const SERVER_FAILURES: Record<string, FailKind> = {
+  timeout: "timeout",
+  expired: "expired",
+  invalid: "invalid",
+  unknown_role: "unknown_role",
+};
 
+function failureOf(err: unknown): Failure {
+  if (err instanceof ApiError) {
+    if (err.code === "network") return { kind: "timeout", detail: "network" };
+    return { kind: SERVER_FAILURES[err.code] ?? "invalid", detail: err.code };
+  }
+  return { kind: "invalid" };
+}
+
+/**
+ * The hub sends `?token=`. The server checks it (signature, issuer, audience,
+ * expiry), decides the role and sets a signed session cookie. The role kept in
+ * localStorage only picks which screens to show; the server enforces access.
+ */
 export default function SSOCallback() {
   const nav = useNavigate();
   const { setStudent } = useSim();
@@ -48,84 +49,45 @@ export default function SSOCallback() {
 
     const run = async () => {
       setFailure(null);
-
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get("token");
-
+      const token = new URLSearchParams(window.location.search).get("token");
       if (!token) {
         setFailure({ kind: "no_token" });
         return;
       }
 
-      /**
-       * Verify, retrying once if the JWKS fetch timed out.
-       * The first attempt warms the hub's serverless function; the retry lands warm.
-       * Only ERR_JWKS_TIMEOUT is retried — a genuinely bad token still fails fast.
-       */
+      // Retry once on a timeout only; a genuinely bad token still fails fast
       const verify = async () => {
         try {
-          return await jwtVerify(token, JWKS, {
-            issuer:   HUB_URL,
-            audience: SIM_SLUG,
-          });
+          return await signInWithHub(token);
         } catch (err) {
-          if (codeOf(err) !== "ERR_JWKS_TIMEOUT") throw err;
-          console.warn("JWKS fetch timed out (likely hub cold start): retrying once…");
-          await sleep(2_500); // clear the cooldown window before the second try
-          return await jwtVerify(token, JWKS, {
-            issuer:   HUB_URL,
-            audience: SIM_SLUG,
-          });
+          if (failureOf(err).kind !== "timeout") throw err;
+          console.warn("Hub check timed out (likely hub cold start): retrying once…");
+          await sleep(COLD_START_RETRY_MS);
+          return await signInWithHub(token);
         }
       };
 
       try {
-        const { payload } = await verify();
+        const session = await verify();
         if (cancelled) return;
+        clearStudentView();
 
-        const name    = payload.name     as string;
-        const email   = payload.email    as string;
-        const simRole = payload.sim_role as string;
-        const batch   = (payload.batch   as string | null) ?? "";
-        const course  = (payload.course  as string | null) ?? "";
-
-        // Map sim_role → internal role + redirect
-        if (simRole === "super_admin") {
+        if (session.role === "admin") {
           localStorage.setItem("sim_role", "admin");
           nav("/admin", { replace: true });
-
-        } else if (simRole === "instructor") {
+        } else if (session.role === "trainer") {
           localStorage.setItem("sim_role", "trainer");
           nav("/trainer", { replace: true });
-
-        } else if (simRole === "student") {
-          localStorage.setItem("sim_role", "student");
-          setStudent({
-            name:  name,
-            email: email.toLowerCase(),
-            batch: batch || course || "HUB",
-          });
-          nav("/dashboard", { replace: true });
-
         } else {
-          setFailure({ kind: "unknown_role", detail: simRole });
+          localStorage.setItem("sim_role", "student");
+          setStudent({ name: session.name, email: session.email, batch: session.batch });
+          nav("/dashboard", { replace: true });
         }
-
       } catch (err) {
         if (cancelled) return;
-
-        const code = codeOf(err);
-        // Keep the real reason in the console — the UI copy is deliberately vague,
-        // and we lost time once already chasing an "expired token" that was a timeout.
-        console.error("SSO token rejected:", code || err, err);
-
-        if (code === "ERR_JWKS_TIMEOUT" || code === "ERR_JWKS_NO_MATCHING_KEY") {
-          setFailure({ kind: "timeout", detail: code });
-        } else if (code === "ERR_JWT_EXPIRED") {
-          setFailure({ kind: "expired" });
-        } else {
-          setFailure({ kind: "invalid", detail: code });
-        }
+        // Keep the real reason in the console — the UI copy is deliberately vague
+        console.error("SSO sign-in rejected:", err);
+        setFailure(failureOf(err));
       }
     };
 
@@ -208,7 +170,7 @@ function describe(f: Failure): { title: string; body: string; canRetry: boolean 
     case "unknown_role":
       return {
         title: "Unrecognised role",
-        body: `Your account role "${f.detail}" isn't set up for this simulation. Please contact your Kraftshala admin.`,
+        body: "Your account role isn't set up for this simulation. Please contact your Kraftshala admin.",
         canRetry: false,
       };
     case "invalid":

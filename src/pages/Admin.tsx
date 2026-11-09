@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrainerHeader } from "@/components/TrainerHeader";
-import { supabase } from "@/integrations/supabase/client";
+import { api, errorMessage } from "@/lib/api";
 import { Search, Trash2, Download, AlertTriangle, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -21,7 +21,6 @@ import { formatLabel } from "@/lib/resultsExport";
 
 const ALL_BATCHES = "All";
 const STALE_SESSION_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const ATTEMPT_LIMIT = 5000;
 
 // ── CSV export (kept from v1; the cohort tab also exports a full Excel file) ──
@@ -95,10 +94,11 @@ export default function Admin() {
     if (!deleteTarget) return;
     setDeleting(true);
     // Delete ALL attempts by this email (not just best)
-    const { error } = await supabase.from("attempts").delete().eq("email", deleteTarget.email);
+    const error = await api<null>("DELETE", "/api/admin", { query: { target: "student", email: deleteTarget.email } })
+      .then(() => null, (err: unknown) => errorMessage(err));
     setDeleting(false);
     if (error) {
-      toast.error(`Delete failed: ${error.message}`);
+      toast.error(`Delete failed: ${error}`);
     } else {
       toast.success(`Deleted all runs for ${deleteTarget.name}`);
       setRows((prev) => prev.filter((r) => r.email !== deleteTarget.email));
@@ -110,15 +110,12 @@ export default function Admin() {
   const confirmBatchDelete = async () => {
     if (!batchDeleteTarget) return;
     setBatchDeleting(true);
-    const { error } = await supabase.from("attempts").delete().eq("batch_code", batchDeleteTarget);
-    if (!error) {
-      // Best-effort — stale live-session rows for this batch aren't worth blocking on.
-      const { error: sessionError } = await supabase.from("run_sessions").delete().eq("batch_code", batchDeleteTarget);
-      if (sessionError) console.warn("[admin] run_sessions batch delete failed", sessionError);
-    }
+    // The server deletes the batch's attempts, then (best-effort) its live-session rows
+    const error = await api<null>("DELETE", "/api/admin", { query: { target: "batch", batch: batchDeleteTarget } })
+      .then(() => null, (err: unknown) => errorMessage(err));
     setBatchDeleting(false);
     if (error) {
-      toast.error(`Batch delete failed: ${error.message}`);
+      toast.error(`Batch delete failed: ${error}`);
     } else {
       toast.success(`Deleted all runs for batch ${batchDeleteTarget}`);
       setRows((prev) => prev.filter((r) => r.batch_code !== batchDeleteTarget));
@@ -129,15 +126,15 @@ export default function Admin() {
   };
 
   // ── Stale live-session cleanup (manual — replaces the old nightly cron) ─────
-  const staleCutoff = () => new Date(Date.now() - STALE_SESSION_DAYS * DAY_MS).toISOString();
-
   const openStaleSessions = async () => {
-    const { count, error } = await supabase
-      .from("run_sessions")
-      .select("*", { count: "exact", head: true })
-      .lt("last_seen_at", staleCutoff());
-    if (error) { toast.error(`Couldn't check stale sessions: ${error.message}`); return; }
-    setStaleSessionCount(count ?? 0);
+    let count: number;
+    try {
+      ({ count } = await api<{ count: number }>("GET", "/api/staff", { query: { view: "stale-count", days: STALE_SESSION_DAYS } }));
+    } catch (err) {
+      toast.error(`Couldn't check stale sessions: ${errorMessage(err)}`);
+      return;
+    }
+    setStaleSessionCount(count);
     setStaleSessionsOpen(true);
   };
 
@@ -145,10 +142,11 @@ export default function Admin() {
 
   const confirmClearStaleSessions = async () => {
     setStaleSessionsBusy(true);
-    const { error } = await supabase.from("run_sessions").delete().lt("last_seen_at", staleCutoff());
+    const error = await api<null>("DELETE", "/api/admin", { query: { target: "stale", days: STALE_SESSION_DAYS } })
+      .then(() => null, (err: unknown) => errorMessage(err));
     setStaleSessionsBusy(false);
     if (error) {
-      toast.error(`Clear failed: ${error.message}`);
+      toast.error(`Clear failed: ${error}`);
     } else {
       toast.success(`Cleared ${staleSessionCount ?? 0} stale live session(s). Saved scores are untouched.`);
     }

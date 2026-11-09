@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "calibrate": "vitest run --config vitest.calibrate.config.ts",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit"
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

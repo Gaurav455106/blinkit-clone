@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { errorMessage, fetchAllPages } from "@/lib/api";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { TrainerHeader } from "@/components/TrainerHeader";
@@ -29,6 +29,9 @@ import { qualitativeSummary } from "@/lib/rubrics";
 import { buildProfileSheets, PROFILE_README } from "@/lib/profileExport";
 import { downloadWorkbook } from "@/lib/excel";
 
+/** As before the move to the API: a student's latest 500 runs. */
+const MAX_PROFILE_ATTEMPTS = 500;
+
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; rows: AttemptRow[] };
 
 function useStudentAttempts(email: string | null) {
@@ -36,14 +39,11 @@ function useStudentAttempts(email: string | null) {
   const load = useCallback(() => {
     if (!email) return;
     setState({ status: "loading" });
-    supabase.from("attempts").select("*").eq("email", email).order("created_at", { ascending: false }).limit(500)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[profile] attempts load failed", error);
-          setState({ status: "error", message: error.message });
-          return;
-        }
-        setState({ status: "ready", rows: (data ?? []) as unknown as AttemptRow[] });
+    fetchAllPages<AttemptRow>("/api/attempts", { email }, MAX_PROFILE_ATTEMPTS)
+      .then((data) => setState({ status: "ready", rows: data ?? [] }))
+      .catch((error: unknown) => {
+        console.error("[profile] attempts load failed", error);
+        setState({ status: "error", message: errorMessage(error) });
       });
   }, [email]);
   useEffect(load, [load]);

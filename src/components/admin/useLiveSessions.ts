@@ -2,11 +2,10 @@
 // it on a timer, with a visible error instead of an empty table on failure.
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { LIVE_SESSION_SELECT, type LiveSessionRow } from "@/lib/liveSessions";
+import { api, errorMessage } from "@/lib/api";
+import type { LiveSessionRow } from "@/lib/liveSessions";
 
 const REFRESH_MS = 30_000;
-const SESSION_LIMIT = 2000;
 
 export function useLiveSessions() {
   const [rows, setRows] = useState<LiveSessionRow[]>([]);
@@ -15,15 +14,16 @@ export function useLiveSessions() {
   const [loadedAt, setLoadedAt] = useState(() => Date.now());
 
   const reload = useCallback(() => {
-    supabase.from("run_sessions").select(LIVE_SESSION_SELECT).order("last_seen_at", { ascending: false }).limit(SESSION_LIMIT)
-      .then(({ data, error: err }) => {
-        if (err) {
-          console.error("[live] run_sessions load failed", err);
-          setError(err.message);
-        } else {
-          setError(null);
-          setRows((data ?? []) as unknown as LiveSessionRow[]);
-        }
+    api<LiveSessionRow[]>("GET", "/api/staff", { query: { view: "live" } })
+      .then((data) => {
+        setError(null);
+        setRows(data ?? []);
+      })
+      .catch((err: unknown) => {
+        console.error("[live] run_sessions load failed", err);
+        setError(errorMessage(err));
+      })
+      .finally(() => {
         setLoadedAt(Date.now());
         setLoading(false);
       });

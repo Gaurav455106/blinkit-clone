@@ -6,6 +6,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { relationshipTier, CmRelationshipTier } from "@/lib/cmPitchLogic";
 import { sidebarRelationship } from "@/market/liveRun";
+import { signOutOfServer } from "@/lib/session";
 
 // ── Nav items ──────────────────────────────────────────────────────────────────
 const HOME_ITEMS = [
@@ -76,6 +77,7 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
 
   const signOut = () => {
     localStorage.removeItem("sim_trainer");
+    void signOutOfServer();
     reset();
     nav("/", { replace: true });
   };
