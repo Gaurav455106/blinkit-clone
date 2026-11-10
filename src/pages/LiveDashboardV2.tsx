@@ -4,7 +4,7 @@
 // campaigns still open the unchanged wizard in the side sheet.
 
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Plus, Trophy } from "lucide-react";
 import { useSim, type SavedCampaign, type Student } from "@/context/SimContext";
 import type { Scenario } from "@/data/scenarios";
@@ -104,6 +104,9 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
       {sheet}
     </div>
   );
+
+  // A finished run's place is its results: never offer "Go live" on it again
+  if (completed) return <Navigate to="/results" replace />;
 
   if (inSetup) {
     return shell(

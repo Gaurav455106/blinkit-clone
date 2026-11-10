@@ -14,7 +14,7 @@ import { dealPitchResult } from "@/lib/dealPitch";
 import { briefOnLoad } from "@/lib/engineFlag";
 import { clearBriefNotes } from "@/components/brief/useBriefNotes";
 import { V2_RUN_SAVED_EVENT, readStoredRun, restoreStoredRun } from "@/components/live/useLiveRun";
-import { dropScoredInProgress, scoredRunIds } from "@/lib/scoredRuns";
+import { dropScoredInProgress, historyIdOf, mergeRunHistory, scoredRunIds } from "@/lib/scoredRuns";
 
 /** Past runs pulled back into the dashboard history on sign-in. */
 const MAX_HISTORY_ATTEMPTS = 1000;
@@ -156,6 +156,10 @@ export interface RunSnapshot {
   missedCrises: string[];
   // progress — only set on interrupted mid-run snapshots so they can be resumed
   currentDay?: number;
+  // v2: the deal with Rohit and his trust, so a resumed or reviewed run replays with them
+  openingDeal?: OpeningDeal | null;
+  cmRelationship?: number;
+  liveCmRelationship?: number | null;
 }
 
 /** Frozen snapshot of engine day results saved when a run completes. */
@@ -493,7 +497,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
         const cloudHistory: RunHistoryEntry[] = attemptRows.map((a: any) => {
           const snap = a.snapshot as RunSnapshot | null;
           return {
-            id: a.id,
+            id: historyIdOf(a),
             scenarioSeed: snap?.scenario?.seed ?? a.scenario?.seed ?? "",
             brandName: snap?.scenario?.profile?.name ?? a.scenario?.profile ?? "Run",
             brandEmoji: snap?.scenario?.profile?.emoji ?? "🛒",
@@ -508,12 +512,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
         // Merge: cloud history wins by id; preserve any in-progress local entries,
         // except ones whose run is already scored (they're finished)
         const scored = scoredRunIds(attemptRows);
-        setRunHistory((prev) => {
-          const byId = new Map<string, RunHistoryEntry>();
-          for (const r of cloudHistory) byId.set(r.id, r);
-          for (const r of prev) if (!byId.has(r.id)) byId.set(r.id, r);
-          return dropScoredInProgress(Array.from(byId.values()), scored);
-        });
+        setRunHistory((prev) => dropScoredInProgress(mergeRunHistory(prev, cloudHistory), scored));
         // This browser is still on a run that's already scored: start a fresh brief
         // (on the current engine) instead of resuming the finished one
         const active = activeRunIdNow.current;
@@ -674,11 +673,17 @@ export function SimProvider({ children }: { children: ReactNode }) {
           setupScore, dayResults, totalScenarioSpend, crisisTriggered,
           daypartingChanges, midRunCampaignLaunched,
           simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises,
-          currentDay,
+          currentDay, openingDeal, cmRelationship, liveCmRelationship,
         };
         setRunHistory((prev) =>
           prev.map((r) => r.id === activeRunId ? { ...r, snapshot: interruptedSnapshot } : r),
         );
+        // Its live copy on the server would otherwise come back as the active run on
+        // the next sign-in and replace this new brief. It stays resumable from history.
+        if (student) {
+          api<null>("DELETE", "/api/run-session", { query: { run_id: activeRunId, email: student.email } })
+            .catch((error: unknown) => console.warn("[sim] couldn't drop the set-aside run", error));
+        }
       }
     }
     setScenario(generateScenario(profileId));
@@ -883,6 +888,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       setupScore, dayResults, totalScenarioSpend, crisisTriggered,
       daypartingChanges, midRunCampaignLaunched,
       simMode, assignmentPace, simStartedAt, crisisRevealedAt, missedCrises,
+      openingDeal, cmRelationship, liveCmRelationship,
     } : undefined;
     setRunHistory((prev) =>
       prev.map((r) =>
@@ -896,6 +902,13 @@ export function SimProvider({ children }: { children: ReactNode }) {
     // failed save can't wipe both the live row and the permanent record.
     // Keep activeRunId set so /results stays viewable until the student leaves.
     // It is cleared when they land on /dashboard or start a new scenario.
+  };
+
+  /** Puts back the run's deal with Rohit (null for runs saved before it was kept). */
+  const restoreDealFrom = (s: RunSnapshot) => {
+    setOpeningDealState(s.openingDeal ?? null);
+    if (typeof s.cmRelationship === "number") setCmRelationship(s.cmRelationship);
+    setLiveCmRelationship(typeof s.liveCmRelationship === "number" ? s.liveCmRelationship : null);
   };
 
   const enterReview = (runId: string): boolean => {
@@ -929,6 +942,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     if (s.crisisTriggered) setCrisisTriggered(s.crisisTriggered);
     if (s.daypartingChanges) setDaypartingChanges(s.daypartingChanges);
     if (typeof s.midRunCampaignLaunched === "boolean") setMidRunCampaignLaunchedState(s.midRunCampaignLaunched);
+    restoreDealFrom(s);
     setReviewRunId(runId);
     return true;
   };
@@ -975,6 +989,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
     setCurrentDayState(typeof s.currentDay === "number" ? s.currentDay : 1);
     // Regenerate the same deterministic noise for this run (seeded by scenario + run id).
     setDailyNoise(generateDailyNoise(`${s.scenario.seed}-${runId}`));
+    restoreDealFrom(s);
     setActiveRunId(runId);
     return true;
   };

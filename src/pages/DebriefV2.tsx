@@ -4,7 +4,7 @@
 // workbook and saves the attempt once with score_breakdown.version = 2.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Download, RotateCcw } from "lucide-react";
 import { useSim, type Student } from "@/context/SimContext";
 import type { Scenario } from "@/data/scenarios";
@@ -119,9 +119,11 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
 
 export default function DebriefV2({ student, scenario }: Props) {
   const nav = useNavigate();
-  const { campaigns, activeRunId, cmRelationship, cmPitch, setLiveCmRelationship, openingDeal } = useSim();
+  const { campaigns, activeRunId, reviewRunId, cmRelationship, cmPitch, setLiveCmRelationship, openingDeal } = useSim();
+  // The run on screen: the one just played, or a past one opened for review
+  const runId = activeRunId ?? reviewRunId;
   const deal = useDealRun(scenario, student);
-  const run = useLiveRun(scenario, student, campaigns, activeRunId, cmRelationship, setLiveCmRelationship, deal);
+  const run = useLiveRun(scenario, student, campaigns, runId, cmRelationship, setLiveCmRelationship, deal);
   const ready = run.finished && !run.replaying && !!run.ctx;
 
   const formats = useMemo(
@@ -138,7 +140,7 @@ export default function DebriefV2({ student, scenario }: Props) {
     alerts: run.activations.filter((a) => pausing.has(a.key)),
     rohit: { replies: run.rohit.replies, commitments: run.commitmentResults },
   } : null;
-  const { score, busy, error } = useScoreV2(request, `${activeRunId}:${run.results.length}`);
+  const { score, busy, error } = useScoreV2(request, `${runId}:${run.results.length}`);
   const saved = useMemo(() => (score ? buildSavedBreakdownV2(score) : null), [score]);
   const summaries = useMemo(() => (saved ? qualitativeSummary(saved.lines, 2) : []), [saved]);
   const launched = useMemo(() => snapshotCampaigns(campaigns), [campaigns]);
@@ -165,7 +167,10 @@ export default function DebriefV2({ student, scenario }: Props) {
     </div>
   );
 
-  if (!activeRunId || (!run.replaying && !run.finished && run.day < RUN_DAYS && !busy)) {
+  // No run to show (e.g. Back after the dashboard started a new brief): go home
+  if (!runId) return <Navigate to="/dashboard" replace />;
+
+  if (!run.replaying && !run.finished && run.day < RUN_DAYS && !busy) {
     return shell(
       <EmptyState
         title="Your run isn't finished yet"

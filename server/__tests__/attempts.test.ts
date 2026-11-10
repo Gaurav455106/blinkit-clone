@@ -218,6 +218,21 @@ describe("/api/run-session", () => {
     expect(store.runSessions).toHaveLength(0);
   });
 
+  it("drops the live copy of a run the student set aside, and only that run", async () => {
+    const store = memoryStore();
+    await handleRunSession(request("PUT", { body: live }), context(STUDENT, store));
+    await handleRunSession(request("DELETE", { query: { run_id: "other-run" } }), context(STUDENT, store));
+    expect(store.runSessions).toHaveLength(1);
+    const result = await handleRunSession(request("DELETE", { query: { run_id: "r1" } }), context(STUDENT, store));
+    expect(result.status).toBe(200);
+    expect(store.runSessions).toHaveLength(0);
+  });
+
+  it("needs a run id to drop a live copy, and a session", async () => {
+    expect((await handleRunSession(request("DELETE", { query: {} }), context(STUDENT))).status).toBe(400);
+    expect((await handleRunSession(request("DELETE", { query: { run_id: "r1" } }), context(null))).status).toBe(401);
+  });
+
   it("still restores a run that hasn't been saved", async () => {
     const store = memoryStore();
     await store.insertAttempt({ email: "stu@x.com", name: "Stu", batch_code: "B1", profile_id: "glow", score_total: 70, choices: { runId: "old" } });
