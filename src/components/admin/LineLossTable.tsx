@@ -8,10 +8,11 @@ import { scoreTone } from "@/components/sim/tone";
 import type { LineStat, TierCount } from "@/lib/attemptAnalysis";
 import { categoryLabel } from "@/lib/rubrics";
 import { cn } from "@/lib/utils";
+import { formatPoints } from "@/components/sim/points";
 
 const LEVEL_FILL = { good: "bg-sim-good", warn: "bg-sim-warn", bad: "bg-sim-bad", neutral: "bg-foreground/50" } as const;
 
-const levelPoints = (t: TierCount) => (t.minPoints !== undefined && t.minPoints !== t.points ? `${t.minPoints} to ${t.points}` : `${t.points}`);
+const levelPoints = (t: TierCount) => (t.minPoints !== undefined && t.minPoints !== t.points ? `${formatPoints(t.minPoints)} to ${formatPoints(t.points)}` : formatPoints(t.points));
 
 function LevelBar({ stat }: { stat: LineStat }) {
   const used = stat.tiers.filter((t) => t.count > 0);

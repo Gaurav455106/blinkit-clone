@@ -8,6 +8,7 @@ import { Section, Tag } from "@/components/sim/primitives";
 import { SCORING_GUIDE_V2, type GuidePart } from "@/lib/scoringGuide";
 import { RUBRICS, SCORE_SCHEMES } from "@/lib/rubrics";
 import { cn } from "@/lib/utils";
+import { formatPoints } from "@/components/sim/points";
 
 const PART_COLOR: Record<GuidePart["key"], string> = {
   setup: "bg-sky-700",
@@ -79,7 +80,7 @@ function OldScoring() {
                 {RUBRICS.filter((r) => r.category === cat.key).map((r) => (
                   <li key={r.key} className="text-xs">
                     <p className="flex justify-between gap-2 text-foreground"><span>{r.label}</span><Tag>{r.max}</Tag></p>
-                    <p className="text-muted-foreground">{r.tiers.filter((t) => t.reachable !== false).map((t) => `${t.points}: ${t.short}`).join(" · ")}</p>
+                    <p className="text-muted-foreground">{r.tiers.filter((t) => t.reachable !== false).map((t) => `${formatPoints(t.points)}: ${t.short}`).join(" · ")}</p>
                   </li>
                 ))}
               </ul>

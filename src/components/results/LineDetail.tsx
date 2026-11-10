@@ -6,9 +6,10 @@ import { ScoreBar, Tag } from "@/components/sim/primitives";
 import { scoreTone } from "@/components/sim/tone";
 import { lineGuide, lineTier, plainText, type LineResult, type RubricTier } from "@/lib/rubrics";
 import { cn } from "@/lib/utils";
+import { formatPoints } from "@/components/sim/points";
 
 function pointsLabel(t: RubricTier): string {
-  return t.minPoints !== undefined && t.minPoints !== t.points ? `${t.minPoints} to ${t.points}` : `${t.points}`;
+  return t.minPoints !== undefined && t.minPoints !== t.points ? `${formatPoints(t.minPoints)} to ${formatPoints(t.points)}` : formatPoints(t.points);
 }
 
 interface LevelListProps {
