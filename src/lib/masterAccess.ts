@@ -45,17 +45,20 @@ export function setMasterFlag(on: boolean): void {
   } catch { /* storage blocked */ }
 }
 
-export type MasterParam = { kind: "unlock"; key: string } | { kind: "off" } | null;
+export type MasterParam = { kind: "unlock"; key: string } | { kind: "off" } | { kind: "ask" } | null;
 
 /**
  * Reads `?master=` from the current URL:
+ *   ?master        → show the master key box
  *   ?master=<key>  → try to unlock (the server checks the key)
  *   ?master=off    → lock this browser again (for shared/training machines)
  */
 export function readMasterParam(): MasterParam {
-  let param: string | null = null;
-  try { param = new URLSearchParams(window.location.search).get(MASTER_PARAM); } catch { /* ignore */ }
-  if (!param) return null;
+  let params: URLSearchParams;
+  try { params = new URLSearchParams(window.location.search); } catch { return null; }
+  if (!params.has(MASTER_PARAM)) return null;
+  const param = params.get(MASTER_PARAM)?.trim() ?? "";
+  if (!param) return { kind: "ask" };
   return param === MASTER_OFF ? { kind: "off" } : { kind: "unlock", key: param };
 }
 
