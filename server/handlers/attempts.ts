@@ -8,15 +8,16 @@
 import type { HandlerContext } from "../context.js";
 import { badRequest, forbidden, methodNotAllowed, ok, unauthenticated, type ApiRequest, type ApiResult } from "../http.js";
 import { isStaff, type Session } from "../session.js";
+import { TEST_BATCH, refuseRealStudentEmail } from "../testRuns.js";
 import type { AttemptInsert, Json } from "../store.js";
 import { firstIssue, pageOf, saveAttemptSchema, storedEmail, type AttemptInput } from "../validate.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
-/** Students get their own identity forced in; staff keep what they sent (test identities). */
+/** Students get their own identity forced in; staff keep their test identity, always in the test batch. */
 function ownedBy(session: Session, attempt: AttemptInput): AttemptInput {
-  if (isStaff(session)) return attempt;
+  if (isStaff(session)) return { ...attempt, batch_code: TEST_BATCH };
   return { ...attempt, email: session.email, name: session.name, batch_code: session.batch };
 }
 
@@ -58,6 +59,10 @@ async function saveAttempt(req: ApiRequest, session: Session, ctx: HandlerContex
   if (!parsed.success) return badRequest(firstIssue(parsed.error));
 
   const attempt = ownedBy(session, parsed.data.attempt);
+  if (isStaff(session)) {
+    const refused = await refuseRealStudentEmail(attempt.email, ctx);
+    if (refused) return refused;
+  }
   const outcome = await ctx.store.insertAttempt(toAttemptRow(attempt, parsed.data.runId));
 
   // The live-run row goes only once the permanent record exists, and only for this run

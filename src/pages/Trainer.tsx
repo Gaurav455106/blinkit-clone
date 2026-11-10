@@ -1,3 +1,4 @@
+import { isTestRun } from "@/lib/testRuns";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
@@ -19,7 +20,9 @@ const ATTEMPT_LIMIT = 2000;
 
 export default function Trainer() {
   const nav = useNavigate();
-  const { rows, loading, error, reload } = useAllAttempts(ATTEMPT_LIMIT, "trainer");
+  const { rows: allRows, loading, error, reload } = useAllAttempts(ATTEMPT_LIMIT, "trainer");
+  // Staff test runs (Student view) would skew real students' averages and batches
+  const rows = useMemo(() => allRows.filter((r) => !isTestRun(r)), [allRows]);
   const [search, setSearch] = useState("");
   const [activeBatch, setActiveBatch] = useState<string>(ALL_BATCHES);
 

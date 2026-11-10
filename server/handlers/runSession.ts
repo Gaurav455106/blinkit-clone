@@ -12,6 +12,7 @@
 import type { HandlerContext } from "../context.js";
 import { badRequest, forbidden, methodNotAllowed, ok, unauthenticated, type ApiRequest, type ApiResult } from "../http.js";
 import { isStaff, type Session } from "../session.js";
+import { TEST_BATCH, refuseRealStudentEmail } from "../testRuns.js";
 import type { Json } from "../store.js";
 import { firstIssue, runSessionSchema, storedEmail } from "../validate.js";
 
@@ -43,8 +44,12 @@ async function writeRunSession(req: ApiRequest, session: Session, ctx: HandlerCo
   const input = parsed.data;
   const now = ctx.now().toISOString();
   const owner = isStaff(session)
-    ? { email: input.email, name: input.name, batch_code: input.batch_code }
+    ? { email: input.email, name: input.name, batch_code: TEST_BATCH }
     : { email: session.email, name: session.name, batch_code: session.batch };
+  if (isStaff(session)) {
+    const refused = await refuseRealStudentEmail(owner.email, ctx);
+    if (refused) return refused;
+  }
 
   // Its score is saved, so this is a late auto-save of a finished run: drop it, don't store it
   if (await ctx.store.runIsSaved(input.run_id)) {

@@ -2,6 +2,7 @@
 // Handlers depend on the Store interface, so tests use an in-memory copy and
 // only supabaseStore talks to Postgres (with the service-role key, server-side).
 
+import { TEST_BATCH } from "./testRuns.js";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "../src/integrations/supabase/types.js";
 
@@ -47,6 +48,8 @@ export interface Store {
   deleteRunSession(email: string, runId: string): Promise<void>;
   /** True when a saved attempt already exists for this run (unique on choices.runId). */
   runIsSaved(runId: string): Promise<boolean>;
+  /** True when this email has runs outside the staff test batch (a real student). */
+  isRealStudent(email: string): Promise<boolean>;
   liveSessions(limit: number): Promise<unknown[]>;
   countSessionsSeenBefore(cutoff: string): Promise<number>;
   deleteSessionsSeenBefore(cutoff: string): Promise<void>;
@@ -96,19 +99,29 @@ export function supabaseStore(url: string, serviceKey: string): Store {
     },
     async leaderboardAttempts(page) {
       // id breaks ties so equal scores can't repeat or go missing between pages
+      // New-simulation (v2) runs only, without staff test runs: one scoring scheme per board
       const query = db.from("attempts").select(LEADERBOARD_COLUMNS)
+        .neq("batch_code", TEST_BATCH).eq("score_breakdown->>version", "2")
         .order("score_total", { ascending: false }).order("id", { ascending: true });
       const result = await query.range(page.offset, page.offset + page.limit - 1);
       return (check("leaderboardAttempts", result) ?? []) as unknown as LeaderboardAttempt[];
     },
     async batchScores(limit) {
-      return check("batchScores", await db.from("batch_scores").select("batch_code,score_total").limit(limit)) ?? [];
+      // From the same rows as the leaderboard (batch_scores copies every attempt, test and v1 included)
+      return check("batchScores", await db.from("attempts").select("batch_code,score_total")
+        .neq("batch_code", TEST_BATCH).eq("score_breakdown->>version", "2").limit(limit)) ?? [];
     },
     async upsertRunSession(row) {
       check("upsertRunSession", await db.from("run_sessions").upsert(row, { onConflict: "email" }));
     },
     async runSessionByEmail(email) {
       return check("runSessionByEmail", await db.from("run_sessions").select("*").eq("email", email).maybeSingle());
+    },
+    async isRealStudent(email) {
+      const saved = check("isRealStudent", await db.from("attempts").select("id").eq("email", email).neq("batch_code", TEST_BATCH).limit(1));
+      if ((saved ?? []).length > 0) return true;
+      const live = check("isRealStudent", await db.from("run_sessions").select("email").eq("email", email).neq("batch_code", TEST_BATCH).limit(1));
+      return (live ?? []).length > 0;
     },
     async runIsSaved(runId) {
       const rows = check("runIsSaved", await db.from("attempts").select("id").eq("choices->>runId", runId).limit(1));
