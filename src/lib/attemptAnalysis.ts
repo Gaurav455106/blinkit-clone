@@ -105,10 +105,13 @@ export function gradeFor(total: number): { grade: FinalScore["grade"]; gradeLabe
 
 /** The score_breakdown saved with a v2 attempt (SPEC §8: score_version 2). */
 export function buildSavedBreakdownV2(score: ScoreV2): SavedBreakdownV2 {
+  // Rounded once here: score_total is a whole number, so the debrief, the saved
+  // row and every staff view show the same total and the grade that total earns
+  const total = Math.round(score.grandTotal);
   return {
     version: 2,
-    grandTotal: score.grandTotal,
-    ...gradeFor(score.grandTotal),
+    grandTotal: total,
+    ...gradeFor(total),
     setup: score.totals.setup,
     live: score.totals.live,
     eventsRohit: score.totals.eventsRohit,

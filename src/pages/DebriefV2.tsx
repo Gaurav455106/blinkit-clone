@@ -3,9 +3,8 @@
 // shows the decision moments and costliest mistakes in ₹, exports the
 // workbook and saves the attempt once with score_breakdown.version = 2.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { Download, RotateCcw } from "lucide-react";
 import { useSim, type Student } from "@/context/SimContext";
 import type { Scenario } from "@/data/scenarios";
@@ -71,14 +70,23 @@ function MomentList({ moments }: { moments: readonly MomentScore[] }) {
   );
 }
 
+/** Automatic retries after a failed save, before the student is asked to retry. */
+const SAVE_AUTO_RETRIES = 3;
+const SAVE_RETRY_MS = 4000;
+
+/** Saves the run once; retries a failed save, then offers a manual retry. */
 function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakdownV2 | null, campaigns: readonly CampaignSnapshot[]) {
   const { activeRunId, completeRun, mode } = useSim();
   const savedRef = useRef(false);
+  const failuresRef = useRef(0);
+  const [retryTick, setRetryTick] = useState(0);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (savedRef.current || !saved || !activeRunId || mode === "review") return;
     // Re-opening the debrief must not save the same run again
     if (isRunSaved(activeRunId)) { savedRef.current = true; return; }
     savedRef.current = true;
+    let retryTimer: number | undefined;
     saveAttempt({
       email: student.email,
       name: student.name,
@@ -92,13 +100,21 @@ function useSaveAttempt(student: Student, scenario: Scenario, saved: SavedBreakd
       snapshot: { scenario: { seed: scenario.seed, profile: { id: scenario.profile.id, name: scenario.profile.name } }, engine: "v2", campaigns } as unknown as Json,
     }, activeRunId).then(() => {
       // Marked complete only once the permanent record exists, so a failed save is retried
+      setFailed(false);
       completeRun({ score: saved.grandTotal, achievementPct: saved.achievementPct });
     }).catch((error: unknown) => {
       console.error("[sim] v2 attempt save failed", error);
-      toast.error("Your score could not be saved. Please tell your trainer before closing this page.", { duration: 15000 });
       savedRef.current = false;
+      failuresRef.current += 1;
+      setFailed(true);
+      if (failuresRef.current <= SAVE_AUTO_RETRIES) {
+        retryTimer = window.setTimeout(() => setRetryTick((n) => n + 1), SAVE_RETRY_MS * failuresRef.current);
+      }
     });
-  }, [saved, activeRunId, mode, completeRun, student, scenario, campaigns]);
+    return () => { if (retryTimer) window.clearTimeout(retryTimer); };
+  }, [saved, activeRunId, mode, completeRun, student, scenario, campaigns, retryTick]);
+  const retry = () => { failuresRef.current = 0; setRetryTick((n) => n + 1); };
+  return { failed, retry };
 }
 
 export default function DebriefV2({ student, scenario }: Props) {
@@ -126,13 +142,13 @@ export default function DebriefV2({ student, scenario }: Props) {
   const saved = useMemo(() => (score ? buildSavedBreakdownV2(score) : null), [score]);
   const summaries = useMemo(() => (saved ? qualitativeSummary(saved.lines, 2) : []), [saved]);
   const launched = useMemo(() => snapshotCampaigns(campaigns), [campaigns]);
-  useSaveAttempt(student, scenario, saved, launched);
+  const save = useSaveAttempt(student, scenario, saved, launched);
   const badges = useMemo(() => earnedAchievements({
     launched: run.launched, actions: run.actions, insights: run.insights.length,
     rohitReplies: run.rohit.replies.length, day: run.day, results: run.results,
   }), [run.launched, run.actions, run.insights.length, run.rohit.replies.length, run.day, run.results]);
   useTour("resultsV2", student.email, !!score);
-  const grand = score?.grandTotal ?? 0;
+  const grand = saved?.grandTotal ?? 0;
   useEffect(() => {
     if (grand < CONFETTI_FROM) return;
     const t = window.setTimeout(fireConfetti, CONFETTI_DELAY_MS);
@@ -179,7 +195,7 @@ export default function DebriefV2({ student, scenario }: Props) {
       <PageHeader
         tour="results-header"
         eyebrow={`${scenario.profile.name} · 30 days`}
-        title={<><CountUp value={score.grandTotal} from={0} ms={1400} format={(n) => (Math.round(n * 10) / 10).toString()} /> / 100 · <span className="sim-pop-in inline-block [animation-delay:1.3s]">{saved.gradeLabel}</span></>}
+        title={<><CountUp value={saved.grandTotal} from={0} ms={1400} format={(n) => Math.round(n).toString()} /> / 100 · <span className="sim-pop-in inline-block [animation-delay:1.3s]">{saved.gradeLabel}</span></>}
         description="Every point below says what we looked at, what you did and what would have earned more."
         actions={
           <>
@@ -189,7 +205,13 @@ export default function DebriefV2({ student, scenario }: Props) {
         }
       />
       <div className="space-y-6">
-        <GradeScale total={score.grandTotal} />
+        {save.failed && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sim-bad/40 bg-sim-bad/10 px-4 py-3 text-sm text-foreground">
+            <p><span className="font-medium">Your score isn't saved yet.</span> Keep this page open: we're trying again. If it keeps failing, tell your trainer.</p>
+            <Button size="sm" variant="outline" onClick={save.retry}>Try saving again</Button>
+          </div>
+        )}
+        <GradeScale total={saved.grandTotal} />
         <PartCards lines={saved.lines} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile label="Spent on ads" value={rupees(score.run.spend)} />

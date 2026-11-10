@@ -45,6 +45,30 @@ describe("POST /api/attempts", () => {
     expect(store.attempts[0]).toMatchObject({ email: "alumni@kraftshala.com", batch_code: "MASTER" });
   });
 
+  it("keeps every staff test run in the test batch, whatever batch was typed", async () => {
+    const store = memoryStore();
+    const test = { ...ATTEMPT, email: "tester@kraftshala.com", batch_code: "mlp_52_ft" };
+    await handleAttempts(save({ attempt: test, runId: "r1" }), context(TRAINER, store));
+    expect(store.attempts[0]).toMatchObject({ email: "tester@kraftshala.com", batch_code: "MASTER" });
+  });
+
+  it("won't let staff save a test run under a real student's email", async () => {
+    const store = memoryStore();
+    await store.insertAttempt({ ...ATTEMPT, email: "real@x.com", batch_code: "mlp_52_ft", choices: { runId: "old" } });
+    const result = await handleAttempts(save({ attempt: { ...ATTEMPT, email: "real@x.com" }, runId: "r1" }), context(ADMIN, store));
+    expect(result.status).toBe(409);
+    expect(store.attempts).toHaveLength(1);
+  });
+
+  it("won't let staff overwrite a real student's live run", async () => {
+    const store = memoryStore();
+    await store.upsertRunSession({ email: "real@x.com", name: "Real", batch_code: "mlp_52_ft", run_id: "theirs", state: {} });
+    const live = { email: "real@x.com", name: "Tester", batch_code: "MASTER", run_id: "mine", state: {} };
+    const result = await handleRunSession(request("PUT", { body: live }), context(TRAINER, store));
+    expect(result.status).toBe(409);
+    expect(store.runSessions[0]).toMatchObject({ run_id: "theirs" });
+  });
+
   it("drops fields the browser must not set", async () => {
     const store = memoryStore();
     const sneaky = { ...ATTEMPT, id: "chosen-id", created_at: "2020-01-01T00:00:00Z", last_seen_at: "2099-01-01T00:00:00Z" };

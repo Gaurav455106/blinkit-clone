@@ -98,6 +98,11 @@ export function memoryStore(): MemoryStore {
       guard("runSessionByEmail");
       return store.runSessions.find((r) => r.email === email) ?? null;
     },
+    async isRealStudent(email) {
+      guard("isRealStudent");
+      return store.attempts.some((a) => a.email === email && a.batch_code !== "MASTER")
+        || store.runSessions.some((r) => r.email === email && r.batch_code !== "MASTER");
+    },
     async runIsSaved(runId) {
       guard("runIsSaved");
       return store.attempts.some((a) => (a.choices as { runId?: string })?.runId === runId);
