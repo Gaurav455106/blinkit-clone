@@ -1,10 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
-import { engineOverride } from "./lib/engineFlag";
 import "./index.css";
-
-// Honour ?engine=v1|v2|auto on any page, before anything renders
-engineOverride();
 
 // Pages load in separate files. After a redeploy an open tab may ask for a file
 // that no longer exists; reload once to pick up the new build instead of

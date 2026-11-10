@@ -11,9 +11,10 @@ import { ACTIVE_EMAIL_KEY } from "@/lib/masterAccess";
 import type { OpeningDeal } from "@/market/deal";
 import { marketContextFor } from "@/market/context";
 import { dealPitchResult } from "@/lib/dealPitch";
-import { resolveEngine } from "@/lib/engineFlag";
+import { briefOnLoad } from "@/lib/engineFlag";
 import { clearBriefNotes } from "@/components/brief/useBriefNotes";
 import { V2_RUN_SAVED_EVENT, readStoredRun, restoreStoredRun } from "@/components/live/useLiveRun";
+import { dropScoredInProgress, scoredRunIds } from "@/lib/scoredRuns";
 
 /** Past runs pulled back into the dashboard history on sign-in. */
 const MAX_HISTORY_ATTEMPTS = 1000;
@@ -388,14 +389,16 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { if (student) localStorage.setItem("sim_student", JSON.stringify(student)); }, [student]);
   useEffect(() => { if (scenario) localStorage.setItem("sim_scenario", JSON.stringify(scenario)); }, [scenario]);
-  // Stamp the brief's engine: older briefs decide once (v1 if already pitched or
-  // running); a trainer override is saved while the student is still on the brief.
+  // Everyone plays v2. An older brief still in this browser moves onto v2; one
+  // already pitched or running on v1 is set aside for a fresh v2 brief (its v1
+  // state can't run on v2). A past run under review is left as it was played.
   useEffect(() => {
-    if (!scenario) return;
-    const progress = { hasPitch: !!cmPitch || !!openingDeal, hasRun: !!activeRunId };
-    const engine = resolveEngine(scenario, progress);
-    if (scenario.engine !== engine) setScenario({ ...scenario, engine });
-  }, [scenario, cmPitch, openingDeal, activeRunId]);
+    if (!scenario || reviewRunId) return;
+    const action = briefOnLoad(scenario, { hasPitch: !!cmPitch || !!openingDeal, hasRun: !!activeRunId });
+    if (action === "stamp-v2") setScenario({ ...scenario, engine: "v2" });
+    if (action === "fresh-brief") newScenario();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenario, cmPitch, openingDeal, activeRunId, reviewRunId]);
   useEffect(() => { localStorage.setItem("sim_cm_pitch", JSON.stringify(cmPitch)); }, [cmPitch]);
   useEffect(() => { localStorage.setItem("sim_cm_relationship", JSON.stringify(cmRelationship)); }, [cmRelationship]);
   useEffect(() => { localStorage.setItem("sim_v2_live_relationship", JSON.stringify(liveCmRelationship)); }, [liveCmRelationship]);
@@ -453,6 +456,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
   // Bumped whenever a new brief starts. A cloud restore that finishes after
   // that must not replace the new brief with the older run it fetched.
   const briefGeneration = useRef(0);
+  // The active run as of now, for the async cloud restore (its closure is stale)
+  const activeRunIdNow = useRef(activeRunId);
+  useEffect(() => { activeRunIdNow.current = activeRunId; }, [activeRunId]);
 
   const setStudent = (s: Student) => {
     const incoming = s.email.trim().toLowerCase();
@@ -499,13 +505,19 @@ export function SimProvider({ children }: { children: ReactNode }) {
             snapshot: snap ?? undefined,
           };
         });
-        // Merge: cloud history wins by id; preserve any in-progress local entries.
+        // Merge: cloud history wins by id; preserve any in-progress local entries,
+        // except ones whose run is already scored (they're finished)
+        const scored = scoredRunIds(attemptRows);
         setRunHistory((prev) => {
           const byId = new Map<string, RunHistoryEntry>();
           for (const r of cloudHistory) byId.set(r.id, r);
           for (const r of prev) if (!byId.has(r.id)) byId.set(r.id, r);
-          return Array.from(byId.values());
+          return dropScoredInProgress(Array.from(byId.values()), scored);
         });
+        // This browser is still on a run that's already scored: start a fresh brief
+        // (on the current engine) instead of resuming the finished one
+        const active = activeRunIdNow.current;
+        if (active && scored.has(active) && briefGeneration.current === generationAtStart) newScenario();
       }
 
       const sessionRow = await api<{ run_id: string; started_at: string; state: unknown } | null>(
@@ -926,6 +938,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
     if (activeRunId) return false;
     const entry = runHistory.find((r) => r.id === runId);
     if (!entry?.snapshot || entry.status !== "in_progress") return false;
+    // Runs started on the old simulation can't continue on the new one
+    if (entry.snapshot.scenario?.engine !== "v2") return false;
     const s = entry.snapshot;
     setScenario(s.scenario);
     setCmPitchState(s.cmPitch);

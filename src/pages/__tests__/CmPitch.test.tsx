@@ -32,23 +32,10 @@ function renderPage() {
 describe("CM pitch page", () => {
   beforeEach(() => localStorage.setItem("sim_brief_ack", "1"));
 
-  it("opens straight on the pitch form with Rohit's data (the meter is explained by the guided tour)", { timeout: 20000 }, () => {
-    renderPage();
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Pitch your products to Rohit" })).toBeInTheDocument();
-    expect(screen.getByText("States with stock today")).toBeInTheDocument();
-    expect(screen.getByText("2: Karnataka, Maharashtra")).toBeInTheDocument();
-  });
-
-  it("keeps the send button disabled until a product has a reason", { timeout: 20000 }, () => {
-    renderPage();
-    const send = screen.getByRole("button", { name: /Send pitch to Rohit/ });
-    expect(send).toBeDisabled();
-    fireEvent.click(screen.getAllByRole("checkbox")[0]);
-    expect(screen.getByText(/Pick a reason for:/)).toBeInTheDocument();
-    expect(send).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: /^Goa/ }));
-    expect(screen.getByText(/Goa has no stock today/)).toBeInTheDocument();
+  it("everyone gets the new deal with Rohit, even on a brief stamped for the old simulation", { timeout: 20000 }, () => {
+    renderPage(); // the shared scenario is stamped engine: "v1"
+    expect(screen.getByRole("heading", { name: "Strike a deal with Rohit" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Send pitch to Rohit/ })).toBeNull();
   });
 
   it("uses plain copy with no em dashes", { timeout: 20000 }, () => {
