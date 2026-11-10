@@ -1,6 +1,7 @@
 // ── /api/run-session: the live copy of a run in progress ─────────────────────
 //   GET ?email=…                                               → that student's row, or null
 //   PUT { email, name, batch_code, run_id, started_at, state } → upsert, one row per email
+//   DELETE ?run_id=…[&email=…]                                 → drop that run's live copy (set aside)
 //
 // A run whose score is already saved is finished: its live copy is dropped
 // rather than stored or restored, so it can't come back as the active run.
@@ -13,6 +14,8 @@ import { badRequest, forbidden, methodNotAllowed, ok, unauthenticated, type ApiR
 import { isStaff, type Session } from "../session.js";
 import type { Json } from "../store.js";
 import { firstIssue, runSessionSchema, storedEmail } from "../validate.js";
+
+const MAX_RUN_ID = 200;
 
 function validDate(value: string | undefined, fallback: string): string {
   if (!value) return fallback;
@@ -59,10 +62,21 @@ async function writeRunSession(req: ApiRequest, session: Session, ctx: HandlerCo
   return ok(null);
 }
 
+/** The student set the run aside (started another brief): its live copy must not come back on sign-in. */
+async function dropRunSession(req: ApiRequest, session: Session, ctx: HandlerContext): Promise<ApiResult> {
+  const runId = req.query.run_id?.trim();
+  if (!runId || runId.length > MAX_RUN_ID) return badRequest("run_id is required");
+  const requested = storedEmail(req.query.email);
+  const email = isStaff(session) && requested ? requested : session.email;
+  await ctx.store.deleteRunSession(email, runId);
+  return ok(null);
+}
+
 export async function handleRunSession(req: ApiRequest, ctx: HandlerContext): Promise<ApiResult> {
   const { session } = ctx;
   if (!session) return unauthenticated();
   if (req.method === "GET") return readRunSession(req, session, ctx);
   if (req.method === "PUT") return writeRunSession(req, session, ctx);
+  if (req.method === "DELETE") return dropRunSession(req, session, ctx);
   return methodNotAllowed();
 }

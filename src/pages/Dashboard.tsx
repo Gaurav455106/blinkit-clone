@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight, FileText, RefreshCw } from "lucide-react";
 import { useSim } from "@/context/SimContext";
+import { readStoredRun } from "@/components/live/useLiveRun";
+import { isFullSnapshot } from "@/lib/scoredRuns";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
 import { SimPage, PageHeader, StatTile, Section, Tag, EmptyState } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
@@ -24,21 +26,20 @@ function fmtDate(s?: string) {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, newScenario, enterReview, exitReview, clearActiveRun, clearCampaigns, resumeRun } = useSim();
+  const { student, scenario, runHistory, activeRunId, reviewRunId, campaigns, newScenario, enterReview, exitReview, clearCampaigns, resumeRun } = useSim();
 
   // Landing on dashboard exits any active review session (mount only).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (reviewRunId) exitReview(); }, []);
 
-  // If the active run is already completed, archive it and clear campaigns.
+  // A finished run is done: start a fresh brief. Clearing only the run kept the
+  // same brand and seed, so it could be played again (and the deal redone) with hindsight.
   useEffect(() => {
     if (!activeRunId) return;
     const r = runHistory.find((x) => x.id === activeRunId);
-    if (r && r.status === "completed") {
-      clearActiveRun();
-      clearCampaigns();
-    }
-  }, [activeRunId, runHistory, clearActiveRun, clearCampaigns]);
+    if (r && r.status === "completed") newScenario();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRunId, runHistory]);
 
   // On mount: clear stranded campaigns that have no active run backing them.
   // This handles the case where a previous run completed but campaigns weren't
@@ -178,7 +179,10 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {past.map((r) => {
-                        const canReview = r.status === "completed" && !!r.snapshot;
+                        // Reviewable only when this browser can rebuild it: the full brief, and for
+                        // the new simulation the day-by-day run log (saved scores keep neither)
+                        const canReview = r.status === "completed" && isFullSnapshot(r.snapshot)
+                          && (r.snapshot?.scenario.engine !== "v2" || !!readStoredRun(student, r.snapshot.scenario, r.id));
                         // In-progress run with a snapshot = was interrupted but state was saved → resumable.
                         // In-progress run without snapshot = truly lost (old behaviour pre-snapshot).
                         const canResume = r.status === "in_progress" && !!r.snapshot && !activeRunId;
