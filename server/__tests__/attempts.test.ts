@@ -174,4 +174,31 @@ describe("/api/run-session", () => {
     const result = await handleRunSession(request("PUT", { body: live }), context(null));
     expect(result.status).toBe(401);
   });
+
+  // A late auto-save used to re-create the live row of a run whose score was
+  // already saved, and every sign-in then restored that finished run.
+  it("won't keep a live copy of a run whose score is already saved", async () => {
+    const store = memoryStore();
+    await store.insertAttempt({ email: "stu@x.com", name: "Stu", batch_code: "B1", profile_id: "glow", score_total: 70, choices: { runId: "r1" } });
+    const result = await handleRunSession(request("PUT", { body: live }), context(STUDENT, store));
+    expect(result.status).toBe(200);
+    expect(store.runSessions).toHaveLength(0);
+  });
+
+  it("drops a leftover live copy of a saved run instead of restoring it", async () => {
+    const store = memoryStore();
+    await store.upsertRunSession({ email: "stu@x.com", name: "Stu", batch_code: "B1", run_id: "r1", state: {} });
+    await store.insertAttempt({ email: "stu@x.com", name: "Stu", batch_code: "B1", profile_id: "glow", score_total: 70, choices: { runId: "r1" } });
+    const result = await handleRunSession(request("GET", { query: { email: "stu@x.com" } }), context(STUDENT, store));
+    expect(result.body).toMatchObject({ success: true, data: null });
+    expect(store.runSessions).toHaveLength(0);
+  });
+
+  it("still restores a run that hasn't been saved", async () => {
+    const store = memoryStore();
+    await store.insertAttempt({ email: "stu@x.com", name: "Stu", batch_code: "B1", profile_id: "glow", score_total: 70, choices: { runId: "old" } });
+    await handleRunSession(request("PUT", { body: live }), context(STUDENT, store));
+    const result = await handleRunSession(request("GET", { query: { email: "stu@x.com" } }), context(STUDENT, store));
+    expect(result.body.data).toMatchObject({ run_id: "r1" });
+  });
 });

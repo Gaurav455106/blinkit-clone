@@ -45,6 +45,8 @@ export interface Store {
   upsertRunSession(row: RunSessionInsert): Promise<void>;
   runSessionByEmail(email: string): Promise<RunSessionRow | null>;
   deleteRunSession(email: string, runId: string): Promise<void>;
+  /** True when a saved attempt already exists for this run (unique on choices.runId). */
+  runIsSaved(runId: string): Promise<boolean>;
   liveSessions(limit: number): Promise<unknown[]>;
   countSessionsSeenBefore(cutoff: string): Promise<number>;
   deleteSessionsSeenBefore(cutoff: string): Promise<void>;
@@ -107,6 +109,10 @@ export function supabaseStore(url: string, serviceKey: string): Store {
     },
     async runSessionByEmail(email) {
       return check("runSessionByEmail", await db.from("run_sessions").select("*").eq("email", email).maybeSingle());
+    },
+    async runIsSaved(runId) {
+      const rows = check("runIsSaved", await db.from("attempts").select("id").eq("choices->>runId", runId).limit(1));
+      return (rows ?? []).length > 0;
     },
     async deleteRunSession(email, runId) {
       check("deleteRunSession", await db.from("run_sessions").delete().eq("email", email).eq("run_id", runId));
