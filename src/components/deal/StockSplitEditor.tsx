@@ -2,7 +2,7 @@
 
 import { RotateCcw } from "lucide-react";
 import type { SKU } from "@/data/scenarios";
-import type { StockSplit } from "@/market/deal";
+import { unitsLeft, type StockSplit } from "@/market/deal";
 import { Section, Tag } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
 import { stagger } from "@/components/game/GameBits";
@@ -35,18 +35,17 @@ export function StockSplitEditor({ skus, states, demand, pool, value, onChange, 
       <div className="space-y-5">
         {skus.map((sku, skuIndex) => {
           const row = value[sku.id] ?? {};
-          const placed = states.reduce((s, st) => s + (row[st] ?? 0), 0);
-          const left = (pool[sku.id] ?? 0) - placed;
-          const over = left < -0.5;
+          const left = unitsLeft(pool[sku.id] ?? 0, row, states);
+          const over = left < 0;
           const note = stockNote(row, demand, states);
           return (
             <fieldset key={sku.id} className="sim-rise rounded-xl border border-border p-4" style={stagger(skuIndex, 110)}>
               <legend className="px-1 text-sm font-medium text-foreground">{sku.name}</legend>
               <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>Price ₹{sku.mrp} · you keep ₹{sku.margin} a unit</span>
-                <span key={over ? "over" : left > 0.5 ? "left" : "done"} className={over || left > 0.5 ? "inline-block" : "sim-pop-in inline-block"}>
-                  <Tag tone={over ? "bad" : left > 0.5 ? "warn" : "good"}>
-                    {over ? `${units(-left)} too many` : left > 0.5 ? `${units(left)} left to place` : "All placed"}
+                <span key={over ? "over" : left > 0 ? "left" : "done"} className={over || left > 0 ? "inline-block" : "sim-pop-in inline-block"}>
+                  <Tag tone={over ? "bad" : left > 0 ? "warn" : "good"}>
+                    {over ? `${units(-left)} too many` : left > 0 ? `${units(left)} left to place` : "All placed"}
                   </Tag>
                 </span>
               </div>
