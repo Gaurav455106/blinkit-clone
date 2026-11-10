@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useSim, type CmPitchResult } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -50,15 +50,21 @@ const chipsOf = (card: DataCard): ChipData[] => card.rows.map((r) => ({ label: r
 
 export default function CmPitch() {
   const nav = useNavigate();
-  const { student, scenario } = useSim();
+  const { student, scenario, cmPitch } = useSim();
+  // The deal with Rohit is final: once agreed (v2 sets cmPitch from the deal too),
+  // coming back here (back button, the brief, a typed address) goes on to the
+  // campaigns. Read on arrival only, so the "deal agreed" screen still shows.
+  const [dealAlreadyAgreed] = useState(() => cmPitch != null);
 
   useEffect(() => {
+    if (dealAlreadyAgreed) return; // rendered as a redirect below
     if (!student) nav("/", { replace: true });
     else if (!scenario) nav("/brief", { replace: true });
     else if (localStorage.getItem("sim_brief_ack") !== "1") nav("/brief", { replace: true });
-  }, [student, scenario, nav]);
+  }, [student, scenario, nav, dealAlreadyAgreed]);
 
   const isV2 = useIsEngineV2();
+  if (dealAlreadyAgreed && student && scenario) return <Navigate to="/simulation" replace />;
   if (!student || !scenario) return null;
   const dealCtx = isV2 ? marketContextFor(scenario, student.batch) : null;
   if (dealCtx) return <DealV2 student={student} scenario={scenario} ctx={dealCtx} />;

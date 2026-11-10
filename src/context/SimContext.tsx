@@ -450,6 +450,10 @@ export function SimProvider({ children }: { children: ReactNode }) {
    * pulled back by hydrateFromCloud. In-progress runs are local-only, so a switch
    * does discard an unfinished run belonging to the previous student.
    */
+  // Bumped whenever a new brief starts. A cloud restore that finishes after
+  // that must not replace the new brief with the older run it fetched.
+  const briefGeneration = useRef(0);
+
   const setStudent = (s: Student) => {
     const incoming = s.email.trim().toLowerCase();
     let previous: string | null = null;
@@ -474,6 +478,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   };
 
   async function hydrateFromCloud(s: Student) {
+    const generationAtStart = briefGeneration.current;
     try {
       // The server bumps last_seen_at on past attempts (touch=1) and returns them newest first.
       const newestFirst = await fetchAllPages<any>("/api/attempts", { email: s.email, touch: 1 }, MAX_HISTORY_ATTEMPTS);
@@ -505,6 +510,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
       const sessionRow = await api<{ run_id: string; started_at: string; state: unknown } | null>(
         "GET", "/api/run-session", { query: { email: s.email } });
+      // A new brief was started while this was loading: keep it
+      if (briefGeneration.current !== generationAtStart) return;
       if (sessionRow && sessionRow.state) {
         const st: any = sessionRow.state;
         if (st.scenario) setScenario(st.scenario);
@@ -565,6 +572,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
   const lastSyncAt = useRef(0);
   useEffect(() => {
     if (!student || !activeRunId) return;
+    // A finished run is never "in progress" again: syncing it would re-create
+    // the live row the server removed when the score was saved
+    if (runHistory.find((r) => r.id === activeRunId)?.status === "completed") return;
     if (syncTimer.current) clearTimeout(syncTimer.current);
     // Debounce, but never let a run that keeps changing (v2 autoplay) go unsynced for long
     const overdue = Date.now() - lastSyncAt.current > SYNC_MAX_WAIT_MS;
@@ -639,6 +649,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
   };
 
   const newScenario = (profileId?: string) => {
+    briefGeneration.current += 1;
     // If an in-progress run exists, snapshot its state before wiping so it can be resumed later.
     if (activeRunId && scenario) {
       const currentEntry = runHistory.find((r) => r.id === activeRunId);

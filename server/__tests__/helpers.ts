@@ -98,6 +98,10 @@ export function memoryStore(): MemoryStore {
       guard("runSessionByEmail");
       return store.runSessions.find((r) => r.email === email) ?? null;
     },
+    async runIsSaved(runId) {
+      guard("runIsSaved");
+      return store.attempts.some((a) => (a.choices as { runId?: string })?.runId === runId);
+    },
     async deleteRunSession(email, runId) {
       guard("deleteRunSession");
       store.runSessions = store.runSessions.filter((r) => !(r.email === email && r.run_id === runId));

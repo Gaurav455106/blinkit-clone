@@ -2,6 +2,9 @@
 //   GET ?email=…                                               → that student's row, or null
 //   PUT { email, name, batch_code, run_id, started_at, state } → upsert, one row per email
 //
+// A run whose score is already saved is finished: its live copy is dropped
+// rather than stored or restored, so it can't come back as the active run.
+//
 // Students can only read and write their own row; staff can for any email
 // (Student view test identities).
 
@@ -21,7 +24,14 @@ async function readRunSession(req: ApiRequest, session: Session, ctx: HandlerCon
   const requested = storedEmail(req.query.email);
   if (!requested) return badRequest("email is required");
   if (!isStaff(session) && requested.trim().toLowerCase() !== session.email) return forbidden();
-  return ok(await ctx.store.runSessionByEmail(isStaff(session) ? requested : session.email));
+  const email = isStaff(session) ? requested : session.email;
+  const row = await ctx.store.runSessionByEmail(email);
+  // A finished run's leftover copy must not come back as the active run
+  if (row && await ctx.store.runIsSaved(row.run_id)) {
+    await ctx.store.deleteRunSession(email, row.run_id);
+    return ok(null);
+  }
+  return ok(row);
 }
 
 async function writeRunSession(req: ApiRequest, session: Session, ctx: HandlerContext): Promise<ApiResult> {
@@ -32,6 +42,12 @@ async function writeRunSession(req: ApiRequest, session: Session, ctx: HandlerCo
   const owner = isStaff(session)
     ? { email: input.email, name: input.name, batch_code: input.batch_code }
     : { email: session.email, name: session.name, batch_code: session.batch };
+
+  // Its score is saved, so this is a late auto-save of a finished run: drop it, don't store it
+  if (await ctx.store.runIsSaved(input.run_id)) {
+    await ctx.store.deleteRunSession(owner.email, input.run_id);
+    return ok(null);
+  }
 
   await ctx.store.upsertRunSession({
     ...owner,
