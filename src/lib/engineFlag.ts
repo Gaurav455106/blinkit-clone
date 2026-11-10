@@ -1,16 +1,10 @@
 // ── Which engine a brief uses ─────────────────────────────────────────────────
-// Each brief (scenario) carries the engine it was started on, so an attempt
-// never switches engines halfway. Every new brand brief starts on v2. Briefs
-// created before the stamp existed stay on v1 once the student has pitched or
-// started a run; one they're still reading moves to v2.
+// Everyone plays the new simulation (v2). Every new brand brief is created on
+// v2, and an older brief still in a browser is moved onto v2 (briefOnLoad).
 //
-// Trainers can force an engine for one browser with ?engine=v1 or ?engine=v2
-// (remembered); ?engine=auto goes back to the rule above. The override only
-// applies while the student is still on the brief: it is stamped onto the brief
-// then, and once they have pitched or started a run the stamp wins, so screens
-// never mix v1 and v2 state.
-
-const STORAGE_KEY = "sim_engine";
+// The only place v1 still shows is reviewing a past run that was played on v1:
+// its results page needs the engine it was played on, so `reviewing` keeps
+// the brief's own stamp.
 
 export type EngineVersion = "v1" | "v2";
 
@@ -22,30 +16,30 @@ export interface BriefProgress {
   hasRun: boolean;
 }
 
-/** The trainer override for this browser, or null for the automatic rule. */
-export function engineOverride(): EngineVersion | null {
-  if (typeof window === "undefined") return null;
-  const param = new URLSearchParams(window.location.search).get("engine");
-  try {
-    if (param === "v1" || param === "v2") window.localStorage.setItem(STORAGE_KEY, param);
-    if (param === "auto") window.localStorage.removeItem(STORAGE_KEY);
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === "v1" || stored === "v2" ? stored : null;
-  } catch {
-    // Storage blocked (private mode): only the URL can override
-    return param === "v1" || param === "v2" ? param : null;
-  }
-}
-
-/** The engine a brief belongs to, ignoring overrides. */
+/** The engine a brief was played on: its stamp, or (unstamped, older briefs) v1 once pitched or run. */
 export function engineForScenario(scenario: { engine?: EngineVersion } | null, progress: BriefProgress): EngineVersion {
   if (!scenario) return NEW_BRIEF_ENGINE;
   if (scenario.engine) return scenario.engine;
   return progress.hasPitch || progress.hasRun ? "v1" : NEW_BRIEF_ENGINE;
 }
 
-export function resolveEngine(scenario: { engine?: EngineVersion } | null, progress: BriefProgress): EngineVersion {
-  const started = progress.hasPitch || progress.hasRun;
-  if (started && scenario?.engine) return scenario.engine;
-  return engineOverride() ?? engineForScenario(scenario, progress);
+/** v2 for anything being played; a past run under review keeps the engine it was played on. */
+export function resolveEngine(
+  scenario: { engine?: EngineVersion } | null,
+  progress: BriefProgress,
+  options: { reviewing?: boolean } = {},
+): EngineVersion {
+  return options.reviewing ? engineForScenario(scenario, progress) : NEW_BRIEF_ENGINE;
+}
+
+/**
+ * What to do with the brief this browser holds (outside review):
+ *   keep        already on v2
+ *   stamp-v2    an older brief the student is only reading: same brief, on v2
+ *   fresh-brief an older brief already pitched or running: its v1 state can't
+ *               run on v2, so the student starts a new v2 brief
+ */
+export function briefOnLoad(scenario: { engine?: EngineVersion }, progress: BriefProgress): "keep" | "stamp-v2" | "fresh-brief" {
+  if (scenario.engine === "v2") return "keep";
+  return progress.hasPitch || progress.hasRun ? "fresh-brief" : "stamp-v2";
 }
