@@ -59,6 +59,12 @@ export default function Login() {
         return;
       }
 
+      // ?master on its own: show the key box (no error, nothing tried yet)
+      if (param?.kind === "ask") {
+        if (!cancelled) setView("key");
+        return;
+      }
+
       // Already signed in → straight to the right place
       const simRole = localStorage.getItem("sim_role");
       if (simRole === "admin")   { nav("/admin",     { replace: true }); return; }

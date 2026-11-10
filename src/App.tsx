@@ -27,6 +27,7 @@ import { StaffReturnBar } from "@/components/StaffReturnBar";
 import NotFound from "./pages/NotFound.tsx";
 import { HUB_URL, hasMasterAccess, readMasterParam } from "@/lib/masterAccess";
 import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
+import { StaffGuard } from "@/components/StaffGuard";
 
 const queryClient = new QueryClient();
 
@@ -64,19 +65,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Allows trainers AND admins to access /trainer */
+// Kept outside the components so the guard's effect runs once per page open.
+const TRAINER_ROLES = ["trainer", "admin"] as const;
+const ADMIN_ROLES = ["admin"] as const;
+
+/** Trainers and admins, as signed in on the server. */
 function TrainerGuard({ children }: { children: React.ReactNode }) {
-  const role = localStorage.getItem("sim_role");
-  // Legacy support: old sessions may have sim_trainer = "1" without sim_role
-  const legacy = localStorage.getItem("sim_trainer") === "1";
-  const allowed = role === "trainer" || role === "admin" || legacy;
-  return allowed ? <>{children}</> : <Navigate to="/" replace />;
+  return <StaffGuard allowed={TRAINER_ROLES}>{children}</StaffGuard>;
 }
 
-/** Allows only admins to access /admin */
+/** Admins only, as signed in on the server. */
 function AdminGuard({ children }: { children: React.ReactNode }) {
-  const role = localStorage.getItem("sim_role");
-  return role === "admin" ? <>{children}</> : <Navigate to="/" replace />;
+  return <StaffGuard allowed={ADMIN_ROLES}>{children}</StaffGuard>;
 }
 
 function FlowGuard({ children }: { children: React.ReactNode }) {
