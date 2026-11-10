@@ -3,14 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Check, Home, ChevronLeft, ChevronRight, Eye, X } from "lucide-react";
 import { useSim } from "@/context/SimContext";
 import { TourButton } from "@/components/tour/TourButton";
+import { FLOW_STEPS, stepDone, stepLock, type FlowStepKey } from "@/lib/flowSteps";
+import { useFlowProgress } from "@/lib/useFlowProgress";
 
-const FLOW = [
-  { key: "brief", label: "Brief", path: "/brief" },
-  { key: "cm-pitch", label: "CM Pitch", path: "/cm-pitch" },
-  { key: "campaign", label: "Campaigns", path: "/campaign" },
-  { key: "simulation", label: "Simulation", path: "/simulation" },
-  { key: "results", label: "Results", path: "/results" },
-];
+const STEP_OF_PAGE: Record<FlowHeaderProps["step"], FlowStepKey> = {
+  brief: "brief", "cm-pitch": "deal", campaign: "live", simulation: "live", results: "results",
+};
 
 interface FlowHeaderProps {
   crumb: string;
@@ -24,7 +22,8 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
   const loc = useLocation();
   const { mode, reviewRunId, runHistory, exitReview } = useSim();
   const reviewEntry = reviewRunId ? runHistory.find((r) => r.id === reviewRunId) : null;
-  const currentIdx = FLOW.findIndex((s) => s.key === step);
+  const current = STEP_OF_PAGE[step];
+  const progress = useFlowProgress();
 
   return (
     <div className="border-b border-border bg-card/50">
@@ -46,7 +45,7 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
       )}
       {/* Top strip: breadcrumb + actions */}
       <div className="px-8 pt-3 pb-2 flex items-center justify-between gap-4">
-        <div className="text-xs text-muted-foreground">Brand Central › {crumb}</div>
+        <div className="text-xs text-muted-foreground">{crumb}</div>
         <div className="flex items-center gap-1">
           <TourButton className="h-7 px-2" />
           {/* The Dashboard button below already covers a back link to the dashboard */}
@@ -65,15 +64,18 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
 
       {/* Progress stepper */}
       <div className="px-8 pb-3 pt-1 flex items-center gap-1 overflow-x-auto">
-        {FLOW.map((s, i) => {
-          const done = i < currentIdx;
-          const active = i === currentIdx;
-          const clickable = done || mode === "review";
+        {FLOW_STEPS.map((s, i) => {
+          const active = s.key === current;
+          const done = !active && stepDone(s.key, progress);
+          const lock = stepLock(s.key, progress);
+          const clickable = !active && (mode === "review" || lock === null);
           return (
             <div key={s.key} className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => clickable && nav(s.path)}
                 disabled={!clickable}
+                title={!active && lock ? lock : undefined}
+                aria-current={active ? "step" : undefined}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition ${
                   active
                     ? "bg-primary/10 text-primary font-semibold"
@@ -92,7 +94,7 @@ export function FlowHeader({ crumb, step, backTo, backLabel }: FlowHeaderProps) 
                 </span>
                 <span>{s.label}</span>
               </button>
-              {i < FLOW.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground/40" />}
+              {i < FLOW_STEPS.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground/40" />}
             </div>
           );
         })}
