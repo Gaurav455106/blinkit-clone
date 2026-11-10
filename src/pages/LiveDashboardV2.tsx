@@ -24,7 +24,7 @@ import { AlertCard, CalendarStrip, CommitmentsPanel, EventsFeed } from "@/compon
 import { PreLaunch } from "@/components/live/PreLaunch";
 import { BudgetDistribution, SponsoredSov } from "@/components/live/OverviewPanels";
 import { useTour, useTourOpen } from "@/components/tour/useTour";
-import { RohitPanel } from "@/components/rohit/RohitPanel";
+import { RohitDock } from "@/components/rohit/RohitDock";
 import { detectMoments } from "@/market/moments";
 import { sumMetrics } from "@/market/aggregate";
 import type { ReportInput } from "@/market/reports";
@@ -91,13 +91,15 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
     </Sheet>
   );
 
-  const shell = (content: React.ReactNode) => (
+  // `aside` sits beside the page (Rohit's check-in), so the page narrows instead of being covered
+  const shell = (content: React.ReactNode, aside?: React.ReactNode) => (
     <div className="flex h-screen w-full overflow-hidden">
       <BlinkitSidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <FlowHeader crumb="Live campaigns" step="simulation" />
         <SimPage wide>{content}</SimPage>
       </div>
+      {aside}
       {sheet}
     </div>
   );
@@ -238,20 +240,17 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
         </TabsContent>
       </Tabs>
 
-      {ask && (
-        <div className="fixed inset-y-0 right-0 z-40 w-full max-w-md p-4">
-          <RohitPanel
-            ask={ask}
-            day={run.day}
-            relationship={run.relationship}
-            isClockPaused
-            chosenOptionId={run.rohit.pendingChoice}
-            onChoose={run.replyToRohit}
-            onClose={run.closeRohit}
-            className="h-full"
-          />
-        </div>
-      )}
     </>,
+    ask && (
+      <RohitDock
+        key={ask.id}
+        ask={ask}
+        day={run.day}
+        relationship={run.relationship}
+        chosenOptionId={run.rohit.pendingChoice}
+        onChoose={run.replyToRohit}
+        onClose={run.closeRohit}
+      />
+    ),
   );
 }
