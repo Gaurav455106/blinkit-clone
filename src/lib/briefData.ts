@@ -5,7 +5,9 @@
 // or max profitable CPM per keyword (students work that out).
 
 import type { BrandProfile, GoalType, Scenario, SKU, StateName, Velocity } from "@/data/scenarios";
-import { BLINKIT_STATES } from "@/data/scenarios";
+import { BLINKIT_STATES, CITY_STORE_COUNT } from "@/data/scenarios";
+import { briefStock } from "@/market/deal";
+import { osa } from "@/market/stock";
 import type { BrandMarket, CategoryProfile, KeywordTier, RivalArchetype, RivalData } from "@/market/types";
 import { SLOT_LABELS } from "@/market/slots";
 import type { MarketContext } from "@/market/engineTypes";
@@ -223,17 +225,41 @@ export interface StateDemandRow {
   state: StateName;
   /** Share of national searches for this brand's category (0–1). */
   demandShare: number;
-  /** On-shelf availability % from the scenario. */
+  /** Day-1 on-shelf availability %: the engine's own stock, averaged over the products. */
   osa: number;
 }
 
-/** Stocked states with last month's demand share and today's OSA. Demand and stock only. */
-export function stateDemandRows(scenario: Pick<Scenario, "cityStockMap">, market: BrandMarket): StateDemandRow[] {
-  const shares = stateShares(market);
+/**
+ * Each stocked state's day-1 on-shelf %, from the units the engine actually
+ * starts with (briefStock). The scenario's per-state % only weights where the
+ * stock pool goes, so showing it as "on the shelf" contradicted the run.
+ */
+export function briefOsaPct(ctx: MarketContext): Partial<Record<StateName, number>> {
+  const stock = briefStock(ctx);
+  const skus = ctx.scenario.profile.skus;
+  return Object.fromEntries(BLINKIT_STATES
+    .filter((s) => (ctx.scenario.cityStockMap[s] ?? 0) > 0)
+    .map((s) => {
+      const mean = skus.reduce((t, sku) => t + osa(stock[sku.id]?.[s] ?? 0, CITY_STORE_COUNT[s], sku.velocity), 0) / Math.max(1, skus.length);
+      return [s, Math.round(mean * 100)];
+    }));
+}
+
+/** Stocked states with last month's demand share and day-1 OSA. Demand and stock only. */
+export function stateDemandRows(ctx: MarketContext): StateDemandRow[] {
+  const shares = stateShares(ctx.market);
+  const osaByState = briefOsaPct(ctx);
   return BLINKIT_STATES
-    .filter((s) => (scenario.cityStockMap[s] ?? 0) > 0)
-    .map((s) => ({ state: s, demandShare: shares[s] ?? 0, osa: scenario.cityStockMap[s] }))
+    .filter((s) => (ctx.scenario.cityStockMap[s] ?? 0) > 0)
+    .map((s) => ({ state: s, demandShare: shares[s] ?? 0, osa: osaByState[s] ?? 0 }))
     .sort((a, b) => b.demandShare - a.demandShare);
+}
+
+/** Day-1 on-shelf % across the stocked states, weighted by where people search (for the summary tile). */
+export function overallBriefOsa(rows: readonly StateDemandRow[]): number {
+  const weight = rows.reduce((t, r) => t + r.demandShare, 0);
+  if (weight <= 0) return 0;
+  return Math.round(rows.reduce((t, r) => t + r.osa * r.demandShare, 0) / weight);
 }
 
 // ── Keywords ──────────────────────────────────────────────────────────────────

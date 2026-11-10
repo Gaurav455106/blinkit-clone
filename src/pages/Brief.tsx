@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MARKET_DATA } from "@/market/data";
 import { marketContextFor } from "@/market/context";
-import { briefRivals, shoppingHours, stateDemandRows } from "@/lib/briefData";
+import { briefRivals, overallBriefOsa, shoppingHours, stateDemandRows } from "@/lib/briefData";
+import { effectiveGoalType } from "@/market/goals";
 import { BriefSummary, clueCountFor } from "@/components/brief/BriefSummary";
 import { useClues } from "@/components/brief/useClues";
 import { EconomicsTab } from "@/components/brief/EconomicsTab";
@@ -50,7 +51,7 @@ export default function Brief() {
   const ctx = useMemo(() => (scenario && student ? marketContextFor(scenario, student.batch) : null), [scenario, student]);
   const rivals = useMemo(() => (scenario && market ? briefRivals(scenario.profile, market) : []), [scenario, market]);
   useTour("brief", student?.email, !!student && !!scenario);
-  const states = useMemo(() => (scenario && market ? stateDemandRows(scenario, market) : []), [scenario, market]);
+  const states = useMemo(() => (ctx ? stateDemandRows(ctx) : []), [ctx]);
   const hours = useMemo(() => (market ? shoppingHours(market.category) : null), [market]);
   const clues = useClues(scenario?.seed ?? "none");
 
@@ -83,7 +84,7 @@ export default function Brief() {
 
           <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
             <div className="min-w-0 space-y-8">
-              <div data-tour="brief-summary"><BriefSummary scenario={scenario} stocked={stocked} rivals={rivals} hours={hours} clues={clues} /></div>
+              <div data-tour="brief-summary"><BriefSummary scenario={scenario} stocked={stocked} rivals={rivals} hours={hours} clues={clues} dayOneOsa={overallBriefOsa(states)} /></div>
 
               <Tabs data-tour="brief-tabs" value={tab} onValueChange={(v) => setTab(v as BriefTab)}>
                 <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary p-1">
@@ -104,9 +105,9 @@ export default function Brief() {
                 <TabsContent value="stakeholders" className="sim-rise mt-6"><StakeholdersTab profile={profile} /></TabsContent>
               </Tabs>
 
-              <div data-tour="brief-budget"><Reveal><BudgetSplit goalType={profile.goalType} budget={budget} convPct={convPct} onChange={setConvPct} /></Reveal></div>
+              <div data-tour="brief-budget"><Reveal><BudgetSplit goalType={effectiveGoalType(scenario)} budget={budget} convPct={convPct} onChange={setConvPct} /></Reveal></div>
 
-              <div data-tour="brief-quiz"><Reveal><BriefQuiz goalType={profile.goalType} primaryState={profile.primaryState} stock={cityStockMap} onStatusChange={setQuizDone} /></Reveal></div>
+              <div data-tour="brief-quiz"><Reveal><BriefQuiz goalType={effectiveGoalType(scenario)} primaryState={profile.primaryState} stock={cityStockMap} onStatusChange={setQuizDone} /></Reveal></div>
 
               <div data-tour="brief-continue" className="flex flex-col gap-4 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-accent-foreground">

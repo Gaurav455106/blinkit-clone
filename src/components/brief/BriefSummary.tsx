@@ -6,7 +6,7 @@ import { breakEvenRange, plainText } from "@/lib/briefData";
 import { PinButton } from "@/components/brief/PinButton";
 import { inr, pct, roasX } from "@/components/brief/format";
 import { useIsEngineV2 } from "@/lib/useEngine";
-import { clientGoalsV2 } from "@/market/goals";
+import { clientGoalsV2, effectiveGoalType } from "@/market/goals";
 import { ClueCard } from "@/components/brief/ClueCard";
 import type { Clues } from "@/components/brief/useClues";
 
@@ -16,6 +16,8 @@ type Props = {
   rivals: readonly BriefRival[];
   hours: ShoppingHours | null;
   clues: Clues;
+  /** Day-1 on-shelf % across the stocked states, from the engine's own stock. */
+  dayOneOsa: number;
 };
 
 const TOP_RIVALS = 3;
@@ -92,7 +94,7 @@ function RivalCard({ rival }: { rival: BriefRival }) {
   );
 }
 
-export function BriefSummary({ scenario, stocked, rivals, hours, clues }: Props) {
+export function BriefSummary({ scenario, stocked, rivals, hours, clues, dayOneOsa }: Props) {
   const { profile, budget, season, market, inventory } = scenario;
   // v2 runs use goals calibrated to the engine; v1 runs keep the goals they started with
   const isV2 = useIsEngineV2();
@@ -111,7 +113,7 @@ export function BriefSummary({ scenario, stocked, rivals, hours, clues }: Props)
             <h2 className="text-2xl font-semibold text-foreground">{profile.name}</h2>
             <Tag>{profile.category}</Tag>
             <Tag tone={DIFFICULTY_TONE[profile.difficulty]}>{profile.difficulty}</Tag>
-            <Tag>{profile.goalType}</Tag>
+            <Tag>{effectiveGoalType(scenario)}</Tag>
           </div>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{plainText(profile.context)}</p>
         </div>
@@ -193,7 +195,7 @@ export function BriefSummary({ scenario, stocked, rivals, hours, clues }: Props)
             <ClueCard title="Stock" open={clues.isOpen("stock")} onOpen={() => clues.open("stock")}>
               <p className="font-medium text-foreground">Stock: {inventory.label}</p>
               <p className="mt-0.5 text-muted-foreground">
-                <span className="sim-num">On the shelf in {inventory.osa}% of stores. {inventory.agingUnits.toLocaleString("en-IN")} units are getting old.</span>{" "}
+                <span className="sim-num">On the shelf in {dayOneOsa}% of stores on day 1. {inventory.agingUnits.toLocaleString("en-IN")} units are getting old.</span>{" "}
                 {inventoryNote(inventory.tone)}
               </p>
             </ClueCard>

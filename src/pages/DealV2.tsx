@@ -72,7 +72,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
       chipsCaption="What Rohit can see"
       chips={[
         { label: "States I serve for you", value: states.join(", "), tone: "neutral" },
-        ...states.map((s) => ({ label: `Searches from ${s}`, value: pctOf(demand[s] ?? 0), tone: "neutral" as const })),
+        ...states.map((s) => ({ label: `Share of your states' searches: ${s}`, value: pctOf(demand[s] ?? 0), tone: "neutral" as const })),
         { label: "Your ad budget", value: inr(scenario.budget), tone: "neutral" },
       ]}
     />

@@ -1,3 +1,6 @@
+import { initialMarketState } from "@/market/state";
+import { osa } from "@/market/stock";
+import { CITY_STORE_COUNT } from "@/data/scenarios";
 import { describe, it, expect } from "vitest";
 import { BRAND_PROFILES } from "@/data/scenarios";
 import { MARKET_DATA } from "@/market/data";
@@ -122,12 +125,25 @@ describe("rivals", () => {
 });
 
 describe("state demand rows", () => {
+  it("shows each state's day-1 stock-on-shelf from the engine's own units, not the split weights", () => {
+    for (const id of ["henlo", "vitaboost", "glow"]) {
+      const ctx = testContext(id);
+      const day1 = initialMarketState(ctx);
+      for (const r of stateDemandRows(ctx)) {
+        const skus = ctx.scenario.profile.skus;
+        const engine = skus.reduce((t, sku) => t + osa(day1.stock[sku.id][r.state], CITY_STORE_COUNT[r.state], sku.velocity), 0) / skus.length;
+        expect(r.osa).toBe(Math.round(engine * 100));
+      }
+    }
+  });
+
   it("lists only stocked states with demand share and OSA, biggest demand first", () => {
     const ctx = testContext("fuelup");
-    const rows = stateDemandRows(ctx.scenario, ctx.market);
+    const rows = stateDemandRows(ctx);
     expect(rows.map((r) => r.state).sort()).toEqual(["Delhi", "Karnataka", "Maharashtra"]);
     for (const r of rows) {
-      expect(r.osa).toBe(ctx.scenario.cityStockMap[r.state]);
+      expect(r.osa).toBeGreaterThanOrEqual(0);
+      expect(r.osa).toBeLessThanOrEqual(100);
       expect(r.demandShare).toBeGreaterThan(0);
       expect(r.demandShare).toBeLessThan(1);
     }

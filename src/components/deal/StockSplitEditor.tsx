@@ -54,7 +54,7 @@ export function StockSplitEditor({ skus, states, demand, pool, value, onChange, 
                   <label key={st} className="text-xs text-muted-foreground">
                     <span className="flex items-baseline justify-between gap-2">
                       <span className="font-medium text-foreground">{st}</span>
-                      <span>{pct(demand[st] ?? 0)} of searches</span>
+                      <span title="Share of searches across the states Rohit serves for you">{pct(demand[st] ?? 0)} of searches in your states</span>
                     </span>
                     <input
                       type="number"

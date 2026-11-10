@@ -243,7 +243,7 @@ export const BRAND_PROFILES: BrandProfile[] = [
   },
   {
     id: "munchbox", name: "MunchBox", emoji: "🍿", category: "Packaged Snacks", difficulty: "Medium",
-    context: "MunchBox makes healthy snacks. Launching on Blinkit. The category is very crowded: Haldirams, Lay's and Bingo all bid hard on generic keywords.",
+    context: "MunchBox makes healthy snacks. Launching on Blinkit. The category is very crowded: CrunchCo, SnackSutra and NamkeenNow all bid hard on generic keywords.",
     cityContext: "Maharashtra",
     primaryState: "Maharashtra", secondaryStates: ["Gujarat", "Karnataka"],
     peakHours: "Snack purchases peak 5 PM-10 PM.",
