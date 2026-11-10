@@ -1,6 +1,6 @@
 import "@/components/game/game.css";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight, FileText, RefreshCw } from "lucide-react";
 import { useSim } from "@/context/SimContext";
 import { BlinkitSidebar } from "@/components/BlinkitSidebar";
@@ -51,7 +51,8 @@ export default function Dashboard() {
 
   useTour("dashboard", student?.email, !!student && !!scenario);
 
-  if (!student) { nav("/", { replace: true }); return null; }
+  // <Navigate> (not nav()) — navigating while rendering is ignored and left a blank page
+  if (!student) return <Navigate to="/" replace />;
   if (!scenario) { newScenario(); return null; }
 
   const activeRun = activeRunId ? runHistory.find((r) => r.id === activeRunId) : null;
