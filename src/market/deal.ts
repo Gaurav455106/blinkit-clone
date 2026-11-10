@@ -78,9 +78,34 @@ export function stockPool(ctx: MarketContext): Readonly<Record<string, number>> 
   return Object.fromEntries(Object.entries(briefStock(ctx)).map(([sku, byState]) => [sku, sum(byState)]));
 }
 
-/** A starting deal sheet: the brief's split, nothing asked, nothing given. */
+/**
+ * Splits a row into whole units that add up to the rounded total, giving the
+ * spare units to the largest remainders, so the sheet starts fully placed.
+ */
+export function wholeUnits(byState: Readonly<Record<string, number>>): Record<string, number> {
+  const entries = Object.entries(byState);
+  const floors = entries.map(([state, units]) => ({ state, base: Math.floor(units), rest: units - Math.floor(units) }));
+  const spare = Math.round(sum(byState)) - floors.reduce((s, f) => s + f.base, 0);
+  const bonus = new Set([...floors].sort((a, b) => b.rest - a.rest).slice(0, Math.max(0, spare)).map((f) => f.state));
+  return Object.fromEntries(floors.map((f) => [f.state, f.base + (bonus.has(f.state) ? 1 : 0)]));
+}
+
+/**
+ * Units still to place, counted the way the sheet shows them: whole units per
+ * state against the whole-unit pool. Negative means too many. The "All placed"
+ * tag and the send check both use this, so they always agree.
+ */
+export function unitsLeft(pool: number, byState: Readonly<Record<string, number>>, states: readonly string[]): number {
+  return Math.round(pool) - states.reduce((s, st) => s + Math.round(byState[st] ?? 0), 0);
+}
+
+/**
+ * A starting deal sheet: the brief's split in whole units, nothing asked,
+ * nothing given. (A walk-away keeps the brief's exact stock; see dealToRun.)
+ */
 export function defaultDeal(ctx: MarketContext): DealTerms {
-  return { stock: briefStock(ctx), asks: [], gives: [], walkedAway: false };
+  const stock = Object.fromEntries(Object.entries(briefStock(ctx)).map(([sku, byState]) => [sku, wholeUnits(byState)]));
+  return { stock, asks: [], gives: [], walkedAway: false };
 }
 
 export function walkAwayDeal(ctx: MarketContext): DealTerms {
@@ -101,9 +126,7 @@ export function validateDeal(ctx: MarketContext, d: DealTerms): string[] {
       if (units < 0) problems.push(`${name} in ${state} is below zero.`);
       if (units > 0 && !allowed.has(state)) problems.push(`Rohit can't stock ${name} in ${state}. Pick from ${[...allowed].join(", ")}.`);
     }
-    // The sheet shows whole units, so a pool of 1,640.6 is "1,641": allow what's shown
-    const limit = Math.max(pool[sku] ?? 0, Math.round(pool[sku] ?? 0));
-    if (sum(byState) > limit + 1e-6) problems.push(`${name}: you placed more than the ${Math.round(pool[sku] ?? 0).toLocaleString("en-IN")} units you have.`);
+    if (unitsLeft(pool[sku] ?? 0, byState, Object.keys(byState)) < 0) problems.push(`${name}: you placed more than the ${Math.round(pool[sku] ?? 0).toLocaleString("en-IN")} units you have.`);
   }
   if (d.asks.length > MAX_ASKS) problems.push(`Pick at most two asks.`);
   const giveKinds = d.gives.map((g) => g.kind);

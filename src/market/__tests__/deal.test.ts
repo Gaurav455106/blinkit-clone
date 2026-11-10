@@ -79,7 +79,7 @@ describe("the deal shapes the run", () => {
     const run = dealToRun(fuel, d);
     const start = initialMarketState(withStartStock(fuel, run.startStock)).stock["fuel-1"];
     expect(start[second]).toBeCloseTo(defaultDeal(fuel).stock["fuel-1"][second] + units, 6);
-    expect(total(start)).toBeCloseTo(stockPool(fuel)["fuel-1"], 6);
+    expect(total(start)).toBe(Math.round(stockPool(fuel)["fuel-1"])); // the sheet places whole units
   });
 
   it("the same deal replays the same day exactly", () => {
