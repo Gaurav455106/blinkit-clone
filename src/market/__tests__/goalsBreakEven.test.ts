@@ -2,7 +2,7 @@
 // brief says so, and the deal sheet must show how a discount moves break-even.
 
 import { describe, expect, it } from "vitest";
-import { clientGoalsV2, GOAL_BENCHMARKS, roasGoalConflict } from "@/market/goals";
+import { clientGoalsV2, effectiveGoalType, GOAL_BENCHMARKS, roasGoalConflict } from "@/market/goals";
 import { skuBreakEven } from "@/market/deal";
 import { MARKET_DATA } from "@/market/data";
 import { testContext } from "./testContext";
@@ -57,5 +57,13 @@ describe("roasGoalConflict", () => {
     expect(roasGoalConflict(goals(4), 3.9)).toBeNull();
     expect(roasGoalConflict(goals(4), 0)).toBeNull();
     expect(roasGoalConflict({ metrics: [{ label: "Units sold", target: 900, unit: "units" }] }, 5)).toBeNull();
+  });
+});
+
+describe("effectiveGoalType", () => {
+  it("is the brand's goal type, except clearance when stock is overstocked", () => {
+    const s = testContext("henlo").scenario;
+    expect(effectiveGoalType(s)).toBe(s.profile.goalType);
+    expect(effectiveGoalType({ ...s, inventory: { ...s.inventory, tone: "overstocked" } })).toBe("Inventory-Clearance");
   });
 });

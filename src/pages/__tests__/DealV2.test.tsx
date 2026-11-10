@@ -34,8 +34,8 @@ describe("Deal with Rohit page", () => {
     expect(screen.getByRole("heading", { name: "Strike a deal with Rohit" })).toBeInTheDocument();
     // Rohit types his opening line first (SPEC §15)
     const states = Object.keys(demandShares(ctx));
-    expect(await screen.findByText(`Searches from ${states[0]}`, {}, { timeout: 2000 })).toBeInTheDocument();
-    for (const st of states) expect(screen.getByText(`Searches from ${st}`)).toBeInTheDocument();
+    expect(await screen.findByText(`Share of your states' searches: ${states[0]}`, {}, { timeout: 2000 })).toBeInTheDocument();
+    for (const st of states) expect(screen.getByText(`Share of your states' searches: ${st}`)).toBeInTheDocument();
     expect(screen.getByText("1. Where your stock goes")).toBeInTheDocument();
   });
 

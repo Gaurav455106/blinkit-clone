@@ -4,7 +4,7 @@
 // of the budget). Targets sit a little below good play, so a good student can
 // hit them and naive play usually can't. Only goals the v2 engine measures.
 
-import type { ClientGoals, GoalMetric, Scenario } from "@/data/scenarios";
+import type { ClientGoals, GoalMetric, GoalType, Scenario } from "@/data/scenarios";
 
 export interface GoalBenchmark {
   /** Break-even ROAS of the brand's sales mix. */
@@ -115,4 +115,13 @@ export function roasGoalConflict(goals: Pick<ClientGoals, "metrics">, breakEven:
   const goal = goals.metrics.find((m) => /ROAS/.test(m.label));
   if (!goal || goal.target >= breakEven) return null;
   return { label: goal.label, target: goal.target, breakEven };
+}
+
+/**
+ * The goal the brief actually sets: the brand's own goal type, except an
+ * overstocked brief, which is about clearing stock (clientGoalsV2 says so).
+ * The quiz, the goal badge and the budget split hint follow this.
+ */
+export function effectiveGoalType(scenario: Pick<Scenario, "profile" | "inventory">): GoalType {
+  return scenario.inventory.tone === "overstocked" ? "Inventory-Clearance" : scenario.profile.goalType;
 }
