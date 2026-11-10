@@ -274,7 +274,7 @@ function Day30ResultsV1() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row">
       <BlinkitSidebar />
       <div className="flex-1 overflow-y-auto bg-background">
         <FlowHeader crumb="Campaign Results" step="results" />

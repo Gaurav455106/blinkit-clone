@@ -3,6 +3,7 @@
 // check-ins, weekly checkpoints, optimisation tables and reports. New
 // campaigns still open the unchanged wizard in the side sheet.
 
+import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Plus, Trophy } from "lucide-react";
@@ -95,7 +96,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
 
   // `aside` sits beside the page (Rohit's check-in), so the page narrows instead of being covered
   const shell = (content: React.ReactNode, aside?: React.ReactNode) => (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row">
       <BlinkitSidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <FlowHeader crumb="Live campaigns" step="simulation" />
@@ -189,7 +190,8 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
         actions={<Button data-tour="v2-new-campaign" variant="outline" onClick={() => openWizard()}><Plus className="mr-1 h-4 w-4" />New campaign</Button>}
       />
 
-      <div data-tour="v2-stats" className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* With Rohit's column open the page is ~400px narrower, so fewer columns until wide screens */}
+      <div data-tour="v2-stats" className={cn("mb-6 grid gap-4 sm:grid-cols-2", ask ? "xl:grid-cols-3 2xl:grid-cols-5" : "lg:grid-cols-5")}>
         <StatTile label="Spent" value={<CountUp value={spent} format={rupees} />} hint={`of ${rupees(scenario.budget)}${run.extraSpend > 0 ? `, incl. ${rupees(run.extraSpend)} paid to Rohit` : ""}`} />
         <StatTile label="Sales from ads" value={<CountUp value={totals.revenue} format={rupees} />}>
           <FloatDelta value={totals.revenue} format={(d) => `${d >= 0 ? "+" : "−"}${rupees(Math.abs(d))}`} />
@@ -217,7 +219,7 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
             <BudgetDistribution results={run.results} formatById={formatById} />
             <SponsoredSov results={run.results} good={scenario.profile.goodKeywords} risky={scenario.profile.riskyKeywords} />
           </div>
-          <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          <div className={cn("grid gap-6", ask ? "2xl:grid-cols-[1fr_380px]" : "lg:grid-cols-[1fr_380px]")}>
             <div className="space-y-6">
               <div data-tour="v2-news"><EventsFeed activations={run.activations} day={run.day} /></div>
               <AlertsFeed moments={moments} day={run.day} />
@@ -252,6 +254,8 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
           <ReportsPanel reportInput={reportInput} studentName={student.name} day={run.day} />
         </TabsContent>
       </Tabs>
+      {/* Phones: Rohit's sheet covers the bottom half, so leave room to scroll past it */}
+      {ask && <div aria-hidden className="h-[55vh] lg:hidden" />}
 
     </>,
     ask && (

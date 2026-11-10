@@ -79,7 +79,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
   );
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row bg-background">
       <BlinkitSidebar />
       <div className="flex-1 overflow-y-auto">
         <FlowHeader crumb="Deal with Rohit" step="cm-pitch" backTo="/brief" backLabel="Brief" />

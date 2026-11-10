@@ -47,6 +47,18 @@ describe("RohitDock", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("Escape pressed inside another dialog (the campaign builder) leaves Rohit open", () => {
+    renderDock();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const input = document.createElement("input");
+    dialog.appendChild(input);
+    document.body.appendChild(dialog);
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.getByRole("region", { name: /Rohit:/ })).toBeInTheDocument();
+    dialog.remove();
+  });
+
   it("keeps the student's reply after hiding and reopening", () => {
     renderDock("b");
     fireEvent.click(screen.getByRole("button", { name: /Hide Rohit/ }));

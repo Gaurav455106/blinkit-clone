@@ -214,7 +214,7 @@ function CmPitchScreen({ studentName, scenario }: { studentName: string; scenari
   const current = isAwaitingChoice ? pushbacks[pushIdx] : undefined;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row">
       <BlinkitSidebar />
       <div className="flex-1 overflow-y-auto bg-background">
         <FlowHeader crumb="Category Manager Meeting" step="cm-pitch" backTo="/brief" backLabel="Brief" />

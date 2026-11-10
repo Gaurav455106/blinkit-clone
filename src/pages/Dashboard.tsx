@@ -78,7 +78,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row">
       <BlinkitSidebar />
       <div className="flex-1 overflow-y-auto">
         <SimPage>
