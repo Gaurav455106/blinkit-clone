@@ -210,7 +210,7 @@ export function StudentProfile({ email, isStaff }: StudentProfileProps) {
 export default function MyProfilePage() {
   const { student } = useSim();
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row">
       <BlinkitSidebar />
       <div className="flex-1 overflow-y-auto bg-background">
         <StudentProfile email={student?.email ?? null} isStaff={false} />

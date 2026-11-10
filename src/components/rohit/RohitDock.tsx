@@ -26,7 +26,12 @@ export function RohitDock(props: Props) {
 
   useEffect(() => {
     if (hidden) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setHidden(true); };
+    // Escape inside another dialog (e.g. the campaign builder) belongs to that dialog
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (e.target instanceof Element && e.target.closest('[role="dialog"]')) return;
+      setHidden(true);
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [hidden]);

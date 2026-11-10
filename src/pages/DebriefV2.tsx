@@ -158,7 +158,7 @@ export default function DebriefV2({ student, scenario }: Props) {
   }, [grand]);
 
   const shell = (content: React.ReactNode) => (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row">
       <BlinkitSidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <FlowHeader crumb="Results" step="results" />

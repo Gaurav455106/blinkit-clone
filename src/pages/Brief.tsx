@@ -71,7 +71,7 @@ export default function Brief() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="flex h-screen w-full flex-col overflow-hidden md:flex-row bg-background">
       <BlinkitSidebar />
       <div className="sim-ui flex flex-1 flex-col overflow-y-auto">
         <FlowHeader crumb="Client brief" step="brief" backTo="/dashboard" backLabel="Dashboard" />

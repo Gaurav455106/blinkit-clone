@@ -2,8 +2,9 @@ import { FLOW_STEPS, flowStepOfPath, stepDone, stepLock, type FlowStepKey } from
 import { useFlowProgress } from "@/lib/useFlowProgress";
 import {
   Home, FileText, MessageSquare, LayoutGrid, Trophy,
-  BarChart3, LogOut, ChevronRight,
+  BarChart3, LogOut, ChevronRight, Menu,
 } from "lucide-react";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { relationshipTier, CmRelationshipTier } from "@/lib/cmPitchLogic";
@@ -73,8 +74,8 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
   const cmCfg   = TIER_CONFIG[tier];
   const isPending = !cmPitch;
 
-  return (
-    <div className="flex flex-col border-r border-border bg-white h-full w-56 shrink-0 shadow-sm">
+  const panel = (
+    <div className="flex flex-col bg-white h-full">
 
       {/* ── Logo / Brand ── */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-border">
@@ -227,5 +228,33 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
         </button>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Phones: a slim top bar; the same navigation opens in a sheet */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-white px-4 md:hidden">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#F8CB2E]">
+            <span className="text-xs font-black leading-none text-[#1a1a1a]">b</span>
+          </div>
+          <span className="text-sm font-bold text-foreground">blinkit</span>
+          {currentStepIdx >= 0 && <span className="text-xs text-muted-foreground">Step {currentStepIdx + 1} of {FLOW_STEPS.length}</span>}
+        </div>
+        <Sheet>
+          <SheetTrigger asChild>
+            <button type="button" aria-label="Open menu" className="rounded-md p-2 text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetTitle className="sr-only">Menu</SheetTitle>
+            {panel}
+          </SheetContent>
+        </Sheet>
+      </div>
+      {/* Laptops and up: the sidebar column */}
+      <div className="hidden h-full w-56 shrink-0 border-r border-border shadow-sm md:block">{panel}</div>
+    </>
   );
 }

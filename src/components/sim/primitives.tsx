@@ -49,10 +49,11 @@ const TONE_TEXT: Record<Tone, string> = {
 
 export function StatTile({ label, value, hint, tone = "neutral", children }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone; children?: ReactNode }) {
   return (
-    <div className="relative rounded-xl bg-card px-5 py-4 shadow-[0_1px_0_hsl(var(--border)),0_8px_24px_-16px_hsl(24_30%_20%/0.25)]">
+    <div className="relative min-w-0 rounded-xl bg-card px-5 py-4 shadow-[0_1px_0_hsl(var(--border)),0_8px_24px_-16px_hsl(24_30%_20%/0.25)]">
       {children}
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className={cn("sim-num mt-1 text-2xl font-semibold tracking-tight", TONE_TEXT[tone])}>{value}</p>
+      {/* Long values (₹1,23,456) wrap inside the tile instead of spilling out */}
+      <p className={cn("sim-num mt-1 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]", TONE_TEXT[tone])}>{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
