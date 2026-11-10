@@ -1,3 +1,5 @@
+import { FLOW_STEPS, flowStepOfPath, stepDone, stepLock, type FlowStepKey } from "@/lib/flowSteps";
+import { useFlowProgress } from "@/lib/useFlowProgress";
 import {
   Home, FileText, MessageSquare, LayoutGrid, Trophy,
   BarChart3, LogOut, ChevronRight,
@@ -9,17 +11,19 @@ import { sidebarRelationship } from "@/market/liveRun";
 import { signOutOfServer } from "@/lib/session";
 
 // ── Nav items ──────────────────────────────────────────────────────────────────
-const HOME_ITEMS = [
-  { title: "Dashboard",   icon: Home,     path: "/dashboard" },
-  { title: "Leaderboard", icon: BarChart3, path: "/leaderboard" },
+const STEP_ICONS: Record<FlowStepKey, typeof Home> = { brief: FileText, deal: MessageSquare, live: LayoutGrid, results: Trophy };
+
+const HOME_ITEMS: NavItem[] = [
+  { title: "Dashboard",   icon: Home,     path: "/dashboard", step: null },
+  { title: "Leaderboard", icon: BarChart3, path: "/leaderboard", step: null },
 ];
 
-const FLOW_ITEMS = [
+interface NavItem { title: string; icon: typeof Home; path: string; step: number | null; key?: FlowStepKey }
+
+const FLOW_ITEMS: NavItem[] = [
   { title: "Dashboard",    icon: Home,          path: "/dashboard",   step: null },
-  { title: "Brief",        icon: FileText,       path: "/brief",       step: 1 },
-  { title: "CM Pitch",     icon: MessageSquare,  path: "/cm-pitch",    step: 2 },
-  { title: "Ad Dashboard", icon: LayoutGrid,     path: "/simulation",  step: 3 },
-  { title: "Results",      icon: Trophy,         path: "/results",     step: 4 },
+  // Names and order come from the shared flow (lib/flowSteps.ts)
+  ...FLOW_STEPS.map((s, i) => ({ title: s.label, icon: STEP_ICONS[s.key], path: s.path, step: i + 1, key: s.key })),
   { title: "Leaderboard",  icon: BarChart3,      path: "/leaderboard", step: null },
 ];
 
@@ -33,8 +37,6 @@ const TIER_CONFIG: Record<CmRelationshipTier, {
   broken:   { label: "Broken",   color: "text-red-600",     bar: "bg-red-500",     bg: "bg-red-50",     dot: "bg-red-500"    },
 };
 
-// ── Step order for progress ────────────────────────────────────────────────────
-const STEP_PATHS = ["/brief", "/cm-pitch", "/simulation", "/results"];
 
 export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean }) {
   const nav = useNavigate();
@@ -43,37 +45,20 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
   // During a v2 run the meter moves with Rohit's replies and kept promises
   const cmRelationship = sidebarRelationship(liveCmRelationship, pitchRelationship);
 
-  // Step gate logic
-  const simRunning      = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "in_progress";
-  const currentRunDone  = !!activeRunId && runHistory.find((r) => r.id === activeRunId)?.status === "completed";
-  const anyRunCompleted = runHistory.some((r) => r.status === "completed");
-  const briefPassed     = localStorage.getItem("sim_brief_ack") === "1";
-
-  // Flow gates (strict linear):
-  // Brief (1)        — always open
-  // CM Pitch (2)     — requires brief quiz passed
-  // Ad Dashboard (3) — requires CM pitch completed
-  // Results (4)      — requires simulation completed
+  // Locks and ticks come from what the student has really done (lib/flowSteps.ts)
+  const progress = useFlowProgress();
   function isStepLocked(path: string): { locked: boolean; reason: string } {
-    if (path === "/cm-pitch") {
-      if (!briefPassed) return { locked: true, reason: "Answer the brief questions to unlock CM Pitch" };
-    }
-    if (path === "/simulation") {
-      if (!cmPitch) return { locked: true, reason: "Complete the CM Pitch first" };
-    }
-    if (path === "/results") {
-      if (simRunning)                          return { locked: true, reason: "Results unlock when the simulation ends" };
-      if (!currentRunDone && !anyRunCompleted) return { locked: true, reason: "Complete a simulation run to see results" };
-    }
-    return { locked: false, reason: "" };
+    const key = flowStepOfPath(path);
+    const reason = key ? stepLock(key, progress) : null;
+    return { locked: reason !== null, reason: reason ?? "" };
   }
 
   const onCmPitchPage = loc.pathname === "/cm-pitch";
   const isHomeRoute   = loc.pathname === "/dashboard" || loc.pathname === "/leaderboard";
   const navItems      = isHomeRoute || mode === "home" ? HOME_ITEMS : FLOW_ITEMS;
 
-  // Current flow step index (0-based among STEP_PATHS)
-  const currentStepIdx = STEP_PATHS.indexOf(loc.pathname);
+  const currentKey = flowStepOfPath(loc.pathname);
+  const currentStepIdx = FLOW_STEPS.findIndex((s) => s.key === currentKey);
 
   const signOut = () => {
     localStorage.removeItem("sim_trainer");
@@ -107,11 +92,11 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
       {!isHomeRoute && mode !== "home" && currentStepIdx >= 0 && (
         <div className="px-4 py-2.5 border-b border-border bg-muted/30">
           <div className="flex items-center gap-0.5 mb-1">
-            {STEP_PATHS.map((_, i) => (
+            {FLOW_STEPS.map((s, i) => (
               <div
-                key={i}
+                key={s.key}
                 className={`h-1 flex-1 rounded-full transition-all ${
-                  i < currentStepIdx ? "bg-green-500" :
+                  i !== currentStepIdx && stepDone(s.key, progress) ? "bg-green-500" :
                   i === currentStepIdx ? "bg-green-400" :
                   "bg-border"
                 }`}
@@ -119,7 +104,7 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
             ))}
           </div>
           <p className="text-[9px] text-muted-foreground">
-            Step {currentStepIdx + 1} of {STEP_PATHS.length}
+            Step {currentStepIdx + 1} of {FLOW_STEPS.length}
           </p>
         </div>
       )}
@@ -142,6 +127,7 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
               onClick={locked ? undefined : () => nav(itemPath)}
               disabled={locked}
               title={locked ? reason : undefined}
+              aria-label={locked ? `${item.title}. Locked: ${reason}` : undefined}
               className={`w-full group flex items-center gap-3 px-4 py-2.5 text-sm transition-all rounded-none relative ${
                 locked
                   ? "opacity-40 cursor-not-allowed text-slate-400"
@@ -162,7 +148,7 @@ export function BlinkitSidebar({ highlightCm = false }: { highlightCm?: boolean 
                     ? "bg-transparent text-slate-300 border-slate-200"
                     : active
                       ? "bg-green-600 text-white border-green-600"
-                      : loc.pathname !== item.path && STEP_PATHS.indexOf(loc.pathname) > STEP_PATHS.indexOf(item.path)
+                      : item.key && stepDone(item.key, progress)
                         ? "bg-green-100 text-green-700 border-green-300"
                         : "bg-transparent text-muted-foreground border-border"
                 }`}>
