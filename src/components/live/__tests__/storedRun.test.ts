@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { readStoredRun, restoreStoredRun } from "@/components/live/useLiveRun";
+import { actionDayMade, readStoredRun, restoreStoredRun } from "@/components/live/useLiveRun";
 import type { Student } from "@/context/SimContext";
 import type { Scenario } from "@/data/scenarios";
 
@@ -29,5 +29,16 @@ describe("v2 run log cloud copy", () => {
   it("rejects cloud data that isn't a run log", () => {
     expect(restoreStoredRun(student, scenario, "run-1", { foo: 1 })).toBe(false);
     expect(restoreStoredRun(student, scenario, "run-1", null)).toBe(false);
+  });
+});
+
+describe("actionDayMade", () => {
+  // applyActions applies an action from the day after dayMade (dayMade < day)
+  it("an edit made between days applies from tomorrow", () => {
+    expect(actionDayMade(5, false)).toBe(5);
+  });
+
+  it("an edit made while day 6 is being computed applies from day 7, not day 6", () => {
+    expect(actionDayMade(5, true)).toBe(6);
   });
 });

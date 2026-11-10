@@ -94,7 +94,8 @@ export function GivesPicker({ skus, states, gives, onChange }: GiveProps) {
   const has = (k: DealGive["kind"]) => gives.some((g) => g.kind === k);
   const put = (g: DealGive) => onChange([...gives.filter((x) => x.kind !== g.kind), g]);
   const toggle = (g: DealGive) => (has(g.kind) ? onChange(gives.filter((x) => x.kind !== g.kind)) : put(g));
-  const update = (g: DealGive) => { if (has(g.kind)) put(g); };
+  // Editing an offer ticks it: what the student sets is what gets sent
+  const update = (g: DealGive) => put(g);
 
   const spendGive: DealGive = { kind: "adSpend", ...spend };
   const discountGive: DealGive = { kind: "discount", ...discount };

@@ -15,6 +15,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Section, SimPage, StatTile } from "@/components/sim/primitives";
+import { profitAfterFees, roasTileTone } from "@/components/live/roasTile";
 import { clientGoalsV2, roasGoalConflict } from "@/market/goals";
 import { useDealRun } from "@/components/live/useDealRun";
 import { useLiveRun, RUN_DAYS } from "@/components/live/useLiveRun";
@@ -137,7 +138,10 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
   const roasConflict = roasGoalConflict(clientGoalsV2(scenario), totals.breakEvenRoas);
   const roasHint = roasConflict
     ? `Break-even ${roasConflict.breakEven.toFixed(2)}. The client's ${roasConflict.label.toLowerCase()} of ${roasConflict.target} is below it: hitting it still loses money, so raise it with them.`
-    : totals.breakEvenRoas > 0 ? `Break-even ${totals.breakEvenRoas.toFixed(2)}` : "Sales for every ₹1 of ads";
+    : totals.breakEvenRoas > 0 ? `Break-even ${totals.breakEvenRoas.toFixed(2)}`
+    : totals.spend > 0 && totals.revenue > 0 ? "No break-even: your discount is bigger than your margin, so every sale loses money."
+    : "Sales for every ₹1 of ads";
+  const profit = profitAfterFees(totals.profit, run.extraSpend);
 
   return shell(
     <>
@@ -187,8 +191,8 @@ export default function LiveDashboardV2({ student, scenario }: Props) {
         <StatTile label="Sales from ads" value={<CountUp value={totals.revenue} format={rupees} />}>
           <FloatDelta value={totals.revenue} format={(d) => `${d >= 0 ? "+" : "−"}${rupees(Math.abs(d))}`} />
         </StatTile>
-        <StatTile label="ROAS" value={totals.spend > 0 ? <CountUp value={totals.roas} format={(n) => n.toFixed(2)} /> : "–"} hint={roasHint} tone={totals.spend > 0 ? (totals.roas >= totals.breakEvenRoas ? "good" : "bad") : "neutral"} />
-        <StatTile label="Profit after ads" value={<CountUp value={totals.profit} format={rupees} />} tone={totals.profit >= 0 ? "good" : "bad"} />
+        <StatTile label="ROAS" value={totals.spend > 0 ? <CountUp value={totals.roas} format={(n) => n.toFixed(2)} /> : "–"} hint={roasHint} tone={roasTileTone(totals)} />
+        <StatTile label="Profit after ads" value={<CountUp value={profit} format={rupees} />} hint={run.extraSpend > 0 ? `After ads and ${rupees(run.extraSpend)} paid to Rohit` : undefined} tone={profit >= 0 ? "good" : "bad"} />
         <StatTile label="Units sold" value={<CountUp value={totals.units} format={(n) => Math.round(n).toLocaleString("en-IN")} />}>
           <FloatDelta value={Math.round(totals.units)} format={(d) => `${d >= 0 ? "+" : "−"}${Math.abs(d)} units`} />
         </StatTile>
