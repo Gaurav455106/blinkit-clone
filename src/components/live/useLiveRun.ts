@@ -131,6 +131,15 @@ export function clearStoredRun(student: Student | null, scenario: Scenario | nul
   }
 }
 
+/**
+ * The day an edit is stamped with. Edits apply from the day after (dayMade <
+ * day). While the next day is being computed it can no longer include the
+ * edit, so the edit counts from the day after that, as the replay will apply it.
+ */
+export function actionDayMade(day: number, computingNextDay: boolean): number {
+  return computingNextDay ? day + 1 : day;
+}
+
 export function useLiveRun(
   scenario: Scenario | null,
   student: Student | null,
@@ -188,6 +197,10 @@ export function useLiveRun(
     [run.activations, run.rohit.adjustments, deal],
   );
 
+  // A new market (e.g. the brief reloaded by a cloud restore) resets the days,
+  // so the stored days must be replayed again, or the clock waits on "Loading" forever
+  useEffect(() => { restored.current = false; }, [ctx]);
+
   // After a refresh: replay the stored days so the run resumes exactly
   useEffect(() => {
     if (restored.current || !ctx || run.daysDone === 0 || market.results.length > 0 || launched.length === 0) return;
@@ -240,18 +253,25 @@ export function useLiveRun(
     pendingAlert ? "alert" : run.rohit.pendingAsk ? "rohit" : checkpointDue ? "checkpoint" : null;
   const readyToStep = started && !finished && !market.busy && !replaying && run.evaluatedAfterDay >= day && blockedBy === null;
 
+  // One day at a time: a timer tick and a click in the same moment must not step twice
+  const stepping = useRef(false);
   const advance = useCallback(async () => {
-    if (!readyToStep) return null;
-    const result = await market.step(nextDayConfigs, stepOptions);
-    if (result) setRun((prev) => ({ ...prev, daysDone: result.day }));
-    return result;
+    if (!readyToStep || stepping.current) return null;
+    stepping.current = true;
+    try {
+      const result = await market.step(nextDayConfigs, stepOptions);
+      if (result) setRun((prev) => ({ ...prev, daysDone: result.day }));
+      return result;
+    } finally {
+      stepping.current = false;
+    }
   }, [readyToStep, market, nextDayConfigs, stepOptions]);
 
   /** Changes made today apply from tomorrow. */
   const act = useCallback((campaignId: string, change: LiveAction["change"]) => {
-    const action: LiveAction = { campaignId, dayMade: day, change };
+    const action: LiveAction = { campaignId, dayMade: actionDayMade(day, market.busy), change };
     setRun((prev) => ({ ...prev, actions: [...prev.actions, action], changeLog: [...prev.changeLog, recordAction(nextDayConfigs, action)] }));
-  }, [day, nextDayConfigs]);
+  }, [day, market.busy, nextDayConfigs]);
 
   const logInsight = useCallback((insight: Omit<Insight, "day">) => {
     setRun((prev) => ({ ...prev, insights: [...prev.insights, { ...insight, day: Math.max(1, day) }] }));
