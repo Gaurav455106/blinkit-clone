@@ -43,6 +43,8 @@ import { formatHint } from "@/market/formats";
 
 const roundTo = (n: number, step: number) => Math.max(step, Math.round(n / step) * step);
 const round1 = (n: number) => Math.round(n * 10) / 10;
+/** Rounds up to one decimal, so a target never slips below the number it is based on. */
+const ceil1 = (n: number) => Math.ceil(n * 10 - 1e-9) / 10;
 
 function goals(primary: string, lifecycle: ClientGoals["lifecycle"], performanceGoals: GoalMetric[], reachGoals: GoalMetric[], campaignHint: string): ClientGoals {
   return {
@@ -64,7 +66,8 @@ export function clientGoalsV2(scenario: Scenario): ClientGoals {
   const lightUnits = roundTo(b.units * LIGHT * stock.units, 10);
 
   if (scenario.inventory.tone === "overstocked") {
-    return goals("Sell the extra stock before it goes old", "Retain",
+    // Clearance asks for less than break-even on purpose, so the brief says so outright
+    return goals("Sell the extra stock before it goes old. A small loss on ads is fine if it clears the stock", "Retain",
       [{ label: "Units sold", target: roundTo(b.units * 1.1, 10), unit: "units" }, { label: "Minimum ROAS", target: round1(b.breakEven * 0.8), unit: "x" }],
       [],
       formatHint(scenario));
@@ -77,7 +80,7 @@ export function clientGoalsV2(scenario: Scenario): ClientGoals {
         formatHint(scenario));
     case "Volume-First":
       return goals("Sell as many units as possible without losing money", "Convert",
-        [{ label: "Units sold", target: units, unit: "units" }, { label: "Minimum ROAS", target: round1(b.breakEven * 0.95), unit: "x" }],
+        [{ label: "Units sold", target: units, unit: "units" }, { label: "Minimum ROAS", target: ceil1(b.breakEven), unit: "x" }],
         [{ label: "Reach", target: reach, unit: "people" }],
         formatHint(scenario));
     case "Awareness-First":
@@ -93,4 +96,23 @@ export function clientGoalsV2(scenario: Scenario): ClientGoals {
     default:
       return scenario.clientGoals;
   }
+}
+
+export interface RoasGoalConflict {
+  label: string;
+  target: number;
+  breakEven: number;
+}
+
+/**
+ * The client's ROAS goal when it sits below the run's real break-even (e.g.
+ * after a funded discount): hitting it would still lose money, so the student
+ * should raise it with the client. Null when there is no ROAS goal, nothing
+ * has sold yet (break-even 0), or the goal already covers break-even.
+ */
+export function roasGoalConflict(goals: Pick<ClientGoals, "metrics">, breakEven: number): RoasGoalConflict | null {
+  if (!(breakEven > 0)) return null;
+  const goal = goals.metrics.find((m) => /ROAS/.test(m.label));
+  if (!goal || goal.target >= breakEven) return null;
+  return { label: goal.label, target: goal.target, breakEven };
 }

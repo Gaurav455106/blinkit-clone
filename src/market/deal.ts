@@ -108,6 +108,7 @@ export function validateDeal(ctx: MarketContext, d: DealTerms): string[] {
   if (d.asks.length > MAX_ASKS) problems.push(`Pick at most two asks.`);
   const giveKinds = d.gives.map((g) => g.kind);
   if (new Set(giveKinds).size !== giveKinds.length) problems.push(`Each kind of offer can be made once.`);
+  if (d.gives.some((g) => g.kind === "discount" && g.skuIds.length === 0)) problems.push(`Pick the products the discount is on.`);
   for (const a of d.asks) if ("state" in a && !allowed.has(a.state)) problems.push(`Rohit doesn't serve ${a.state} for this brand.`);
   return problems;
 }
@@ -137,6 +138,19 @@ function askAdjustments(stock: StockSplit, asks: readonly DealAsk[]): Adjustment
       case "shelfSpot": return { ...acc, shelfBoosts: [...acc.shelfBoosts, { fromDay: 1, toDay: SHELF_DAYS, relevanceMult: SHELF_BOOST }] };
     }
   }, EMPTY_ADJUSTMENTS);
+}
+
+/**
+ * One product's price, what you keep per unit, and the ROAS needed to break
+ * even (price ÷ kept), before or after a funded discount. The ₹ off is rounded
+ * the same way the engine applies it (discountCuts). Infinity when the discount
+ * eats the whole margin: no ROAS breaks even.
+ */
+export function skuBreakEven(mrp: number, margin: number, pct: number): { price: number; kept: number; roas: number } {
+  const off = Math.round(mrp * pct);
+  const price = mrp - off;
+  const kept = margin - off;
+  return { price, kept, roas: kept > 0 ? Math.round((price / kept) * 100) / 100 : Infinity };
 }
 
 function discountCuts(ctx: MarketContext, gives: readonly DealGive[]): Adjustments["priceCuts"] {

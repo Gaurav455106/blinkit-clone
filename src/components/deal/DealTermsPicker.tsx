@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import type { SKU } from "@/data/scenarios";
 import {
+  skuBreakEven,
   DISCOUNT_DAYS, FAST_RESTOCK_DAY, FAST_RESTOCK_SHARE, MAX_ASKS, MORE_STORES_SHARE,
   type DealAsk, type DealGive,
 } from "@/market/deal";
@@ -75,11 +76,20 @@ export function AsksPicker({ states, asks, onChange }: AskProps) {
   );
 }
 
+/** "(₹20 off, you keep ₹30, break-even ROAS 4.0 → 6.0)": what the discount does to this product. */
+function discountNote(s: SKU, pct: number): string {
+  const before = skuBreakEven(s.mrp, s.margin, 0);
+  const after = skuBreakEven(s.mrp, s.margin, pct);
+  const off = s.mrp - after.price;
+  if (after.kept <= 0) return `(₹${off} off: you lose money on every unit sold)`;
+  return `(₹${off} off, you keep ₹${after.kept}, break-even ROAS ${before.roas.toFixed(1)} → ${after.roas.toFixed(1)})`;
+}
+
 type GiveProps = { skus: readonly SKU[]; states: readonly string[]; gives: readonly DealGive[]; onChange: (gives: DealGive[]) => void };
 
 export function GivesPicker({ skus, states, gives, onChange }: GiveProps) {
   const [spend, setSpend] = useState({ perDay: 1500, days: 14 });
-  const [discount, setDiscount] = useState<{ pct: number; skuIds: string[] }>({ pct: 0.1, skuIds: [skus[0]?.id].filter(Boolean) as string[] });
+  const [discount, setDiscount] = useState<{ pct: number; skuIds: string[] }>({ pct: 0.1, skuIds: [] }); // no product pre-picked: which one to discount is the decision
   const [supply, setSupply] = useState({ state: states[0], osaPct: 60, byDay: 15 });
   const has = (k: DealGive["kind"]) => gives.some((g) => g.kind === k);
   const put = (g: DealGive) => onChange([...gives.filter((x) => x.kind !== g.kind), g]);
@@ -120,7 +130,7 @@ export function GivesPicker({ skus, states, gives, onChange }: GiveProps) {
                   const skuIds = discount.skuIds.includes(s.id) ? discount.skuIds.filter((x) => x !== s.id) : [...discount.skuIds, s.id];
                   const next = { ...discount, skuIds }; setDiscount(next); update({ kind: "discount", ...next });
                 }} />
-              {s.name} <span className="text-muted-foreground">(₹{Math.round(s.mrp * discount.pct)} off, you keep ₹{Math.round(s.margin - s.mrp * discount.pct)})</span>
+              {s.name} <span className="text-muted-foreground">{discountNote(s, discount.pct)}</span>
             </label>
           ))}
         </Choice>
