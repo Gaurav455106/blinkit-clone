@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useSim } from "@/context/SimContext";
 import { StudentViewDialog } from "@/components/admin/StudentViewDialog";
 import { clearStudentView } from "@/lib/staffView";
+import { signOutOfServer } from "@/lib/session";
 
 export function TrainerHeader() {
   const nav = useNavigate();
@@ -19,6 +20,7 @@ export function TrainerHeader() {
     localStorage.removeItem("sim_role");
     // legacy key cleanup
     localStorage.removeItem("sim_trainer");
+    void signOutOfServer();
     clearStudentView();
     reset();
     nav("/", { replace: true });

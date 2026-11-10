@@ -6,17 +6,17 @@
 //     duplicate a score.
 //   - This browser remembers which runs are saved, and only after the insert
 //     succeeds, so a failed save is retried on the next visit.
-//   - score_total is an integer column but v2 totals carry one decimal (56.5),
-//     which Postgres rejects, so it is rounded here; score_breakdown keeps the
-//     exact total.
-//   - The live-run row is removed only after the permanent record exists, and
-//     only for this run, so a newer run in progress isn't wiped.
+//   - The save goes through /api/attempts. The server checks the session,
+//     forces a student's own email, rounds score_total (an integer column; v2
+//     totals carry one decimal, and score_breakdown keeps the exact total), and
+//     stamps choices.runId.
+//   - The server removes the live-run row only after the permanent record
+//     exists, and only for this run, so a newer run in progress isn't wiped.
 
-import { supabase } from "@/integrations/supabase/client";
-import type { Json, TablesInsert } from "@/integrations/supabase/types";
+import { api } from "@/lib/api";
+import type { TablesInsert } from "@/integrations/supabase/types";
 
 const SAVED_RUNS_KEY = "sim_saved_attempt_runs";
-const UNIQUE_VIOLATION = "23505";
 const MAX_REMEMBERED_RUNS = 200;
 
 export type SaveOutcome = "saved" | "already_saved";
@@ -44,22 +44,9 @@ function markRunSaved(runId: string): void {
   }
 }
 
-function withRunId(choices: Json | undefined, runId: string): Json {
-  const base = choices && typeof choices === "object" && !Array.isArray(choices) ? choices : {};
-  return { ...base, runId };
-}
-
-/** Inserts the attempt for `runId`; throws the Supabase error when the save fails. */
+/** Saves the attempt for `runId`; throws ApiError when the save fails. */
 export async function saveAttempt(row: TablesInsert<"attempts">, runId: string): Promise<SaveOutcome> {
-  const { error } = await supabase.from("attempts").insert({
-    ...row,
-    score_total: Math.round(row.score_total),
-    choices: withRunId(row.choices, runId),
-  });
-  if (error && error.code !== UNIQUE_VIOLATION) throw error;
+  const { outcome } = await api<{ outcome: SaveOutcome }>("POST", "/api/attempts", { body: { attempt: row, runId } });
   markRunSaved(runId);
-
-  const { error: sessionError } = await supabase.from("run_sessions").delete().eq("email", row.email).eq("run_id", runId);
-  if (sessionError) console.warn("[sim] run_sessions delete failed", sessionError);
-  return error ? "already_saved" : "saved";
+  return outcome;
 }

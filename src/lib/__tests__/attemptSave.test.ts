@@ -1,66 +1,69 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+// The save now goes through /api/attempts. Rounding, the run id stamp, the
+// unique-index clash and clearing the live row are server-side and tested in
+// server/__tests__/attempts.test.ts; this covers the browser's half.
 
-const calls = vi.hoisted(() => ({ inserts: [] as unknown[], deletes: [] as [string, unknown][][], insertError: null as null | { code: string; message: string } }));
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    from: (table: string) => ({
-      insert: async (row: unknown) => {
-        calls.inserts.push(row);
-        return { error: calls.insertError };
-      },
-      delete: () => {
-        const filters: [string, unknown][] = [];
-        const chain = {
-          eq: (col: string, val: unknown) => { filters.push([col, val]); return chain; },
-          then: (resolve: (v: { error: null }) => void) => { calls.deletes.push(filters); resolve({ error: null }); },
-        };
-        return chain;
-      },
-      table,
-    }),
-  },
-}));
-
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isRunSaved, saveAttempt } from "@/lib/attemptSave";
+import { ApiError, SESSION_EXPIRED_EVENT } from "@/lib/api";
 
-const ROW = { email: "a@x.com", name: "A", batch_code: "b1", profile_id: "henlo", choices: { campaigns: 2 }, score_total: 50 };
+const ROW = { email: "a@x.com", name: "A", batch_code: "b1", profile_id: "henlo", choices: { campaigns: 2 }, score_total: 56.5 };
+
+function respond(status: number, body: unknown) {
+  return vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+}
 
 beforeEach(() => {
   localStorage.clear();
-  calls.inserts = [];
-  calls.deletes = [];
-  calls.insertError = null;
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("saveAttempt", () => {
-  it("stamps the run id into choices and remembers the run", async () => {
+  it("posts the attempt and run id with the CSRF header, then remembers the run", async () => {
+    const fetchMock = respond(200, { success: true, data: { outcome: "saved" }, error: null });
+    vi.stubGlobal("fetch", fetchMock);
+
     await expect(saveAttempt(ROW, "run-1")).resolves.toBe("saved");
-    expect(calls.inserts[0]).toMatchObject({ choices: { campaigns: 2, runId: "run-1" } });
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/attempts");
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("same-origin");
+    expect(init.headers).toMatchObject({ "X-Requested-With": "blinkit-sim", "Content-Type": "application/json" });
+    expect(JSON.parse(String(init.body))).toEqual({ attempt: ROW, runId: "run-1" });
     expect(isRunSaved("run-1")).toBe(true);
   });
 
-  it("rounds a decimal total because score_total is an integer column", async () => {
-    await saveAttempt({ ...ROW, score_total: 56.5 }, "run-1");
-    expect(calls.inserts[0]).toMatchObject({ score_total: 57 });
-  });
-
-  it("clears only this run's live session after saving", async () => {
-    await saveAttempt(ROW, "run-1");
-    expect(calls.deletes).toEqual([[["email", "a@x.com"], ["run_id", "run-1"]]]);
-  });
-
-  it("treats a unique-index clash as already saved", async () => {
-    calls.insertError = { code: "23505", message: "duplicate key" };
+  it("treats an already-saved run as saved", async () => {
+    vi.stubGlobal("fetch", respond(200, { success: true, data: { outcome: "already_saved" }, error: null }));
     await expect(saveAttempt(ROW, "run-1")).resolves.toBe("already_saved");
     expect(isRunSaved("run-1")).toBe(true);
   });
 
-  it("throws on other errors and leaves the run unsaved so it is retried", async () => {
-    calls.insertError = { code: "42P01", message: "relation does not exist" };
-    await expect(saveAttempt(ROW, "run-1")).rejects.toMatchObject({ code: "42P01" });
+  it("throws on a server error and leaves the run unsaved so it is retried", async () => {
+    vi.stubGlobal("fetch", respond(500, { success: false, data: null, error: "Something went wrong", code: "server_error" }));
+    await expect(saveAttempt(ROW, "run-1")).rejects.toMatchObject({ status: 500, code: "server_error" });
     expect(isRunSaved("run-1")).toBe(false);
-    expect(calls.deletes).toEqual([]);
+  });
+
+  it("announces an ended sign-in and keeps the run unsaved", async () => {
+    vi.stubGlobal("fetch", respond(401, { success: false, data: null, error: "Please launch again", code: "unauthenticated" }));
+    const listener = vi.fn();
+    window.addEventListener(SESSION_EXPIRED_EVENT, listener);
+
+    await expect(saveAttempt(ROW, "run-1")).rejects.toBeInstanceOf(ApiError);
+
+    window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(isRunSaved("run-1")).toBe(false);
+  });
+
+  it("turns a network failure into an ApiError", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    await expect(saveAttempt(ROW, "run-1")).rejects.toMatchObject({ status: 0, code: "network" });
+    expect(isRunSaved("run-1")).toBe(false);
   });
 
   it("reports unknown and null runs as unsaved", () => {

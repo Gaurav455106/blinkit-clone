@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { errorMessage, fetchAllPages } from "@/lib/api";
 import type { AttemptRow } from "@/lib/attemptAnalysis";
 
 export function useAllAttempts(limit: number, logTag: string) {
@@ -14,16 +14,16 @@ export function useAllAttempts(limit: number, logTag: string) {
   const reload = useCallback(() => {
     setLoading(true);
     setError(null);
-    supabase.from("attempts").select("*").order("created_at", { ascending: false }).limit(limit)
-      .then(({ data, error: err }) => {
-        if (err) {
-          console.error(`[${logTag}] attempts load failed`, err);
-          setError(err.message);
-          toast.error(`Couldn't load runs: ${err.message}`);
-        }
-        setRows((data ?? []) as unknown as AttemptRow[]);
-        setLoading(false);
-      });
+    fetchAllPages<AttemptRow>("/api/staff", { view: "attempts" }, limit)
+      .then((data) => setRows(data ?? []))
+      .catch((err: unknown) => {
+        const message = errorMessage(err);
+        console.error(`[${logTag}] attempts load failed`, err);
+        setError(message);
+        toast.error(`Couldn't load runs: ${message}`);
+        setRows([]);
+      })
+      .finally(() => setLoading(false));
   }, [limit, logTag]);
 
   useEffect(reload, [reload]);

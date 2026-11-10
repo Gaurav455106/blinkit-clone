@@ -25,16 +25,8 @@ export interface LiveSessionRow {
   v1_day: number | null;
 }
 
-/** PostgREST select producing LiveSessionRow; keeps the large `state` JSON off the wire. */
-export const LIVE_SESSION_SELECT = [
-  "email", "name", "batch_code", "run_id", "started_at", "last_seen_at",
-  "brand:state->scenario->profile->>name",
-  "engine:state->scenario->>engine",
-  "has_pitch:state->cmPitch",
-  "has_deal:state->openingDeal",
-  "v2_days:state->v2Run->daysDone",
-  "v1_day:state->currentDay",
-].join(",");
+// The server selects these columns (LIVE_SESSION_COLUMNS in server/store.ts),
+// keeping the large `state` JSON off the wire.
 
 export type LiveStatus = "unsaved" | "playing" | "idle";
 

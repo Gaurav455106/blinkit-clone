@@ -1,6 +1,10 @@
 -- ============================================================================
 -- Blinkit Ads Simulation — full schema setup. Run ONCE in the Supabase SQL editor.
 --
+-- SECURITY: this script creates "Anyone can ..." policies. On any database it
+-- builds, run migrations/20261108090000_lock_down_blinkit_tables.sql straight
+-- after, once the /api website is deployed (see docs/SERVER_SETUP.md).
+--
 -- Why this exists: the migrations in supabase/migrations/ were never applied to
 -- the live project. `public.attempts` did not exist, so every score insert from
 -- Day30Results failed with 42P01 ("relation does not exist") and every read from

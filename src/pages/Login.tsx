@@ -1,28 +1,42 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSim } from "@/context/SimContext";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { HUB_URL, syncMasterFlag } from "@/lib/masterAccess";
+import { HUB_URL, hasMasterAccess, readMasterParam, setMasterFlag, stripMasterParam } from "@/lib/masterAccess";
+import { ApiError } from "@/lib/api";
+import { currentSession, signInWithMasterKey, signOutOfServer } from "@/lib/session";
 import { clearStudentView } from "@/lib/staffView";
+
+type View = "checking" | "redirecting" | "picker" | "key";
+
+function keyErrorText(err: unknown): string {
+  if (err instanceof ApiError && err.code === "too_many_attempts") return "Too many tries. Wait 15 minutes and try again.";
+  if (err instanceof ApiError && err.code === "bad_key") return "That key wasn't accepted.";
+  if (err instanceof ApiError && err.code === "not_configured") return "Master access isn't set up on the server.";
+  return "Couldn't check the key. Please try again.";
+}
 
 /**
  * Login is now a router, not a form.
  *
- * Students arrive via hub SSO (/sso), which sets sim_role and the student, then
- * redirects onward. Anyone landing here directly is sent to the hub — except a
- * browser with sticky master access, which gets the internal role picker.
+ * Students arrive via hub SSO (/sso), which signs them in on the server, then
+ * redirects onward. Anyone landing here directly is sent to the hub — except
+ * Kraftshala staff using master access, which gets the internal role picker.
  *
- * Unlock master once with ?master=<key>; it persists (see lib/masterAccess.ts),
- * so there's nothing to remember or re-enter on subsequent visits.
+ * Unlock with ?master=<key> or by typing the key on this page. The server checks
+ * the key (MASTER_KEY env var) and sets a 30-day staff session; this browser
+ * then remembers to show the picker. ?master=off locks it again.
  */
 export default function Login() {
   const nav = useNavigate();
   const { student, setStudent } = useSim();
 
-  const [master,  setMaster]  = useState(false);
-  const [checked, setChecked] = useState(false);
+  const [view, setView] = useState<View>("checking");
+  const [keyInput, setKeyInput] = useState("");
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [keyBusy, setKeyBusy] = useState(false);
 
   // Remembered across visits so testing as a given student is one click.
   const [testName,  setTestName]  = useLocalStorage("sim_master_test_name",  "Prerna");
@@ -31,21 +45,104 @@ export default function Login() {
   const [custom,    setCustom]    = useState(false);
 
   useEffect(() => {
-    // Already signed in → straight to the right place
-    const simRole = localStorage.getItem("sim_role");
-    if (simRole === "admin")   { nav("/admin",     { replace: true }); return; }
-    if (simRole === "trainer") { nav("/trainer",   { replace: true }); return; }
-    if (student)               { nav("/dashboard", { replace: true }); return; }
+    let cancelled = false;
+    const goToHub = () => { if (!cancelled) { setView("redirecting"); window.location.replace(HUB_URL); } };
 
-    // Handles ?master=<key> (unlock), ?master=off (clear), or the sticky flag
-    if (syncMasterFlag()) { setMaster(true); setChecked(true); return; }
+    const decide = async () => {
+      const param = readMasterParam();
+      stripMasterParam();
 
-    setChecked(true);
-    window.location.replace(HUB_URL);
+      if (param?.kind === "off") {
+        setMasterFlag(false);
+        await signOutOfServer();
+        goToHub();
+        return;
+      }
+
+      // Already signed in → straight to the right place
+      const simRole = localStorage.getItem("sim_role");
+      if (simRole === "admin")   { nav("/admin",     { replace: true }); return; }
+      if (simRole === "trainer") { nav("/trainer",   { replace: true }); return; }
+      if (student)               { nav("/dashboard", { replace: true }); return; }
+
+      if (param?.kind === "unlock") {
+        try {
+          await signInWithMasterKey(param.key);
+          setMasterFlag(true);
+          if (!cancelled) setView("picker");
+        } catch (err) {
+          console.warn("[login] master key rejected", err);
+          if (!cancelled) { setKeyError(keyErrorText(err)); setView("key"); }
+        }
+        return;
+      }
+
+      if (!hasMasterAccess()) { goToHub(); return; }
+
+      // Remembered browser: the picker only works while the server session lasts
+      try {
+        const session = await currentSession();
+        if (!cancelled) setView(session?.via === "master" ? "picker" : "key");
+      } catch (err) {
+        console.warn("[login] session check failed", err);
+        if (!cancelled) setView("key");
+      }
+    };
+
+    void decide();
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const submitKey = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!keyInput.trim() || keyBusy) return;
+    setKeyBusy(true);
+    setKeyError(null);
+    try {
+      await signInWithMasterKey(keyInput.trim());
+      setMasterFlag(true);
+      setKeyInput("");
+      setView("picker");
+    } catch (err) {
+      console.warn("[login] master key rejected", err);
+      setKeyError(keyErrorText(err));
+    } finally {
+      setKeyBusy(false);
+    }
+  };
+
+  if (view === "key") {
+    return (
+      <main className="sim-ui flex min-h-[100dvh] items-center justify-center px-6 py-10">
+        <form onSubmit={submitKey} className="w-full max-w-sm rounded-2xl bg-card p-7 shadow-[0_1px_0_hsl(var(--border)),0_12px_32px_-24px_hsl(24_30%_20%/0.3)]">
+          <BrandMark />
+          <h1 className="mt-6 text-xl font-semibold text-foreground">Master access</h1>
+          <p className="mt-1 text-sm text-muted-foreground">For the Kraftshala team only. Enter the master key to continue.</p>
+          <label htmlFor="master-key" className="mt-5 block text-xs font-medium text-muted-foreground">Master key</label>
+          <Input
+            id="master-key"
+            type="password"
+            autoComplete="current-password"
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            className="mt-1.5 h-9 text-sm"
+            aria-invalid={!!keyError}
+            aria-describedby={keyError ? "master-key-error" : undefined}
+          />
+          {keyError && <p id="master-key-error" role="alert" className="mt-2 text-xs text-destructive">{keyError}</p>}
+          <Button type="submit" className="mt-4 w-full" disabled={keyBusy || !keyInput.trim()}>
+            {keyBusy ? "Checking…" : "Unlock"}
+          </Button>
+          <a href={HUB_URL} className="mt-4 block text-center text-xs text-muted-foreground hover:text-foreground">
+            Students: go to the Kraftshala Hub
+          </a>
+        </form>
+      </main>
+    );
+  }
+
   // Spinner while deciding, and while the hub redirect is in flight
-  if (!checked || !master) {
+  if (view !== "picker") {
     return (
       <main className="sim-ui flex min-h-[100dvh] items-center justify-center px-6">
         <div className="flex flex-col items-center gap-4 text-center" role="status" aria-live="polite">
@@ -53,7 +150,9 @@ export default function Login() {
           <div className="h-1 w-32 overflow-hidden rounded-full bg-secondary">
             <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
           </div>
-          <p className="text-sm text-muted-foreground">Taking you to the Kraftshala Hub to sign in…</p>
+          <p className="text-sm text-muted-foreground">
+            {view === "checking" ? "Checking your sign-in…" : "Taking you to the Kraftshala Hub to sign in…"}
+          </p>
         </div>
       </main>
     );

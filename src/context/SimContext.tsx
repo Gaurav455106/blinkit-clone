@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Scenario, generateScenario, CityName } from "@/data/scenarios";
 import { Competitor, CompetitorAction, initCompetitor } from "@/data/competitor";
-import { supabase } from "@/integrations/supabase/client";
+import { api, fetchAllPages } from "@/lib/api";
 import { pitchScoreToRelationship } from "@/lib/cmPitchLogic";
 import type { DayResult, ActiveCrisisEffect } from "@/lib/engine";
 import type { SetupScore } from "@/lib/newScoring";
@@ -14,6 +14,9 @@ import { dealPitchResult } from "@/lib/dealPitch";
 import { resolveEngine } from "@/lib/engineFlag";
 import { clearBriefNotes } from "@/components/brief/useBriefNotes";
 import { V2_RUN_SAVED_EVENT, readStoredRun, restoreStoredRun } from "@/components/live/useLiveRun";
+
+/** Past runs pulled back into the dashboard history on sign-in. */
+const MAX_HISTORY_ATTEMPTS = 1000;
 
 export interface Student {
   name: string;
@@ -472,11 +475,9 @@ export function SimProvider({ children }: { children: ReactNode }) {
 
   async function hydrateFromCloud(s: Student) {
     try {
-      // Bump last_seen_at on any existing live session row & on past attempts.
-      await supabase.from("attempts").update({ last_seen_at: new Date().toISOString() }).eq("email", s.email);
-
-      const { data: attemptRows } = await supabase
-        .from("attempts").select("*").eq("email", s.email).order("created_at", { ascending: true });
+      // The server bumps last_seen_at on past attempts (touch=1) and returns them newest first.
+      const newestFirst = await fetchAllPages<any>("/api/attempts", { email: s.email, touch: 1 }, MAX_HISTORY_ATTEMPTS);
+      const attemptRows = [...newestFirst].reverse();
       if (attemptRows && attemptRows.length) {
         const cloudHistory: RunHistoryEntry[] = attemptRows.map((a: any) => {
           const snap = a.snapshot as RunSnapshot | null;
@@ -502,8 +503,8 @@ export function SimProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      const { data: sessionRow } = await supabase
-        .from("run_sessions").select("*").eq("email", s.email).maybeSingle();
+      const sessionRow = await api<{ run_id: string; started_at: string; state: unknown } | null>(
+        "GET", "/api/run-session", { query: { email: s.email } });
       if (sessionRow && sessionRow.state) {
         const st: any = sessionRow.state;
         if (st.scenario) setScenario(st.scenario);
@@ -580,16 +581,18 @@ export function SimProvider({ children }: { children: ReactNode }) {
         v2Run: readStoredRun(student, scenario, activeRunId),
       };
       const started = runHistory.find((r) => r.id === activeRunId)?.startedAt ?? new Date().toISOString();
-      supabase.from("run_sessions").upsert({
-        email: student.email,
-        name: student.name,
-        batch_code: student.batch,
-        run_id: activeRunId,
-        state: state as any,
-        started_at: started,
-        last_seen_at: new Date().toISOString(),
-      }, { onConflict: "email" }).then(({ error }) => {
-        if (error) console.warn("[sim] run_sessions upsert failed", error);
+      // The server forces a student's own email and stamps last_seen_at.
+      api<null>("PUT", "/api/run-session", {
+        body: {
+          email: student.email,
+          name: student.name,
+          batch_code: student.batch,
+          run_id: activeRunId,
+          state,
+          started_at: started,
+        },
+      }).catch((error: unknown) => {
+        console.warn("[sim] run_sessions sync failed", error);
       });
     }, overdue ? 0 : SYNC_DEBOUNCE_MS);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };

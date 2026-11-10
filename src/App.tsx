@@ -25,7 +25,8 @@ const StaffStudentProfilePage = lazy(() => import("./pages/StudentProfile").then
 import SSOCallback from "./pages/SSOCallback";
 import { StaffReturnBar } from "@/components/StaffReturnBar";
 import NotFound from "./pages/NotFound.tsx";
-import { HUB_URL, syncMasterFlag } from "@/lib/masterAccess";
+import { HUB_URL, hasMasterAccess, readMasterParam } from "@/lib/masterAccess";
+import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
 
 const queryClient = new QueryClient();
 
@@ -40,19 +41,20 @@ function PageLoading() {
 /**
  * Gates the app behind the Kraftshala Hub.
  *
- * Passes if the visitor is authenticated (sim_role from SSO, or a student in
- * context), or if this browser has sticky master access. Everyone else is sent
- * to the hub to launch properly.
+ * Passes if the visitor signed in (sim_role from SSO, or a student in context),
+ * or if this browser has master access. Everyone else is sent to the hub.
+ * This only decides which screens to show: every data request is checked on
+ * the server against the signed session cookie.
  *
- * The master check runs BEFORE the redirect on purpose — that's the lockout
- * insurance. If the hub or SSO is down, ?master=<key> still gets you in.
+ * ?master=<key> on any page goes to /login, which checks the key on the server
+ * (lockout insurance if the hub or SSO is down).
  */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { student } = useSim();
-  const simRole = localStorage.getItem("sim_role");
-  const master  = syncMasterFlag();
+  if (readMasterParam()) return <Navigate to={`/login${window.location.search}`} replace />;
 
-  if (simRole || student || master) return <>{children}</>;
+  const simRole = localStorage.getItem("sim_role");
+  if (simRole || student || hasMasterAccess()) return <>{children}</>;
 
   window.location.replace(HUB_URL);
   return (
@@ -90,6 +92,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <StaffReturnBar />
+        <SessionExpiredBanner />
         <SimProvider>
           <Suspense fallback={<PageLoading />}>
           <Routes>

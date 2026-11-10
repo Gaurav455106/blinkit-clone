@@ -4,7 +4,7 @@ import { useSim } from "@/context/SimContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { TrainerHeader } from "@/components/TrainerHeader";
-import { supabase } from "@/integrations/supabase/client";
+import { api, errorMessage, fetchAllPages } from "@/lib/api";
 import { ArrowLeft } from "lucide-react";
 import { SimPage, PageHeader, Section, Tag, EmptyState } from "@/components/sim/primitives";
 import { scoreTone } from "@/components/sim/tone";
@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 type Attempt = Pick<AttemptRow, "email" | "name" | "batch_code" | "score_total" | "badge" | "profile_id" | "score_breakdown" | "id" | "created_at">;
 
 const MAX_ALL_STUDENTS = 50;
+/** Top attempts by score, as before the move to the API. */
+const MAX_LEADERBOARD_ROWS = 1000;
 const BADGE_TEXT: Record<string, string> = { gold: "Gold", silver: "Silver", bronze: "Bronze" };
 
 export default function Leaderboard() {
@@ -31,20 +33,20 @@ export default function Leaderboard() {
   }, []);
 
   useEffect(() => {
-    supabase.from("attempts").select("*").order("score_total", { ascending: false }).limit(1000)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[leaderboard] attempts load failed", error);
-          setLoadError(error.message);
-        }
-        setRows((data ?? []) as unknown as Attempt[]);
-        setLoading(false);
-      });
-    supabase.from("batch_scores").select("batch_code,score_total").limit(5000)
-      .then(({ data, error }) => {
-        if (error) console.error("[leaderboard] batch_scores load failed", error);
-        setBatchRows(data ?? []);
-      });
+    // Students get classmates' emails replaced by stable pseudonyms; staff see real ones
+    Promise.all([
+      fetchAllPages<Attempt>("/api/leaderboard", { view: "attempts" }, MAX_LEADERBOARD_ROWS),
+      api<{ batch_code: string; score_total: number }[]>("GET", "/api/leaderboard", { query: { view: "batches" } }),
+    ])
+      .then(([attempts, batchScores]) => {
+        setRows(attempts);
+        setBatchRows(batchScores ?? []);
+      })
+      .catch((error: unknown) => {
+        console.error("[leaderboard] load failed", error);
+        setLoadError(errorMessage(error));
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   // Best-per-student. NOTE: the old nightly cleanup_idle_students() cron job that
