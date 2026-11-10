@@ -35,6 +35,7 @@ export function PageHeader({ eyebrow, title, description, actions, tour }: {
   );
 }
 
+import { formatPoints } from "@/components/sim/points";
 import { scoreTone, type Tone } from "@/components/sim/tone";
 
 export type { Tone };
@@ -103,7 +104,7 @@ export function ScoreBar({ earned, max, className, label }: { earned: number; ma
       >
         <div className={cn("sim-fill h-full rounded-full transition-[width] duration-500", TONE_BG[scoreTone(earned, max)])} style={{ width: `${pct}%` }} />
       </div>
-      <span className="sim-num w-14 text-right text-sm font-medium text-foreground">{earned}/{max}</span>
+      <span className="sim-num min-w-14 shrink-0 whitespace-nowrap text-right text-sm font-medium text-foreground">{formatPoints(earned)}/{formatPoints(max)}</span>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import { ScoreBar, Tag } from "@/components/sim/primitives";
+import { formatPoints } from "@/components/sim/points";
 import { scoreTone } from "@/components/sim/tone";
 import { fmtTarget } from "@/components/results/ResultTables";
 import {
@@ -131,7 +132,7 @@ function Crises({ row }: { row: AttemptRow }) {
           <li key={cr.crisisNum} className={card} title={cr.optionLabel}>
             <p className="flex justify-between gap-2">
               <span className="font-medium text-foreground">Day {cr.day ?? "?"}: option {cr.optionKey.toUpperCase()}</span>
-              <Tag tone={scoreTone(cr.earned, cr.max)}><span className="sim-num">{cr.earned}/{cr.max}</span></Tag>
+              <Tag tone={scoreTone(cr.earned, cr.max)}><span className="sim-num">{formatPoints(cr.earned)}/{formatPoints(cr.max)}</span></Tag>
             </p>
             <p className="truncate text-muted-foreground">{cr.optionLabel}</p>
           </li>

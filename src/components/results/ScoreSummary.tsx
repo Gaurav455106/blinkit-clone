@@ -3,6 +3,7 @@
 import { Section, Tag } from "@/components/sim/primitives";
 import { scoreTone } from "@/components/sim/tone";
 import type { CategorySummary } from "@/lib/rubrics";
+import { formatPoints } from "@/components/sim/points";
 
 interface ScoreSummaryProps {
   summaries: readonly CategorySummary[];
@@ -22,7 +23,7 @@ export function ScoreSummary({
           <article key={s.category} className="border-t border-border pt-4">
             <div className="mb-2 flex items-center justify-between gap-3">
               <h3 className="font-semibold text-foreground">{s.label}</h3>
-              <Tag tone={scoreTone(s.earned, s.max)}><span className="sim-num">{s.earned} / {s.max}</span></Tag>
+              <Tag tone={scoreTone(s.earned, s.max)}><span className="sim-num">{formatPoints(s.earned)} / {formatPoints(s.max)}</span></Tag>
             </div>
             <p className="text-sm leading-relaxed text-foreground/90">{s.paragraph}</p>
           </article>

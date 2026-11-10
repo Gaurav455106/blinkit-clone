@@ -4,6 +4,7 @@
 import { attemptLines, attemptTotals, type AttemptRow } from "@/lib/attemptAnalysis";
 import { RUBRICS, SCORE_SCHEMES, isRubricKey, type LineResult, type ScoreVersion } from "@/lib/rubrics";
 import { cn } from "@/lib/utils";
+import { formatPoints } from "@/components/sim/points";
 
 interface LineGridProps {
   rows: readonly AttemptRow[]; // oldest first
@@ -59,7 +60,7 @@ export function LineGrid({ rows, version }: LineGridProps) {
                   <td key={r.id} className="px-1 text-center">
                     {earned === null
                       ? <span className="text-xs text-muted-foreground">Not saved</span>
-                      : <span className={cn("sim-num inline-block min-w-[3.5rem] rounded-md px-2 py-1 font-medium", lostClass(c.max - earned, c.max))}>{earned}/{c.max}</span>}
+                      : <span className={cn("sim-num inline-block min-w-[3.5rem] rounded-md px-2 py-1 font-medium", lostClass(c.max - earned, c.max))}>{formatPoints(earned)}/{formatPoints(c.max)}</span>}
                   </td>
                 );
               })}
