@@ -4,15 +4,20 @@
 
 import { useEffect, useState } from "react";
 import { HUB_URL } from "@/lib/masterAccess";
-import { SESSION_EXPIRED_EVENT } from "@/lib/api";
+import { SESSION_EXPIRED_EVENT, SESSION_STARTED_EVENT } from "@/lib/api";
 
 export function SessionExpiredBanner() {
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
     const show = () => setIsExpired(true);
+    const hide = () => setIsExpired(false);
     window.addEventListener(SESSION_EXPIRED_EVENT, show);
-    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, show);
+    window.addEventListener(SESSION_STARTED_EVENT, hide);
+    return () => {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, show);
+      window.removeEventListener(SESSION_STARTED_EVENT, hide);
+    };
   }, []);
 
   if (!isExpired) return null;
