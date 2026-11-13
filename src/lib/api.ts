@@ -3,6 +3,8 @@
 // student can read or change no longer depends on anything in the browser.
 
 export const SESSION_EXPIRED_EVENT = "sim:session-expired";
+/** A sign-in just worked: anything warning that the sign-in ended can clear. */
+export const SESSION_STARTED_EVENT = "sim:session-started";
 
 /** Sent on every request that changes data; see server/http.ts. */
 const CSRF_HEADERS = { "X-Requested-With": "blinkit-sim" } as const;
@@ -33,11 +35,42 @@ function urlFor(path: string, query?: Query): string {
   return qs ? `${path}?${qs}` : path;
 }
 
-function announceExpiredSession(): void {
+function announce(event: string): void {
   try {
-    window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    window.dispatchEvent(new Event(event));
   } catch {
-    // No window (tests): nothing to announce to
+    // No window: nothing to announce to
+  }
+}
+
+// ── Holding requests while a hub sign-in runs ────────────────────────────────
+// A launch can land on a browser that still holds an older, expired sign-in.
+// The app restores the last run from this browser straight away and tries to
+// save it; sent now, that goes out with the old cookie, fails, and puts up "your
+// sign-in has ended" over a sign-in that is about to work. Such calls are
+// skipped, not queued: on a shared computer a queued save could belong to the
+// previous student. Once the sign-in is done the app saves again as usual.
+
+/** True from page load on /sso?token=… (the restore can run before the sign-in starts). */
+function arrivedWithLaunchToken(): boolean {
+  try {
+    return window.location.pathname === "/sso" && new URLSearchParams(window.location.search).has("token");
+  } catch {
+    return false;
+  }
+}
+
+let signingIn = arrivedWithLaunchToken();
+
+/** Runs a sign-in; other API calls are skipped until it finishes, whether it works or not. */
+export async function whileSigningIn<T>(signIn: () => Promise<T>): Promise<T> {
+  signingIn = true;
+  try {
+    const session = await signIn();
+    announce(SESSION_STARTED_EVENT);
+    return session;
+  } finally {
+    signingIn = false;
   }
 }
 
@@ -50,7 +83,12 @@ async function readEnvelope<T>(response: Response): Promise<Envelope<T> | null> 
 }
 
 /** Calls an /api route and returns its data; throws ApiError on any failure. */
-export async function api<T>(method: Method, path: string, options: { query?: Query; body?: unknown } = {}): Promise<T> {
+export async function api<T>(
+  method: Method,
+  path: string,
+  options: { query?: Query; body?: unknown; isSignIn?: boolean } = {},
+): Promise<T> {
+  if (signingIn && !options.isSignIn) throw new ApiError(0, "signing_in", "Waiting for the sign-in to finish.");
   let response: Response;
   try {
     response = await fetch(urlFor(path, options.query), {
@@ -70,7 +108,7 @@ export async function api<T>(method: Method, path: string, options: { query?: Qu
   if (response.ok && envelope?.success) return envelope.data;
 
   const code = envelope?.code ?? "http_error";
-  if (response.status === 401 && code === "unauthenticated") announceExpiredSession();
+  if (response.status === 401 && code === "unauthenticated") announce(SESSION_EXPIRED_EVENT);
   throw new ApiError(response.status, code, envelope?.error ?? `Request failed (${response.status})`);
 }
 

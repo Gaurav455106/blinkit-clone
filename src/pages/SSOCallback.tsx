@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSim } from "@/context/SimContext";
 import { HUB_URL } from "@/lib/masterAccess";
-import { ApiError } from "@/lib/api";
+import { ApiError, whileSigningIn } from "@/lib/api";
 import { signInWithHub } from "@/lib/session";
 import { clearStudentView } from "@/lib/staffView";
 
@@ -68,7 +68,7 @@ export default function SSOCallback() {
       };
 
       try {
-        const session = await verify();
+        const session = await whileSigningIn(verify);
         if (cancelled) return;
         clearStudentView();
 
