@@ -5,6 +5,7 @@ import type { SKU } from "@/data/scenarios";
 import { unitsLeft, type StockSplit } from "@/market/deal";
 import { Section, Tag } from "@/components/sim/primitives";
 import { Button } from "@/components/ui/button";
+import { WholeNumberInput } from "@/components/ui/whole-number-input";
 import { stagger } from "@/components/game/GameBits";
 import { stockNote } from "@/components/deal/stockNote";
 
@@ -56,15 +57,11 @@ export function StockSplitEditor({ skus, states, demand, pool, value, onChange, 
                       <span className="font-medium text-foreground">{st}</span>
                       <span title="Share of searches across the states Rohit serves for you">{pct(demand[st] ?? 0)} of searches in your states</span>
                     </span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      inputMode="numeric"
+                    <WholeNumberInput
                       aria-label={`${sku.name} units in ${st}`}
                       className="mt-1 block w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                      value={Math.round(row[st] ?? 0)}
-                      onChange={(e) => set(sku.id, st, Number(e.target.value) || 0)}
+                      value={row[st] ?? 0}
+                      onValueChange={(n) => set(sku.id, st, n)}
                     />
                   </label>
                 ))}
