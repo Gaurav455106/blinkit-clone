@@ -20,6 +20,7 @@ import { RelationshipMeter } from "@/components/rohit/RelationshipMeter";
 import { StockSplitEditor } from "@/components/deal/StockSplitEditor";
 import { AsksPicker, GivesPicker } from "@/components/deal/DealTermsPicker";
 import { describeDeal } from "@/components/deal/describeDeal";
+import { DealValueSheet, DealValueWorking } from "@/components/deal/DealValueBreakdown";
 import { useTour } from "@/components/tour/useTour";
 import {
   allowedStates, briefStock, defaultDeal, stockPool, validateDeal,
@@ -100,6 +101,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
               />
               <AsksPicker states={states} asks={sheet.asks} onChange={(asks) => setSheet({ ...sheet, asks })} />
               <GivesPicker skus={profile.skus} states={states} gives={sheet.gives} onChange={(gives) => setSheet({ ...sheet, gives })} />
+              <DealValueSheet ctx={ctx} terms={sheet} />
               <div data-tour="deal-send" className="flex flex-col gap-3 rounded-2xl bg-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-accent-foreground">
                   {showErrors && problems.length > 0
@@ -120,7 +122,9 @@ export default function DealV2({ student, scenario, ctx }: Props) {
                   : <StudentLine key={i} text={l.text} />))}
                 {turn && (
                   <>
-                    <RohitLine key={turn.line} typeIn text={turn.line} chips={turn.chips} chipsCaption="Rohit's numbers" />
+                    <RohitLine key={turn.line} typeIn text={turn.line} chips={turn.chips} chipsCaption="Rohit's numbers">
+                      {(turn.kind === "counter" || turn.kind === "final") && <DealValueWorking ctx={ctx} terms={talk.terms} />}
+                    </RohitLine>
                     <fieldset key={`opts-${turn.line}`} className="sim-slide-in space-y-2 sm:pl-12 [animation-delay:750ms]">
                       <legend className="mb-2 text-sm font-medium text-foreground">Your reply. Each one shows what it costs you.</legend>
                       {turn.options.map((o) => <ReplyChoice key={o.id} label={o.label} cost={o.cost} onSelect={() => pick(o)} />)}
