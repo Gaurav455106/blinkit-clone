@@ -19,15 +19,15 @@ import {
 
 export const MAX_COUNTERS = 2;
 /** Shelf space value Rohit gives up, per ₹ of stock he adds, before the demand factor. */
-const SHELF_COST_RATE = 0.2;
+export const SHELF_COST_RATE = 0.2;
 /** Space in the busiest dark stores, per ₹ of stock placed in the state, before the demand factor. */
-const BUSY_STORES_COST_RATE = 0.05;
+export const BUSY_STORES_COST_RATE = 0.05;
 /** Rohit discounts promised ad spend: a promise isn't money yet. */
-const PROMISE_CREDIT = 0.6;
+export const PROMISE_CREDIT = 0.6;
 /** Extra shoppers a discount brings to his shelf, per ₹ of discount. */
-const DISCOUNT_TRAFFIC = 3;
-const DISCOUNT_DAYS_VALUED = 7;
-const SUPPLY_PROMISE_VALUE = 6000;
+export const DISCOUNT_TRAFFIC = 3;
+export const DISCOUNT_DAYS_VALUED = 7;
+export const SUPPLY_PROMISE_VALUE = 6000;
 const SPLIT_GAP = 0.25;
 const UNPROVEN_SHARE = 0.2;
 const DISCOUNT_MARGIN_SHARE = 0.5;
@@ -68,19 +68,19 @@ export function stockFit(ctx: MarketContext, d: DealTerms): number {
 
 // ── Valuation (₹ over the run) ───────────────────────────────────────────────
 
-const stockValueIn = (ctx: MarketContext, d: DealTerms, state: string) => {
+export const stockValueIn = (ctx: MarketContext, d: DealTerms, state: string) => {
   const skus = skuById(ctx);
   return Object.entries(d.stock).reduce((s, [id, row]) => s + (row[state] ?? 0) * (skus.get(id)?.mrp ?? 0), 0);
 };
 
 /** A state's share of searches against the average state (0.5 to 3). */
-function demandFactor(ctx: MarketContext, state: string): number {
+export function demandFactor(ctx: MarketContext, state: string): number {
   const shares = demandShares(ctx);
   const avg = 1 / Object.keys(shares).length;
   return Math.min(3, Math.max(0.5, (shares[state] ?? 0) / avg));
 }
 
-function askCost(ctx: MarketContext, d: DealTerms, a: DealAsk): number {
+export function askCost(ctx: MarketContext, d: DealTerms, a: DealAsk): number {
   if (a.kind === "shelfSpot") return COFUND_BANNER_COST;
   // Busy stores are scarce where demand is high: every brand wants them
   if (a.kind === "busyStores") return stockValueIn(ctx, d, a.state) * BUSY_STORES_COST_RATE * demandFactor(ctx, a.state);
@@ -88,20 +88,24 @@ function askCost(ctx: MarketContext, d: DealTerms, a: DealAsk): number {
   const share = a.kind === "moreStores" ? MORE_STORES_SHARE : FAST_RESTOCK_SHARE;
   const units = Object.entries(d.stock).map(([id, row]) => ({ id, units: (row[a.state] ?? 0) * share }));
   if (a.kind === "fastRestock") return Math.max(MIN_EXPEDITE_FEE, units.reduce((s, u) => s + u.units, 0) * EXPEDITE_FEE_PER_UNIT);
+  return units.reduce((s, u) => s + u.units * (skus.get(u.id)?.mrp ?? 0), 0) * SHELF_COST_RATE * quietFactor(ctx, a.state);
+}
+
+/** The average state's share of searches against this state's (0.5 to 3): extra stores cost Rohit more where fewer people search. */
+export function quietFactor(ctx: MarketContext, state: string): number {
   const shares = demandShares(ctx);
   const avg = 1 / Object.keys(shares).length;
-  const slow = Math.min(3, Math.max(0.5, avg / Math.max(shares[a.state] ?? 0, 1e-6)));
-  return units.reduce((s, u) => s + u.units * (skus.get(u.id)?.mrp ?? 0), 0) * SHELF_COST_RATE * slow;
+  return Math.min(3, Math.max(0.5, avg / Math.max(shares[state] ?? 0, 1e-6)));
 }
 
 const expectedWeekUnits = (ctx: MarketContext, skuIds: readonly string[]) =>
   skuIds.reduce((s, id) => s + (ctx.market.organicDailyUnits[id] ?? 0) * DISCOUNT_DAYS_VALUED, 0);
 
-function discountPerUnit(ctx: MarketContext, skuId: string, p: number): number {
+export function discountPerUnit(ctx: MarketContext, skuId: string, p: number): number {
   return Math.round((skuById(ctx).get(skuId)?.mrp ?? 0) * p);
 }
 
-function giveValue(ctx: MarketContext, g: DealGive): number {
+export function giveValue(ctx: MarketContext, g: DealGive): number {
   if (g.kind === "adSpend") return g.perDay * g.days * PROMISE_CREDIT;
   if (g.kind === "supply") return SUPPLY_PROMISE_VALUE * (g.osaPct / 100);
   return g.skuIds.reduce((s, id) => s + discountPerUnit(ctx, id, g.pct) * (ctx.market.organicDailyUnits[id] ?? 0) * DISCOUNT_DAYS_VALUED, 0) * DISCOUNT_TRAFFIC;
