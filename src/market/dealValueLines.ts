@@ -20,6 +20,8 @@ export interface ValueLine {
   value: number;
   /** The working, in plain words. */
   how: string;
+  /** Set when this ask costs Rohit a different amount than on the deal sheet, and why. */
+  change?: string;
 }
 
 export interface DealValue {
@@ -69,9 +71,33 @@ function giveLabel(g: DealGive): string {
   return `${pct(g.pct)} launch discount`;
 }
 
-/** Each ask and offer with its value and the working; totals match valueAsked / valueGiven. */
-export function dealValue(ctx: MarketContext, d: DealTerms): DealValue {
-  const asks = d.asks.map((a, i) => ({ key: `ask-${a.kind}-${i}`, label: capital(askLabel(a, "a")), value: askCost(ctx, d, a), how: askHow(ctx, d, a) }));
+const askKey = (a: DealAsk) => ("state" in a ? `${a.kind}-${a.state}` : a.kind);
+const rounded = (n: number) => Math.round(n);
+
+/**
+ * Why an ask now costs a different amount than when the deal was sent: asks are priced
+ * on the stock in their state, so moving stock (for example after Rohit's split
+ * objection) changes them.
+ */
+function askChange(ctx: MarketContext, before: DealTerms | undefined, after: DealTerms, a: DealAsk): string | undefined {
+  if (!before || !("state" in a)) return undefined;
+  const was = before.asks.find((b) => askKey(b) === askKey(a));
+  if (!was) return undefined;
+  const then = askCost(ctx, before, was), now = askCost(ctx, after, a);
+  if (rounded(then) === rounded(now)) return undefined;
+  const unitsThen = count(unitsIn(before, a.state)), unitsNow = count(unitsIn(after, a.state));
+  const why = unitsThen === unitsNow ? `your stock in ${a.state} changed` : `${unitsNow} of your units now sit in ${a.state}, not ${unitsThen}`;
+  return `${now > then ? "Up" : "Down"} from ${inr(then)} on your deal sheet, because ${why}.`;
+}
+
+/**
+ * Each ask and offer with its value and the working; totals match valueAsked / valueGiven.
+ * Pass `before` (the terms as first sent) to explain asks whose cost has moved since.
+ */
+export function dealValue(ctx: MarketContext, d: DealTerms, before?: DealTerms): DealValue {
+  const asks = d.asks.map((a, i) => ({
+    key: `ask-${a.kind}-${i}`, label: capital(askLabel(a, "a")), value: askCost(ctx, d, a), how: askHow(ctx, d, a), change: askChange(ctx, before, d, a),
+  }));
   const gives = d.gives.map((g, i) => ({ key: `give-${g.kind}-${i}`, label: giveLabel(g), value: giveValue(ctx, g), how: giveHow(ctx, g) }));
   const asked = asks.reduce((s, l) => s + l.value, 0);
   const given = gives.reduce((s, l) => s + l.value, 0);

@@ -3,7 +3,7 @@
 
 import type { MarketContext } from "@/market/engineTypes";
 import type { DealTerms } from "@/market/deal";
-import { dealValue, type ValueLine } from "@/market/dealValueLines";
+import { dealValue, type DealValue, type ValueLine } from "@/market/dealValueLines";
 import { formatRupees as inr } from "@/lib/money";
 import { Section, Tag } from "@/components/sim/primitives";
 
@@ -23,6 +23,7 @@ function Lines({ title, lines, total, empty }: { title: string; lines: readonly 
                 <span className="shrink-0 tabular-nums">{inr(l.value)}</span>
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{l.how}</p>
+              {l.change && <p className="mt-1 text-xs font-medium text-sim-warn">{l.change}</p>}
             </li>
           ))}
         </ul>
@@ -31,22 +32,32 @@ function Lines({ title, lines, total, empty }: { title: string; lines: readonly 
   );
 }
 
-function Columns({ ctx, terms }: { ctx: MarketContext; terms: DealTerms }) {
-  const v = dealValue(ctx, terms);
+function Columns({ v }: { v: DealValue }) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
+    <div className="grid gap-x-12 gap-y-6 sm:grid-cols-2">
       <Lines title="What you ask for costs Rohit" lines={v.asks} total={v.asked} empty="You haven't asked for anything." />
       <Lines title="What you offer is worth to him" lines={v.gives} total={v.given} empty="You haven't offered anything." />
     </div>
   );
 }
 
-/** Inside Rohit's counter: closed by default, under his two totals. */
-export function DealValueWorking({ ctx, terms }: { ctx: MarketContext; terms: DealTerms }) {
+/**
+ * Inside Rohit's counter, under his two totals. Closed by default; open when an ask now
+ * costs a different amount than on the deal sheet (`sent`), so the change is explained.
+ */
+export function DealValueWorking({ ctx, terms, sent }: { ctx: MarketContext; terms: DealTerms; sent?: DealTerms }) {
+  const v = dealValue(ctx, terms, sent);
+  const changed = v.asks.filter((l) => l.change);
+  const moved = changed.length > 0;
+  const note = changed.every((l) => l.change?.startsWith("Up")) ? "Your asks now cost more than on your deal sheet."
+    : changed.every((l) => l.change?.startsWith("Down")) ? "Your asks now cost less than on your deal sheet."
+    : "Some asks now cost more, some less, than on your deal sheet.";
   return (
-    <details className="group mt-3 rounded-xl border border-border bg-card px-4 py-3">
-      <summary className="cursor-pointer text-sm font-medium text-foreground marker:text-muted-foreground">How Rohit worked this out</summary>
-      <div className="mt-3"><Columns ctx={ctx} terms={terms} /></div>
+    <details open={moved} className="group mt-3 rounded-xl border border-border bg-card px-4 py-3">
+      <summary className="cursor-pointer text-sm font-medium text-foreground marker:text-muted-foreground">
+        How Rohit worked this out{moved && <span className="ml-2 text-xs font-normal text-sim-warn">{`${note} See why below.`}</span>}
+      </summary>
+      <div className="mt-3"><Columns v={v} /></div>
     </details>
   );
 }
@@ -60,14 +71,15 @@ function balanceTag(asked: number, balance: number) {
 
 /** On the deal sheet: the live balance while the student builds the deal. */
 export function DealValueSheet({ ctx, terms }: { ctx: MarketContext; terms: DealTerms }) {
-  const { asked, balance } = dealValue(ctx, terms);
+  const v = dealValue(ctx, terms);
+  const { asked, balance } = v;
   return (
     <Section
       title="How Rohit will value this"
       description="Rohit weighs what your asks cost him against what your offers are worth to him. If your offers come up short, he will counter."
       actions={balanceTag(asked, balance)}
     >
-      <Columns ctx={ctx} terms={terms} />
+      <Columns v={v} />
     </Section>
   );
 }

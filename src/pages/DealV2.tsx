@@ -123,7 +123,7 @@ export default function DealV2({ student, scenario, ctx }: Props) {
                 {turn && (
                   <>
                     <RohitLine key={turn.line} typeIn text={turn.line} chips={turn.chips} chipsCaption="Rohit's numbers">
-                      {(turn.kind === "counter" || turn.kind === "final") && <DealValueWorking ctx={ctx} terms={talk.terms} />}
+                      {(turn.kind === "counter" || turn.kind === "final") && <DealValueWorking ctx={ctx} terms={talk.terms} sent={sheet} />}
                     </RohitLine>
                     <fieldset key={`opts-${turn.line}`} className="sim-slide-in space-y-2 sm:pl-12 [animation-delay:750ms]">
                       <legend className="mb-2 text-sm font-medium text-foreground">Your reply. Each one shows what it costs you.</legend>
