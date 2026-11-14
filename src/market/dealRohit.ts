@@ -316,6 +316,23 @@ function withExtraSpend(d: DealTerms, gapRupees: number): DealTerms {
   return { ...d, gives: existing ? d.gives.map((g) => (g === existing ? give : g)) : [...d.gives, give] };
 }
 
+const promisedSpend = (d: DealTerms) => d.gives.find((g): g is Extract<DealGive, { kind: "adSpend" }> => g.kind === "adSpend");
+
+/** Says whether the new ad promise replaces an old one, and what it is a day. */
+function addSpendLabel(d: DealTerms, next: Extract<DealGive, { kind: "adSpend" }>): string {
+  const now = promisedSpend(d);
+  const total = inr(next.perDay * next.days);
+  return now
+    ? `Raise your ad promise from ${inr(now.perDay * now.days)} to ${total} (${inr(next.perDay)} a day for ${next.days} days)`
+    : `Promise ${total} of ad spend (${inr(next.perDay)} a day for ${next.days} days)`;
+}
+
+function addSpendCost(d: DealTerms, next: Extract<DealGive, { kind: "adSpend" }>): string {
+  const now = promisedSpend(d);
+  const extra = next.perDay * next.days - (now ? now.perDay * now.days : 0);
+  return `${inr(extra)} more ad spend you must actually spend by day ${next.days}`;
+}
+
 function counterTurn(ctx: MarketContext, s: NegotiationState): RohitDealTurn {
   const d = s.terms;
   const asked = valueAsked(ctx, d), given = valueGiven(ctx, d);
@@ -345,7 +362,7 @@ function counterTurn(ctx: MarketContext, s: NegotiationState): RohitDealTurn {
     chips,
     options: [
       { id: "dropAsk", label: `Drop ${ask ? label(ask) : "an ask"}`, cost: trustCost(1), change: { kind: "counter", terms: dropped, trust: 1 } },
-      { id: "addSpend", label: `Promise ${inr(addG.perDay * addG.days)} of ad spend by day ${addG.days}`, cost: `A tracked promise of ${inr(addG.perDay * addG.days)}`, change: { kind: "counter", terms: more, trust: 2 } },
+      { id: "addSpend", label: addSpendLabel(d, addG), cost: addSpendCost(d, addG), change: { kind: "counter", terms: more, trust: 2 } },
       { id: "insist", label: "That's my offer", cost: trustCost(-2), change: { kind: "counter", terms: d, trust: -2 } },
       walkAwayOption(ctx),
     ],

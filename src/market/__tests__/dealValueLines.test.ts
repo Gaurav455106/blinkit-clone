@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { dealValue } from "@/market/dealValueLines";
-import { valueAsked, valueGiven } from "@/market/dealRohit";
+import { rohitTurn, startNegotiation, valueAsked, valueGiven } from "@/market/dealRohit";
 import { allowedStates, defaultDeal, type DealTerms } from "@/market/deal";
 import { testContext } from "@/market/__tests__/testContext";
 
@@ -52,5 +52,35 @@ describe("dealValue", () => {
   it("is empty and balanced for a deal with no asks or offers", () => {
     const v = dealValue(ctx, defaultDeal(ctx));
     expect(v).toMatchObject({ asks: [], gives: [], asked: 0, given: 0, balance: 0 });
+  });
+
+  it("explains when an ask costs more than on the deal sheet because stock moved into its state", () => {
+    const sent: DealTerms = { ...defaultDeal(ctx), asks: [{ kind: "moreStores", state: s1 }, { kind: "shelfSpot" }] };
+    const moved: DealTerms = { ...sent, stock: { ...sent.stock, [sku]: { ...sent.stock[sku], [s1]: (sent.stock[sku][s1] ?? 0) + 50 } } };
+    const [more, shelf] = dealValue(ctx, moved, sent).asks;
+    expect(more.change).toMatch(new RegExp(`^Up from ₹[\\d,]+ on your deal sheet, because [\\d,]+ of your units now sit in ${s1}, not [\\d,]+\\.$`));
+    expect(shelf.change).toBeUndefined();
+    expect(dealValue(ctx, sent, sent).asks.every((l) => !l.change)).toBe(true);
+    expect(dealValue(ctx, moved).asks.every((l) => !l.change)).toBe(true);
+  });
+});
+
+describe("Rohit's ad spend counter", () => {
+  const counterFor = (terms: DealTerms) =>
+    rohitTurn(ctx, { ...startNegotiation(ctx, terms), handled: ["split", "discount", "unproven", "overpromise"] })!;
+
+  it("says the new promise replaces the old one, with the per-day amount", () => {
+    const short: DealTerms = { ...defaultDeal(ctx), asks: [{ kind: "shelfSpot" }], gives: [{ kind: "adSpend", perDay: 500, days: 14 }] };
+    const turn = counterFor(short);
+    expect(turn.kind).toBe("counter");
+    const add = turn.options.find((o) => o.id === "addSpend")!;
+    expect(add.label).toMatch(/^Raise your ad promise from ₹7,000 to ₹[\d,]+ \(₹[\d,]+ a day for 14 days\)$/);
+    expect(add.cost).toMatch(/^₹[\d,]+ more ad spend you must actually spend by day 14$/);
+  });
+
+  it("offers a fresh promise when none was made", () => {
+    const short: DealTerms = { ...defaultDeal(ctx), asks: [{ kind: "shelfSpot" }] };
+    const add = counterFor(short).options.find((o) => o.id === "addSpend")!;
+    expect(add.label).toMatch(/^Promise ₹[\d,]+ of ad spend \(₹[\d,]+ a day for 14 days\)$/);
   });
 });
