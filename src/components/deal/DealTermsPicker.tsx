@@ -1,6 +1,7 @@
 // Deal sheet parts 2 and 3: what the student asks Rohit for, and offers back.
 
 import { useState, type ReactNode } from "react";
+import { WholeNumberInput } from "@/components/ui/whole-number-input";
 import type { SKU } from "@/data/scenarios";
 import {
   skuBreakEven,
@@ -107,8 +108,8 @@ export function GivesPicker({ skus, states, gives, onChange }: GiveProps) {
         <Choice checked={has("adSpend")} onToggle={() => toggle(spendGive)} title="Promise ad spend in his category"
           note="Blinkit earns from your ads, so Rohit values this. You must actually spend it.">
           <span>₹</span>
-          <input type="number" min={0} step={500} aria-label="Ad spend per day" className={cn(SELECT, "w-24")} value={spend.perDay}
-            onChange={(e) => { const next = { ...spend, perDay: Math.max(0, Number(e.target.value) || 0) }; setSpend(next); update({ kind: "adSpend", ...next }); }} />
+          <WholeNumberInput aria-label="Ad spend per day" className={cn(SELECT, "w-24")} value={spend.perDay}
+            onValueChange={(n) => { const next = { ...spend, perDay: n }; setSpend(next); update({ kind: "adSpend", ...next }); }} />
           <span>a day for</span>
           <select aria-label="Days of ad spend" className={SELECT} value={spend.days}
             onChange={(e) => { const next = { ...spend, days: Number(e.target.value) }; setSpend(next); update({ kind: "adSpend", ...next }); }}>
