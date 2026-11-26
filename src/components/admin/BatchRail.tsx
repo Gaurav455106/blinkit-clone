@@ -117,7 +117,7 @@ export function BatchRail({ batches, liveByBatch, allLabel, totalStudents, overa
         )}
         {real.map(item)}
       </ul>
-      {real.length === 0 && test.length === 0 && (
+      {query && real.length === 0 && test.length === 0 && (
         <p className="px-3 py-4 text-xs text-muted-foreground">No batch matches "{query}".</p>
       )}
       {test.length > 0 && (

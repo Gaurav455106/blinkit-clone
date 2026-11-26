@@ -19,6 +19,34 @@ export type SaveResult = "saved" | "already_saved";
 export const LEADERBOARD_COLUMNS = "id,email,name,batch_code,score_total,badge,profile_id,score_breakdown,created_at";
 export type LeaderboardAttempt = Pick<AttemptRow, "id" | "email" | "name" | "batch_code" | "score_total" | "badge" | "profile_id" | "score_breakdown" | "created_at">;
 
+/**
+ * The staff list of every attempt. A v1 snapshot can be ~400 KB (day-by-day
+ * results, logs, stock), so only the parts the staff pages read are sent, as
+ * flattened JSON paths that staffAttemptFrom puts back into a small snapshot.
+ */
+export const STAFF_ATTEMPT_COLUMNS = [
+  "id", "email", "name", "batch_code", "profile_id", "scenario", "choices", "score_total", "score_breakdown",
+  "badge", "crisis_id", "crisis_choice", "crisis_points", "created_at", "last_seen_at",
+  "snap_scenario:snapshot->scenario",
+  "snap_campaigns:snapshot->campaigns",
+  "snap_crisis:snapshot->crisisResponses",
+  "snap_breakdown:snapshot->score_breakdown",
+].join(",");
+
+const SNAPSHOT_PARTS = [
+  ["snap_scenario", "scenario"],
+  ["snap_campaigns", "campaigns"],
+  ["snap_crisis", "crisisResponses"],
+  ["snap_breakdown", "score_breakdown"],
+] as const;
+
+/** A row read with STAFF_ATTEMPT_COLUMNS, with its snapshot parts put back under `snapshot`. */
+export function staffAttemptFrom(flat: Record<string, unknown>): Record<string, unknown> {
+  const rest = Object.fromEntries(Object.entries(flat).filter(([key]) => !key.startsWith("snap_")));
+  const parts = SNAPSHOT_PARTS.filter(([from]) => flat[from] != null).map(([from, to]) => [to, flat[from]]);
+  return { ...rest, snapshot: parts.length ? Object.fromEntries(parts) : null };
+}
+
 /** The columns the staff "Live now" tab reads, with JSON paths flattened. Keeps `state` off the wire. */
 export const LIVE_SESSION_COLUMNS = [
   "email", "name", "batch_code", "run_id", "started_at", "last_seen_at",
@@ -93,9 +121,10 @@ export function supabaseStore(url: string, serviceKey: string): Store {
       check("touchAttempts", await db.from("attempts").update({ last_seen_at: at }).eq("email", email));
     },
     async allAttempts(page) {
-      const query = db.from("attempts").select("*")
+      const query = db.from("attempts").select(STAFF_ATTEMPT_COLUMNS)
         .order("created_at", { ascending: false }).order("id", { ascending: true });
-      return check("allAttempts", await query.range(page.offset, page.offset + page.limit - 1)) ?? [];
+      const rows = check("allAttempts", await query.range(page.offset, page.offset + page.limit - 1)) ?? [];
+      return (rows as unknown as Record<string, unknown>[]).map(staffAttemptFrom) as unknown as AttemptRow[];
     },
     async leaderboardAttempts(page) {
       // id breaks ties so equal scores can't repeat or go missing between pages
