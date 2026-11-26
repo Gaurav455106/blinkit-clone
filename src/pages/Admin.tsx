@@ -1,112 +1,100 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertTriangle, ArrowRight, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrainerHeader } from "@/components/TrainerHeader";
 import { api, errorMessage } from "@/lib/api";
-import { Search, Trash2, Download, AlertTriangle, Clock } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { SimPage, PageHeader, StatTile, Section } from "@/components/sim/primitives";
+import { SimPage, PageHeader, Section } from "@/components/sim/primitives";
 import { BatchTable } from "@/components/admin/BatchTable";
+import { BatchRail, type BatchLiveCount } from "@/components/admin/BatchRail";
+import { BatchHeader } from "@/components/admin/BatchHeader";
 import { StudentsTable } from "@/components/admin/StudentsTable";
 import { ScoringGuide } from "@/components/admin/ScoringGuide";
 import { CohortAnalysis } from "@/components/admin/CohortAnalysis";
 import { CohortTab } from "@/components/admin/CohortTab";
 import { useAllAttempts } from "@/components/admin/useAllAttempts";
-import { LiveSessionsPanel } from "@/components/admin/LiveSessionsPanel";
-import { attemptCampaigns, attemptTotals, bestPerStudent, brandOf, summariseBatches, type AttemptRow } from "@/lib/attemptAnalysis";
-import { formatLabel } from "@/lib/resultsExport";
+import { ALL_BATCHES, LiveSessionsView, useLiveSummary } from "@/components/admin/LiveSessionsPanel";
+import { ClearStaleDialog, DeleteBatchDialog, DeleteStudentDialog } from "@/components/admin/AdminDialogs";
+import { bestPerStudent, summariseBatches, type AttemptRow } from "@/lib/attemptAnalysis";
+import { attemptsToCsv, downloadCsv } from "@/lib/adminCsv";
 
-const ALL_BATCHES = "All";
 const STALE_SESSION_DAYS = 7;
 const ATTEMPT_LIMIT = 5000;
 
-// ── CSV export (kept from v1; the cohort tab also exports a full Excel file) ──
-function toCSV(rows: readonly AttemptRow[]): string {
-  const headers = [
-    "Name", "Email", "Batch", "Brand", "Score",
-    "Setup", "Live Opt", "Crisis", "Results",
-    "Crisis Choice", "Crisis Points",
-    "Campaign Formats", "Total Campaigns",
-  ];
-  const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const body = rows.map((r) => {
-    const t = attemptTotals(r);
-    const campaigns = attemptCampaigns(r);
-    return [
-      r.name, r.email, r.batch_code, brandOf(r), r.score_total,
-      t?.setup ?? "", t?.liveOpt ?? t?.live ?? "", t?.crisis ?? t?.eventsRohit ?? "", t?.results ?? "",
-      r.crisis_choice ?? "", r.crisis_points ?? 0,
-      campaigns.map((c) => formatLabel(c.adFormat)).join("; "), campaigns.length,
-    ].map(escape).join(",");
-  });
-  return [headers.map(escape).join(","), ...body].join("\n");
+type AdminTab = "students" | "live" | "cohort" | "scoring";
+
+function TabCount({ n, tone = "neutral" }: { n: number; tone?: "neutral" | "bad" }) {
+  if (!n) return null;
+  const cls = tone === "bad" ? "bg-sim-bad/10 text-sim-bad" : "bg-secondary text-muted-foreground";
+  return <span className={`sim-num ml-1.5 rounded-full px-1.5 text-[11px] font-semibold ${cls}`}>{n}</span>;
 }
 
-function downloadCSV(content: string, filename: string) {
-  const blob = new Blob([content], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Admin() {
   const nav = useNavigate();
   const { rows, setRows, loading, error: loadError, reload } = useAllAttempts(ATTEMPT_LIMIT, "admin");
+  const live = useLiveSummary(rows);
   const [search, setSearch] = useState("");
   const [activeBatch, setActiveBatch] = useState<string>(ALL_BATCHES);
+  const [tab, setTab] = useState<AdminTab>("students");
+
   const [deleteTarget, setDeleteTarget] = useState<AttemptRow | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  // Batch-level delete (typed confirmation — higher blast radius than a single student)
   const [batchDeleteTarget, setBatchDeleteTarget] = useState<string | null>(null);
-  const [batchDeleteConfirm, setBatchDeleteConfirm] = useState("");
   const [batchDeleting, setBatchDeleting] = useState(false);
-
-  // Manual "clear stale live sessions" (replaces the old nightly auto-cleanup)
   const [staleSessionsOpen, setStaleSessionsOpen] = useState(false);
   const [staleSessionCount, setStaleSessionCount] = useState<number | null>(null);
   const [staleSessionsBusy, setStaleSessionsBusy] = useState(false);
 
+  const isAll = activeBatch === ALL_BATCHES;
   const bestByEmail = useMemo(() => bestPerStudent(rows), [rows]);
-  const batches = useMemo(() => [ALL_BATCHES, ...Array.from(new Set(bestByEmail.map((r) => r.batch_code))).sort()], [bestByEmail]);
+  const batchSummaries = useMemo(() => summariseBatches(bestByEmail), [bestByEmail]);
+  const inBatch = useMemo(() => (isAll ? bestByEmail : bestByEmail.filter((r) => r.batch_code === activeBatch)), [bestByEmail, activeBatch, isAll]);
 
   const filtered = useMemo(() => {
-    const byBatch = activeBatch === ALL_BATCHES ? bestByEmail : bestByEmail.filter((r) => r.batch_code === activeBatch);
     const q = search.trim().toLowerCase();
-    const bySearch = q ? byBatch.filter((r) => r.email.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) : byBatch;
+    const bySearch = q ? inBatch.filter((r) => r.email.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) : inBatch;
     return [...bySearch].sort((a, b) => b.score_total - a.score_total);
-  }, [bestByEmail, activeBatch, search]);
+  }, [inBatch, search]);
 
-  const totalStudents = bestByEmail.length;
-  const totalBatches = batches.length - 1;
-  const overallAvg = totalStudents ? Math.round(bestByEmail.reduce((s, x) => s + x.score_total, 0) / totalStudents) : 0;
-  const batchSummaries = useMemo(() => summariseBatches(bestByEmail), [bestByEmail]);
+  // The header's numbers: one batch's summary, or every student pooled together
+  const summary = useMemo(() => {
+    if (!isAll) return batchSummaries.find((b) => b.batch === activeBatch) ?? null;
+    return summariseBatches(bestByEmail.map((r) => ({ ...r, batch_code: ALL_BATCHES })))[0] ?? null;
+  }, [isAll, activeBatch, batchSummaries, bestByEmail]);
+
+  const liveByBatch = useMemo(() => {
+    const counts = new Map<string, BatchLiveCount>();
+    for (const s of live.sessions) {
+      const c = counts.get(s.batch) ?? { live: 0, unsaved: 0 };
+      counts.set(s.batch, { live: c.live + 1, unsaved: c.unsaved + (s.status === "unsaved" ? 1 : 0) });
+    }
+    return counts;
+  }, [live.sessions]);
+  const liveHere = useMemo(() => (isAll ? live.sessions : live.sessions.filter((s) => s.batch === activeBatch)), [live.sessions, activeBatch, isAll]);
+  const unsavedHere = liveHere.filter((s) => s.status === "unsaved").length;
+
+  const overallAvg = bestByEmail.length ? Math.round(bestByEmail.reduce((s, x) => s + x.score_total, 0) / bestByEmail.length) : 0;
   const openProfile = (email: string) => nav(`/admin/student/${encodeURIComponent(email)}`);
+  const selectBatch = (b: string) => { setActiveBatch(b); setSearch(""); };
 
-  // ── Delete handler ──────────────────────────────────────────────────────────
+  // ── Deletes ─────────────────────────────────────────────────────────────────
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    // Delete ALL attempts by this email (not just best)
+    // Deletes ALL attempts by this email (not just the best)
     const error = await api<null>("DELETE", "/api/admin", { query: { target: "student", email: deleteTarget.email } })
       .then(() => null, (err: unknown) => errorMessage(err));
     setDeleting(false);
-    if (error) {
-      toast.error(`Delete failed: ${error}`);
-    } else {
+    if (error) toast.error(`Delete failed: ${error}`);
+    else {
       toast.success(`Deleted all runs for ${deleteTarget.name}`);
       setRows((prev) => prev.filter((r) => r.email !== deleteTarget.email));
     }
     setDeleteTarget(null);
   };
 
-  // ── Batch delete handler ────────────────────────────────────────────────────
   const confirmBatchDelete = async () => {
     if (!batchDeleteTarget) return;
     setBatchDeleting(true);
@@ -114,53 +102,43 @@ export default function Admin() {
     const error = await api<null>("DELETE", "/api/admin", { query: { target: "batch", batch: batchDeleteTarget } })
       .then(() => null, (err: unknown) => errorMessage(err));
     setBatchDeleting(false);
-    if (error) {
-      toast.error(`Batch delete failed: ${error}`);
-    } else {
+    if (error) toast.error(`Batch delete failed: ${error}`);
+    else {
       toast.success(`Deleted all runs for batch ${batchDeleteTarget}`);
       setRows((prev) => prev.filter((r) => r.batch_code !== batchDeleteTarget));
       if (activeBatch === batchDeleteTarget) setActiveBatch(ALL_BATCHES);
     }
     setBatchDeleteTarget(null);
-    setBatchDeleteConfirm("");
   };
 
-  // ── Stale live-session cleanup (manual — replaces the old nightly cron) ─────
+  // ── Stale live-session cleanup (manual) ─────────────────────────────────────
   const openStaleSessions = async () => {
-    let count: number;
     try {
-      ({ count } = await api<{ count: number }>("GET", "/api/staff", { query: { view: "stale-count", days: STALE_SESSION_DAYS } }));
+      const { count } = await api<{ count: number }>("GET", "/api/staff", { query: { view: "stale-count", days: STALE_SESSION_DAYS } });
+      setStaleSessionCount(count);
+      setStaleSessionsOpen(true);
     } catch (err) {
       toast.error(`Couldn't check stale sessions: ${errorMessage(err)}`);
-      return;
     }
-    setStaleSessionCount(count);
-    setStaleSessionsOpen(true);
   };
-
   const closeStaleSessions = () => { setStaleSessionsOpen(false); setStaleSessionCount(null); };
-
   const confirmClearStaleSessions = async () => {
     setStaleSessionsBusy(true);
     const error = await api<null>("DELETE", "/api/admin", { query: { target: "stale", days: STALE_SESSION_DAYS } })
       .then(() => null, (err: unknown) => errorMessage(err));
     setStaleSessionsBusy(false);
-    if (error) {
-      toast.error(`Clear failed: ${error}`);
-    } else {
+    if (error) toast.error(`Clear failed: ${error}`);
+    else {
       toast.success(`Cleared ${staleSessionCount ?? 0} stale live session(s). Saved scores are untouched.`);
+      live.reload();
     }
     closeStaleSessions();
   };
 
-  // ── CSV exports ─────────────────────────────────────────────────────────────
   const exportList = (list: readonly AttemptRow[], label: string) => {
-    downloadCSV(toCSV(list), `blinkit-sim-${label}-${Date.now()}.csv`);
+    downloadCsv(attemptsToCsv(list), `blinkit-sim-${label}-${Date.now()}.csv`);
     toast.success(`Exported ${list.length} records`);
   };
-  const exportBatch = () => exportList(activeBatch === ALL_BATCHES ? bestByEmail : bestByEmail.filter((r) => r.batch_code === activeBatch), activeBatch);
-
-  const closeBatchDelete = () => { setBatchDeleteTarget(null); setBatchDeleteConfirm(""); };
 
   return (
     <div className="min-h-screen w-full bg-background">
@@ -169,161 +147,128 @@ export default function Admin() {
         <PageHeader
           eyebrow="Admin"
           title="Admin panel"
-          description="Every saved run. Find where students lose points, open any profile, export data, and delete records."
-          actions={
-            <>
-              <Button variant="outline" className="gap-2" onClick={openStaleSessions}><Clock className="h-4 w-4" /> Clear stale sessions</Button>
-              <Button variant="outline" className="gap-2" onClick={exportBatch}><Download className="h-4 w-4" /> Export {activeBatch === ALL_BATCHES ? "all" : activeBatch} CSV</Button>
-              {activeBatch !== ALL_BATCHES && (
-                <Button variant="outline" className="gap-2" onClick={() => exportList(bestByEmail, "all")}><Download className="h-4 w-4" /> Export all CSV</Button>
-              )}
-            </>
-          }
+          description="Pick a batch to see its students, who is playing now, where they lose points, and how they are judged."
         />
 
-        <div className="mb-6 flex items-center gap-2 rounded-xl bg-sim-warn/10 px-4 py-2.5 text-sm text-sim-warn">
-          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-          Deleting here removes student data for good. It can't be undone.
-        </div>
+        <div className="grid gap-6 lg:grid-cols-[248px_minmax(0,1fr)]">
+          <aside className="max-h-72 overflow-y-auto lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start">
+            <BatchRail
+              batches={batchSummaries}
+              liveByBatch={liveByBatch}
+              allLabel={ALL_BATCHES}
+              totalStudents={bestByEmail.length}
+              overallAvg={overallAvg}
+              active={activeBatch}
+              onSelect={selectBatch}
+            />
+          </aside>
 
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <StatTile label="Students" value={totalStudents} />
-          <StatTile label="Batches" value={totalBatches} />
-          <StatTile label="Average best score" value={`${overallAvg} / 100`} />
-        </div>
+          <div className="min-w-0 space-y-5">
+            <BatchHeader
+              batch={isAll ? null : activeBatch}
+              students={inBatch.length}
+              avg={summary?.avg ?? 0}
+              top={summary?.top ?? null}
+              commonLoss={summary?.commonLoss ?? null}
+              live={liveHere.length}
+              onExport={() => exportList(inBatch, isAll ? "all" : activeBatch)}
+              onExportAll={() => exportList(bestByEmail, "all")}
+              onClearStale={openStaleSessions}
+              onDeleteBatch={() => setBatchDeleteTarget(activeBatch)}
+            />
 
-        <Tabs defaultValue="students" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="students">Students and batches</TabsTrigger>
-            <TabsTrigger value="live">Live now</TabsTrigger>
-            <TabsTrigger value="cohort">Cohort analysis</TabsTrigger>
-            <TabsTrigger value="scoring">How students are judged</TabsTrigger>
-          </TabsList>
+            {unsavedHere > 0 && tab !== "live" && (
+              <button
+                type="button"
+                onClick={() => setTab("live")}
+                className="flex w-full items-center gap-2 rounded-xl bg-sim-bad/10 px-4 py-2.5 text-left text-sm text-sim-bad hover:bg-sim-bad/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="flex-1">
+                  {unsavedHere} {unsavedHere === 1 ? "student finished but their score wasn't" : "students finished but their scores weren't"} saved.
+                </span>
+                <span className="flex items-center gap-1 font-medium">See who <ArrowRight className="h-3.5 w-3.5" aria-hidden /></span>
+              </button>
+            )}
 
-          <TabsContent value="students" className="space-y-6">
-            <Section title="Batches" description="Select a batch to filter the student list.">
-              <BatchTable
-                batches={batchSummaries}
-                activeBatch={activeBatch}
-                loading={loading}
-                onSelect={(b) => setActiveBatch((prev) => (prev === b ? ALL_BATCHES : b))}
-                renderActions={(batch) => (
-                  <div className="flex items-center justify-end gap-1">
-                    <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs" onClick={() => exportList(bestByEmail.filter((r) => r.batch_code === batch), batch)}>
-                      <Download className="h-3.5 w-3.5" /> CSV
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs text-destructive hover:bg-destructive/10" onClick={() => setBatchDeleteTarget(batch)} title="Delete entire batch">
-                      <Trash2 className="h-3.5 w-3.5" /> Delete batch
-                    </Button>
-                  </div>
+            <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)} className="space-y-5">
+              <TabsList>
+                <TabsTrigger value="students">Students<TabCount n={inBatch.length} /></TabsTrigger>
+                <TabsTrigger value="live">Live now<TabCount n={liveHere.length} tone={unsavedHere ? "bad" : "neutral"} /></TabsTrigger>
+                <TabsTrigger value="cohort">Cohort analysis</TabsTrigger>
+                <TabsTrigger value="scoring">How students are judged</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="students" className="space-y-5">
+                {isAll && batchSummaries.length > 1 && (
+                  <Section title="Batches compared" description="Open a batch to see only its students.">
+                    <BatchTable batches={batchSummaries} activeBatch={activeBatch} loading={loading} onSelect={selectBatch} />
+                  </Section>
                 )}
-              />
-            </Section>
+                <Section
+                  title={isAll ? "Every student" : `Students in ${activeBatch}`}
+                  description="Best run per student, highest first. Open a row for details, or the profile for every run."
+                  actions={
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                      <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or email" aria-label="Search students by name or email" className="h-8 w-56 pl-8 text-sm" />
+                    </div>
+                  }
+                >
+                  <StudentsTable
+                    rows={filtered}
+                    allRows={rows}
+                    loading={loading}
+                    error={loadError}
+                    onRetry={reload}
+                    onOpenProfile={openProfile}
+                    onDelete={setDeleteTarget}
+                    showBatch={isAll}
+                  />
+                </Section>
+              </TabsContent>
 
-            <Section
-              title="Students"
-              description="Best run per student. Open a row for details, or the profile for every run. The bin deletes all of a student's runs."
-              actions={
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex flex-wrap gap-1" role="group" aria-label="Filter by batch">
-                    {batches.map((b) => (
-                      <button
-                        key={b}
-                        type="button"
-                        aria-pressed={activeBatch === b}
-                        onClick={() => setActiveBatch(b)}
-                        className={`rounded-md px-2.5 py-1 text-xs font-medium ${activeBatch === b ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                      >{b}</button>
-                    ))}
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or email" aria-label="Search students by name or email" className="h-8 w-56 pl-8 text-sm" />
-                  </div>
-                </div>
-              }
-            >
-              <StudentsTable rows={filtered} allRows={rows} loading={loading} error={loadError} onRetry={reload} onOpenProfile={openProfile} onDelete={setDeleteTarget} />
-            </Section>
-          </TabsContent>
+              <TabsContent value="live">
+                <LiveSessionsView
+                  sessions={liveHere}
+                  loading={live.loading}
+                  error={live.error}
+                  loadedAt={live.loadedAt}
+                  onRefresh={live.reload}
+                  batchLabel={isAll ? undefined : activeBatch}
+                  showBatch={isAll}
+                />
+              </TabsContent>
 
-          <TabsContent value="live">
-            <LiveSessionsPanel attempts={rows} />
-          </TabsContent>
-
-          <TabsContent value="cohort">
-            <CohortTab loading={loading} error={loadError} onRetry={reload}>
-              <CohortAnalysis key={activeBatch} rows={rows} onOpenStudent={openProfile} initialBatch={activeBatch === ALL_BATCHES ? undefined : activeBatch} />
-            </CohortTab>
-          </TabsContent>
-          <TabsContent value="scoring">
-            <ScoringGuide />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="cohort">
+                <CohortTab loading={loading} error={loadError} onRetry={reload}>
+                  <CohortAnalysis key={activeBatch} rows={rows} onOpenStudent={openProfile} initialBatch={isAll ? undefined : activeBatch} />
+                </CohortTab>
+              </TabsContent>
+              <TabsContent value="scoring">
+                <ScoringGuide />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </SimPage>
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="sim-ui max-w-sm" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete this student's runs?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            This deletes every run saved for <span className="font-semibold text-foreground">{deleteTarget?.name}</span> ({deleteTarget?.email}). It can't be undone.
-          </p>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>{deleting ? "Deleting…" : "Delete for good"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Batch delete confirmation dialog — typed confirmation, higher blast radius */}
-      <Dialog open={!!batchDeleteTarget} onOpenChange={(o) => { if (!o) closeBatchDelete(); }}>
-        <DialogContent className="sim-ui max-w-sm" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /> Delete the whole batch?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            This deletes the runs of <span className="font-semibold text-foreground">{bestByEmail.filter((r) => r.batch_code === batchDeleteTarget).length}</span> students
-            in batch <span className="font-semibold text-foreground">{batchDeleteTarget}</span>. It can't be undone. Export a CSV first if you need the data.
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="batch-confirm" className="text-xs font-semibold text-foreground">
-              Type <span className="font-mono">{batchDeleteTarget}</span> to confirm
-            </label>
-            <Input id="batch-confirm" value={batchDeleteConfirm} onChange={(e) => setBatchDeleteConfirm(e.target.value)} placeholder={batchDeleteTarget ?? ""} autoComplete="off" />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeBatchDelete}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmBatchDelete} disabled={batchDeleting || batchDeleteConfirm !== batchDeleteTarget}>
-              {batchDeleting ? "Deleting…" : "Delete batch for good"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Stale live-session cleanup dialog — manual, replaces the old nightly cron */}
-      <Dialog open={staleSessionsOpen} onOpenChange={(o) => { if (!o) closeStaleSessions(); }}>
-        <DialogContent className="sim-ui max-w-sm" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Clock className="h-4 w-4 text-sim-warn" /> Clear stale live sessions?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {staleSessionCount === 0
-              ? `No live session has been inactive for more than ${STALE_SESSION_DAYS} days, so there is nothing to clear.`
-              : <>This removes <span className="font-semibold text-foreground">{staleSessionCount}</span> "in progress"
-                  marker{staleSessionCount === 1 ? "" : "s"} inactive for over {STALE_SESSION_DAYS} days.
-                  It only clears in-progress trackers. Saved scores and runs are <span className="font-semibold">not</span> touched.</>}
-          </p>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeStaleSessions}>Cancel</Button>
-            <Button onClick={confirmClearStaleSessions} disabled={staleSessionsBusy || !staleSessionCount}>
-              {staleSessionsBusy ? "Clearing…" : "Clear stale sessions"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteStudentDialog target={deleteTarget} busy={deleting} onCancel={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
+      <DeleteBatchDialog
+        batch={batchDeleteTarget}
+        students={bestByEmail.filter((r) => r.batch_code === batchDeleteTarget).length}
+        busy={batchDeleting}
+        onCancel={() => setBatchDeleteTarget(null)}
+        onConfirm={confirmBatchDelete}
+      />
+      <ClearStaleDialog
+        open={staleSessionsOpen}
+        count={staleSessionCount}
+        days={STALE_SESSION_DAYS}
+        busy={staleSessionsBusy}
+        onCancel={closeStaleSessions}
+        onConfirm={confirmClearStaleSessions}
+      />
     </div>
   );
 }
