@@ -463,6 +463,24 @@ export function SimProvider({ children }: { children: ReactNode }) {
   // The active run as of now, for the async cloud restore (its closure is stale)
   const activeRunIdNow = useRef(activeRunId);
   useEffect(() => { activeRunIdNow.current = activeRunId; }, [activeRunId]);
+  // Run history as of now, for the same reason
+  const runHistoryNow = useRef(runHistory);
+  useEffect(() => { runHistoryNow.current = runHistory; }, [runHistory]);
+  // The auto-save still on its way to the server, if any
+  const pendingSync = useRef<Promise<unknown>>(Promise.resolve());
+
+  /** Drops a set-aside run's live copy, after any auto-save of it has landed (else that save re-creates it). */
+  const dropSetAsideRun = (runId: string, email: string) => {
+    void pendingSync.current.finally(() =>
+      api<null>("DELETE", "/api/run-session", { query: { run_id: runId, email } })
+        .catch((error: unknown) => console.warn("[sim] couldn't drop the set-aside run", error)));
+  };
+
+  /** A run this browser set aside for a new brief: kept in history with its snapshot, and not the active run. */
+  const wasSetAside = (runId: string) => {
+    const entry = runHistoryNow.current.find((r) => r.id === runId);
+    return entry?.status === "in_progress" && !!entry.snapshot && activeRunIdNow.current !== runId;
+  };
 
   const setStudent = (s: Student) => {
     const incoming = s.email.trim().toLowerCase();
@@ -523,6 +541,11 @@ export function SimProvider({ children }: { children: ReactNode }) {
         "GET", "/api/run-session", { query: { email: s.email } });
       // A new brief was started while this was loading: keep it
       if (briefGeneration.current !== generationAtStart) return;
+      // A run set aside for a new brief must not replace it: drop its leftover copy again
+      if (sessionRow && wasSetAside(sessionRow.run_id)) {
+        dropSetAsideRun(sessionRow.run_id, s.email);
+        return;
+      }
       if (sessionRow && sessionRow.state) {
         const st: any = sessionRow.state;
         if (st.scenario) setScenario(st.scenario);
@@ -603,7 +626,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
       };
       const started = runHistory.find((r) => r.id === activeRunId)?.startedAt ?? new Date().toISOString();
       // The server forces a student's own email and stamps last_seen_at.
-      api<null>("PUT", "/api/run-session", {
+      pendingSync.current = api<null>("PUT", "/api/run-session", {
         body: {
           email: student.email,
           name: student.name,
@@ -680,10 +703,7 @@ export function SimProvider({ children }: { children: ReactNode }) {
         );
         // Its live copy on the server would otherwise come back as the active run on
         // the next sign-in and replace this new brief. It stays resumable from history.
-        if (student) {
-          api<null>("DELETE", "/api/run-session", { query: { run_id: activeRunId, email: student.email } })
-            .catch((error: unknown) => console.warn("[sim] couldn't drop the set-aside run", error));
-        }
+        if (student) dropSetAsideRun(activeRunId, student.email);
       }
     }
     setScenario(generateScenario(profileId));
